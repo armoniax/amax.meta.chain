@@ -6,7 +6,7 @@ echo "Disk install: ${DISK_INSTALL}"
 echo "Disk space total: ${DISK_TOTAL}G"
 echo "Disk space available: ${DISK_AVAIL}G"
 
-[[ "${OS_MIN}" -lt 14 ]] && echo "You must be running Mac OS 10.14.x or higher to install AMAX." && exit 1
+[[ $(( OS_MAJ*100+OS_MIN )) -lt 1014 ]] && echo "You must be running Mac OS 10.14.x or higher to install NCHAIN." && exit 1
 
 [[ $MEM_GIG -lt 7 ]] && echo "Your system must have 7 or more Gigabytes of physical memory installed." && exit 1
 [[ "${DISK_AVAIL}" -lt "${DISK_MIN}" ]] && echo " - You must have at least ${DISK_MIN}GB of available storage to install AMAX." && exit 1
