@@ -1,0 +1,24 @@
+[submodule "libraries/chainbase"]
+	path = libraries/chainbase
+	url = ../../eosio/chainbase
+[submodule "libraries/appbase"]
+	path = libraries/appbase
+	url = ../../eosio/appbase
+[submodule "libraries/softfloat"]
+	path = libraries/softfloat
+	url = ../../eosio/berkeley-softfloat-3
+[submodule "libraries/fc"]
+	path = libraries/fc
+	url = ../../EOSIO/fc
+[submodule "libraries/wabt"]
+	path = libraries/wabt
+	url = ../../EOSIO/wabt
+[submodule "libraries/yubihsm"]
+	path = libraries/yubihsm
+	url = ../../Yubico/yubihsm-shell
+[submodule "libraries/eos-vm"]
+	path = libraries/eos-vm
+	url = ../../eosio/eos-vm
+[submodule "wasm-spec-tests"]
+	path = wasm-spec-tests
+	url = ../../EOSIO/eosio-wasm-spec-tests

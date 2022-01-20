@@ -1,0 +1,5 @@
+add_subdirectory( amaxnd )
+add_subdirectory( amaxcl )
+add_subdirectory( amaxkm )
+add_subdirectory( amax-launcher )
+add_subdirectory( amax-launcher )
