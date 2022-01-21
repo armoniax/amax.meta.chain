@@ -66,12 +66,12 @@ verifyErrorCode()
 
 killAll()
 {
-  programs/eosio-launcher/eosio-launcher -k 15
+  programs/amax-launcher/amax-launcher -k 15
 }
 
 cleanup()
 {
-    rm -rf etc/eosio/node_*
+    rm -rf etc/amax/node_*
     rm -rf var/lib/node_*
 }
 
@@ -114,7 +114,7 @@ cleanup
 # stand up amaxnd cluster
 launcherOpts="-p $pnodes -n $total_nodes -s $topo -d $delay"
 echo Launcher options: --amaxnd \"--plugin eosio::wallet_api_plugin\" $launcherOpts
-programs/eosio-launcher/eosio-launcher --amaxnd "--plugin eosio::wallet_api_plugin" $launcherOpts
+programs/amax-launcher/amax-launcher --amaxnd "--plugin eosio::wallet_api_plugin" $launcherOpts
 sleep 7
 
 startPort=8888

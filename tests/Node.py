@@ -27,7 +27,7 @@ class Node(object):
 
     # pylint: disable=too-many-instance-attributes
     # pylint: disable=too-many-arguments
-    def __init__(self, host, port, pid=None, cmd=None, walletMgr=None, enableMongo=False, mongoHost="localhost", mongoPort=27017, mongoDb="EOStest"):
+    def __init__(self, host, port, pid=None, cmd=None, walletMgr=None, enableMongo=False, mongoHost="localhost", mongoPort=27017, mongoDb="AMAtest"):
         self.host=host
         self.port=port
         self.pid=pid
@@ -253,7 +253,7 @@ class Node(object):
             cmdDesc="get block"
             cmd="%s %d" % (cmdDesc, blockNum)
             msg="(block number=%s)" % (blockNum);
-            return self.processCleosCmd(cmd, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=msg)
+            return self.processAmaxclCmd(cmd, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=msg)
         else:
             cmd="%s %s" % (Utils.MongoPath, self.mongoEndpointArgs)
             subcommand='db.blocks.findOne( { "block_num": %d } )' % (blockNum)
@@ -345,7 +345,7 @@ class Node(object):
             cmd="%s %s" % (cmdDesc, transId)
             msg="(transaction id=%s)" % (transId);
             for i in range(0,(int(60/timeout) - 1)):
-                trans=self.processCleosCmd(cmd, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnErrorForDelayed, exitMsg=msg)
+                trans=self.processAmaxclCmd(cmd, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnErrorForDelayed, exitMsg=msg)
                 if trans is not None or not delayedRetry:
                     return trans
                 if Utils.Debug: Utils.Print("Could not find transaction with id %s, delay and retry" % (transId))
@@ -353,7 +353,7 @@ class Node(object):
 
             self.missingTransaction=True
             # either it is there or the transaction has timed out
-            return self.processCleosCmd(cmd, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=msg)
+            return self.processAmaxclCmd(cmd, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnError, exitMsg=msg)
         else:
             for i in range(0,(int(60/timeout) - 1)):
                 trans=self.getTransactionMdb(transId, silentErrors=silentErrors, exitOnError=exitOnErrorForDelayed)
@@ -516,7 +516,7 @@ class Node(object):
             cmdDesc, creatorAccount.name, account.name, account.ownerPublicKey,
             account.activePublicKey, stakeNet, CORE_SYMBOL, stakeCPU, CORE_SYMBOL, buyRAM, CORE_SYMBOL)
         msg="(creator account=%s, account=%s)" % (creatorAccount.name, account.name);
-        trans=self.processCleosCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError, exitMsg=msg)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)
         transId=Node.getTransId(trans)
 
@@ -534,7 +534,7 @@ class Node(object):
         cmd="%s -j %s %s %s %s" % (
             cmdDesc, creatorAccount.name, account.name, account.ownerPublicKey, account.activePublicKey)
         msg="(creator account=%s, account=%s)" % (creatorAccount.name, account.name);
-        trans=self.processCleosCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError, exitMsg=msg)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)
         transId=Node.getTransId(trans)
 
@@ -553,7 +553,7 @@ class Node(object):
             jsonFlag="-j" if returnType==ReturnType.json else ""
             cmd="%s %s %s" % (cmdDesc, jsonFlag, name)
             msg="( getEosAccount(name=%s) )" % (name);
-            return self.processCleosCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError, exitMsg=msg, returnType=returnType)
+            return self.processAmaxclCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError, exitMsg=msg, returnType=returnType)
         else:
             assert returnType == ReturnType.json, "MongoDB only supports a returnType of ReturnType.json"
             return self.getEosAccountFromDb(name, exitOnError=exitOnError)
@@ -588,7 +588,7 @@ class Node(object):
         cmdDesc = "get table"
         cmd="%s %s %s %s" % (cmdDesc, contract, scope, table)
         msg="contract=%s, scope=%s, table=%s" % (contract, scope, table);
-        return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        return self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
 
     def getTableAccountBalance(self, contract, scope):
         assert(isinstance(contract, str))
@@ -612,7 +612,7 @@ class Node(object):
         cmdDesc = "get currency balance"
         cmd="%s %s %s %s" % (cmdDesc, contract, account, symbol)
         msg="contract=%s, account=%s, symbol=%s" % (contract, account, symbol);
-        return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg, returnType=ReturnType.raw)
+        return self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg, returnType=ReturnType.raw)
 
     def getCurrencyStats(self, contract, symbol=CORE_SYMBOL, exitOnError=False):
         """returns Json output from get currency stats."""
@@ -623,7 +623,7 @@ class Node(object):
         cmdDesc = "get currency stats"
         cmd="%s %s %s" % (cmdDesc, contract, symbol)
         msg="contract=%s, symbol=%s" % (contract, symbol);
-        return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        return self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
 
     # Verifies account. Returns "get account" json return object
     def verifyAccount(self, account):
@@ -704,7 +704,7 @@ class Node(object):
         assert(isinstance(destination, Account))
 
         cmd="%s %s -v transfer -j %s %s" % (
-            Utils.EosClientPath, self.eosClientArgs(), source.name, destination.name)
+            Utils.AmaxClientPath, self.eosClientArgs(), source.name, destination.name)
         cmdArr=cmd.split()
         cmdArr.append(amountStr)
         cmdArr.append(memo)
@@ -803,7 +803,7 @@ class Node(object):
         cmdDesc = "get accounts"
         cmd="%s %s" % (cmdDesc, key)
         msg="key=%s" % (key);
-        return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        return self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
 
     # Get actions mapped to an account (amaxcl get actions)
     def getActions(self, account, pos=-1, offset=-1, exitOnError=False):
@@ -815,7 +815,7 @@ class Node(object):
             cmdDesc = "get actions"
             cmd="%s -j %s %d %d" % (cmdDesc, account.name, pos, offset)
             msg="account=%s, pos=%d, offset=%d" % (account.name, pos, offset);
-            return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+            return self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
         else:
             return self.getActionsMdb(account, pos, offset, exitOnError=exitOnError)
 
@@ -858,7 +858,7 @@ class Node(object):
         cmdDesc = "get servants"
         cmd="%s %s" % (cmdDesc, name)
         msg="name=%s" % (name);
-        return self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        return self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
 
     def getServantsArr(self, name):
         trans=self.getServants(name, exitOnError=True)
@@ -880,7 +880,7 @@ class Node(object):
         return balance
 
     def getAccountCodeHash(self, account):
-        cmd="%s %s get code %s" % (Utils.EosClientPath, self.eosClientArgs(), account)
+        cmd="%s %s get code %s" % (Utils.AmaxClientPath, self.eosClientArgs(), account)
         if Utils.Debug: Utils.Print("cmd: %s" % (cmd))
         start=time.perf_counter()
         try:
@@ -905,7 +905,7 @@ class Node(object):
 
     # publish contract and return transaction as json object
     def publishContract(self, account, contractDir, wasmFile, abiFile, waitForTransBlock=False, shouldFail=False):
-        cmd="%s %s -v set contract -j %s %s" % (Utils.EosClientPath, self.eosClientArgs(), account, contractDir)
+        cmd="%s %s -v set contract -j %s %s" % (Utils.AmaxClientPath, self.eosClientArgs(), account, contractDir)
         cmd += "" if wasmFile is None else (" "+ wasmFile)
         cmd += "" if abiFile is None else (" " + abiFile)
         if Utils.Debug: Utils.Print("cmd: %s" % (cmd))
@@ -965,7 +965,7 @@ class Node(object):
 
     # returns tuple with transaction and
     def pushMessage(self, account, action, data, opts, silentErrors=False):
-        cmd="%s %s push action -j %s %s" % (Utils.EosClientPath, self.eosClientArgs(), account, action)
+        cmd="%s %s push action -j %s %s" % (Utils.AmaxClientPath, self.eosClientArgs(), account, action)
         cmdArr=cmd.split()
         if data is not None:
             cmdArr.append(data)
@@ -991,7 +991,7 @@ class Node(object):
     def setPermission(self, account, code, pType, requirement, waitForTransBlock=False, exitOnError=False):
         cmdDesc="set action permission"
         cmd="%s -j %s %s %s %s" % (cmdDesc, account, code, pType, requirement)
-        trans=self.processCleosCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, silentErrors=False, exitOnError=exitOnError)
         self.trackCmdTransaction(trans)
 
         return self.waitForTransBlockIfNeeded(trans, waitForTransBlock, exitOnError=exitOnError)
@@ -1005,7 +1005,7 @@ class Node(object):
         cmd="%s -j %s %s \"%s %s\" \"%s %s\" %s" % (
             cmdDesc, fromAccount.name, toAccount.name, netQuantity, CORE_SYMBOL, cpuQuantity, CORE_SYMBOL, transferStr)
         msg="fromAccount=%s, toAccount=%s" % (fromAccount.name, toAccount.name);
-        trans=self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)
 
         return self.waitForTransBlockIfNeeded(trans, waitForTransBlock, exitOnError=exitOnError)
@@ -1018,7 +1018,7 @@ class Node(object):
         cmd="%s -j %s %s \"%s %s\" \"%s %s\"" % (
             cmdDesc, fromAccount.name, toAccount.name, netQuantity, CORE_SYMBOL, cpuQuantity, CORE_SYMBOL)
         msg="fromAccount=%s, toAccount=%s" % (fromAccount.name, toAccount.name);
-        trans=self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)
 
         return self.waitForTransBlockIfNeeded(trans, waitForTransBlock, exitOnError=exitOnError)
@@ -1028,7 +1028,7 @@ class Node(object):
         cmd="%s -j %s %s %s %s" % (
             cmdDesc, producer.name, producer.activePublicKey, url, location)
         msg="producer=%s" % (producer.name);
-        trans=self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)
 
         return self.waitForTransBlockIfNeeded(trans, waitForTransBlock, exitOnError=exitOnError)
@@ -1038,14 +1038,14 @@ class Node(object):
         cmd="%s -j %s %s" % (
             cmdDesc, account.name, " ".join(producers))
         msg="account=%s, producers=[ %s ]" % (account.name, ", ".join(producers));
-        trans=self.processCleosCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
+        trans=self.processAmaxclCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)
 
         return self.waitForTransBlockIfNeeded(trans, waitForTransBlock, exitOnError=exitOnError)
 
-    def processCleosCmd(self, cmd, cmdDesc, silentErrors=True, exitOnError=False, exitMsg=None, returnType=ReturnType.json):
+    def processAmaxclCmd(self, cmd, cmdDesc, silentErrors=True, exitOnError=False, exitMsg=None, returnType=ReturnType.json):
         assert(isinstance(returnType, ReturnType))
-        cmd="%s %s %s" % (Utils.EosClientPath, self.eosClientArgs(), cmd)
+        cmd="%s %s %s" % (Utils.AmaxClientPath, self.eosClientArgs(), cmd)
         if Utils.Debug: Utils.Print("cmd: %s" % (cmd))
         if exitMsg is not None:
             exitMsg="Context: " + exitMsg
@@ -1163,7 +1163,7 @@ class Node(object):
 
     def getInfo(self, silentErrors=False, exitOnError=False):
         cmdDesc = "get info"
-        info=self.processCleosCmd(cmdDesc, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnError)
+        info=self.processAmaxclCmd(cmdDesc, cmdDesc, silentErrors=silentErrors, exitOnError=exitOnError)
         if info is None:
             self.infoValid=False
         else:
@@ -1553,8 +1553,8 @@ class Node(object):
         for digest in featureDigests:
             Utils.Print("push activate action with digest {}".format(digest))
             data="{{\"feature_digest\":{}}}".format(digest)
-            opts="--permission eosio@active"
-            trans=self.pushMessage("eosio", "activate", data, opts)
+            opts="--permission amax@active"
+            trans=self.pushMessage("amax", "activate", data, opts)
             if trans is None or not trans[0]:
                 Utils.Print("ERROR: Failed to preactive digest {}".format(digest))
                 return None
@@ -1568,7 +1568,7 @@ class Node(object):
     def getLatestBlockHeaderState(self):
         headBlockNum = self.getHeadBlockNum()
         cmdDesc = "get block {} --header-state".format(headBlockNum)
-        latestBlockHeaderState = self.processCleosCmd(cmdDesc, cmdDesc)
+        latestBlockHeaderState = self.processAmaxclCmd(cmdDesc, cmdDesc)
         return latestBlockHeaderState
 
     def getActivatedProtocolFeatures(self):

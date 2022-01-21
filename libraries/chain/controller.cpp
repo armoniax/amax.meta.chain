@@ -337,20 +337,20 @@ struct controller_impl {
    set_apply_handler( account_name(#receiver), account_name(#contract), action_name(#action), \
                       &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
 
-   SET_APP_HANDLER( eosio, eosio, newaccount );
-   SET_APP_HANDLER( eosio, eosio, setcode );
-   SET_APP_HANDLER( eosio, eosio, setabi );
-   SET_APP_HANDLER( eosio, eosio, updateauth );
-   SET_APP_HANDLER( eosio, eosio, deleteauth );
-   SET_APP_HANDLER( eosio, eosio, linkauth );
-   SET_APP_HANDLER( eosio, eosio, unlinkauth );
+   SET_APP_HANDLER( amax, amax, newaccount );
+   SET_APP_HANDLER( amax, amax, setcode );
+   SET_APP_HANDLER( amax, amax, setabi );
+   SET_APP_HANDLER( amax, amax, updateauth );
+   SET_APP_HANDLER( amax, amax, deleteauth );
+   SET_APP_HANDLER( amax, amax, linkauth );
+   SET_APP_HANDLER( amax, amax, unlinkauth );
 /*
-   SET_APP_HANDLER( eosio, eosio, postrecovery );
-   SET_APP_HANDLER( eosio, eosio, passrecovery );
-   SET_APP_HANDLER( eosio, eosio, vetorecovery );
+   SET_APP_HANDLER( amax, amax, postrecovery );
+   SET_APP_HANDLER( amax, amax, passrecovery );
+   SET_APP_HANDLER( amax, amax, vetorecovery );
 */
 
-   SET_APP_HANDLER( eosio, eosio, canceldelay );
+   SET_APP_HANDLER( amax, amax, canceldelay );
    }
 
    /**
@@ -1002,7 +1002,7 @@ struct controller_impl {
          a.creation_date = initial_timestamp;
 
          if( name == config::system_account_name ) {
-            // The initial eosio ABI value affects consensus; see  https://github.com/EOSIO/eos/issues/7794
+            // The initial amax ABI value affects consensus; see  https://github.com/EOSIO/eos/issues/7794
             // TODO: This doesn't charge RAM; a fix requires a consensus upgrade.
             a.abi.resize(sizeof(eosio_abi_bin));
             memcpy(a.abi.data(), eosio_abi_bin, sizeof(eosio_abi_bin));

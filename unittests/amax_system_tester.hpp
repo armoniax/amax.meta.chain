@@ -21,16 +21,16 @@ using mvo = fc::mutable_variant_object;
 #endif
 #endif
 
-namespace eosio_system {
+namespace amax_system {
 
-class eosio_system_tester : public TESTER {
+class amax_system_tester : public TESTER {
 public:
 
-   eosio_system_tester()
-   : eosio_system_tester([](TESTER& ) {}){}
+   amax_system_tester()
+   : amax_system_tester([](TESTER& ) {}){}
 
    template<typename Lambda>
-   eosio_system_tester(Lambda setup) {
+   amax_system_tester(Lambda setup) {
       setup(*this);
 
       produce_blocks( 2 );
@@ -40,8 +40,8 @@ public:
 
       produce_blocks( 100 );
 
-      set_code( N(amax.token), contracts::eosio_token_wasm() );
-      set_abi( N(amax.token), contracts::eosio_token_abi().data() );
+      set_code( N(amax.token), contracts::amax_token_wasm() );
+      set_abi( N(amax.token), contracts::amax_token_abi().data() );
 
       {
          const auto& accnt = control->db().get<account_object,by_name>( N(amax.token) );
@@ -52,10 +52,10 @@ public:
 
       create_currency( N(amax.token), config::system_account_name, core_from_string("10000000000.0000") );
       issue(config::system_account_name,      core_from_string("1000000000.0000"));
-      BOOST_REQUIRE_EQUAL( core_from_string("1000000000.0000"), get_balance( name("eosio") ) );
+      BOOST_REQUIRE_EQUAL( core_from_string("1000000000.0000"), get_balance( name("amax") ) );
 
-      set_code( config::system_account_name, contracts::eosio_system_wasm() );
-      set_abi( config::system_account_name, contracts::eosio_system_abi().data() );
+      set_code( config::system_account_name, contracts::amax_system_wasm() );
+      set_abi( config::system_account_name, contracts::amax_system_abi().data() );
 
       base_tester::push_action(config::system_account_name, N(init),
                             config::system_account_name,  mutable_variant_object()
@@ -76,7 +76,7 @@ public:
       create_account_with_resources( N(carol1111111), config::system_account_name, core_from_string("1.0000"), false );
 
       BOOST_REQUIRE_EQUAL( core_from_string("1000000000.0000"),
-            get_balance(name("eosio")) + get_balance(name("amax.ramfee")) + get_balance(name("amax.stake")) + get_balance(name("amax.ram")) );
+            get_balance(name("amax")) + get_balance(name("amax.ramfee")) + get_balance(name("amax.stake")) + get_balance(name("amax.ram")) );
    }
 
    action_result open( account_name  owner,
@@ -412,7 +412,7 @@ public:
       abi_serializer msig_abi_ser;
       {
          create_account_with_resources( N(amax.msig), config::system_account_name );
-         BOOST_REQUIRE_EQUAL( success(), buyram( name("eosio"), name("amax.msig"), core_from_string("5000.0000") ) );
+         BOOST_REQUIRE_EQUAL( success(), buyram( name("amax"), name("amax.msig"), core_from_string("5000.0000") ) );
          produce_block();
 
          auto trace = base_tester::push_action(config::system_account_name, N(setpriv),
@@ -421,8 +421,8 @@ public:
                                                ("is_priv", 1)
          );
 
-         set_code( N(amax.msig), contracts::eosio_msig_wasm() );
-         set_abi( N(amax.msig), contracts::eosio_msig_abi().data() );
+         set_code( N(amax.msig), contracts::amax_msig_wasm() );
+         set_abi( N(amax.msig), contracts::amax_msig_abi().data() );
 
          produce_blocks();
          const auto& accnt = control->db().get<account_object,by_name>( N(amax.msig) );
@@ -434,8 +434,8 @@ public:
    }
 
    vector<name> active_and_vote_producers() {
-      //stake more than 15% of total EOS supply to activate chain
-      transfer( name("eosio"), name("alice1111111"), core_from_string("650000000.0000"), name("eosio") );
+      //stake more than 15% of total AMA supply to activate chain
+      transfer( name("amax"), name("alice1111111"), core_from_string("650000000.0000"), name("amax") );
       BOOST_REQUIRE_EQUAL( success(), stake( name("alice1111111"), name("alice1111111"), core_from_string("300000000.0000"), core_from_string("300000000.0000") ) );
 
       // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers

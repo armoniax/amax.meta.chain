@@ -66,8 +66,8 @@ std::vector<genesis_account> test_genesis( {
 class bootseq_tester : public TESTER {
 public:
    void deploy_contract( bool call_init = true ) {
-      set_code( config::system_account_name, contracts::eosio_system_wasm() );
-      set_abi( config::system_account_name, contracts::eosio_system_abi().data() );
+      set_code( config::system_account_name, contracts::amax_system_wasm() );
+      set_abi( config::system_account_name, contracts::amax_system_abi().data() );
       if( call_init ) {
          base_tester::push_action(config::system_account_name, N(init),
                                   config::system_account_name,  mutable_variant_object()
@@ -191,31 +191,31 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
         // Create amax.msig and amax.token
         create_accounts({N(amax.msig), N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake), N(amax.vpay), N(amax.bpay), N(amax.saving) });
         // Set code for the following accounts:
-        //  - eosio (code: amax.bios) (already set by tester constructor)
+        //  - amax (code: amax.bios) (already set by tester constructor)
         //  - amax.msig (code: amax.msig)
         //  - amax.token (code: amax.token)
-        // set_code_abi(N(amax.msig), contracts::eosio_msig_wasm(), contracts::eosio_msig_abi().data());//, &eosio_active_pk);
-        // set_code_abi(N(amax.token), contracts::eosio_token_wasm(), contracts::eosio_token_abi().data()); //, &eosio_active_pk);
+        // set_code_abi(N(amax.msig), contracts::amax_msig_wasm(), contracts::amax_msig_abi().data());//, &eosio_active_pk);
+        // set_code_abi(N(amax.token), contracts::amax_token_wasm(), contracts::amax_token_abi().data()); //, &eosio_active_pk);
 
         set_code_abi(N(amax.msig),
-                     contracts::eosio_msig_wasm(),
-                     contracts::eosio_msig_abi().data());//, &eosio_active_pk);
+                     contracts::amax_msig_wasm(),
+                     contracts::amax_msig_abi().data());//, &eosio_active_pk);
         set_code_abi(N(amax.token),
-                     contracts::eosio_token_wasm(),
-                     contracts::eosio_token_abi().data()); //, &eosio_active_pk);
+                     contracts::amax_token_wasm(),
+                     contracts::amax_token_abi().data()); //, &eosio_active_pk);
 
         // Set privileged for amax.msig and amax.token
         set_privileged(N(amax.msig));
         set_privileged(N(amax.token));
 
         // Verify amax.msig and amax.token is privileged
-        const auto& eosio_msig_acc = get<account_metadata_object, by_name>(N(amax.msig));
-        BOOST_TEST(eosio_msig_acc.is_privileged() == true);
-        const auto& eosio_token_acc = get<account_metadata_object, by_name>(N(amax.token));
-        BOOST_TEST(eosio_token_acc.is_privileged() == true);
+        const auto& amax_msig_acc = get<account_metadata_object, by_name>(N(amax.msig));
+        BOOST_TEST(amax_msig_acc.is_privileged() == true);
+        const auto& amax_token_acc = get<account_metadata_object, by_name>(N(amax.token));
+        BOOST_TEST(amax_token_acc.is_privileged() == true);
 
 
-        // Create SYS tokens in amax.token, set its manager as eosio
+        // Create SYS tokens in amax.token, set its manager as amax
         auto max_supply = core_from_string("10000000000.0000"); /// 1x larger than 1B initial tokens
         auto initial_supply = core_from_string("1000000000.0000"); /// 1x larger than 1B initial tokens
         create_currency(N(amax.token), config::system_account_name, max_supply);
@@ -282,7 +282,7 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
         produce_blocks_for_n_rounds(2); // 2 rounds since new producer schedule is set when the first block of next round is irreversible
         auto active_schedule = control->head_block_state()->active_schedule;
         BOOST_TEST(active_schedule.producers.size() == 1u);
-        BOOST_TEST(active_schedule.producers.front().producer_name == name("eosio"));
+        BOOST_TEST(active_schedule.producers.front().producer_name == name("amax"));
 
         // Spend some time so the producer pay pool is filled by the inflation rate
         produce_min_num_of_blocks_to_spend_time_wo_inactive_prod(fc::seconds(30 * 24 * 3600)); // 30 days

@@ -53,7 +53,7 @@ class Utils:
     Debug=False
     FNull = open(os.devnull, 'w')
 
-    EosClientPath="programs/amaxcl/amaxcl"
+    AmaxClientPath="programs/amaxcl/amaxcl"
     MiscEosClientArgs="--no-auto-amaxks"
 
     EosWalletName="amaxks"
@@ -62,16 +62,16 @@ class Utils:
     EosServerName="amaxnd"
     EosServerPath="programs/amaxnd/"+ EosServerName
 
-    EosLauncherPath="programs/eosio-launcher/eosio-launcher"
+    EosLauncherPath="programs/amax-launcher/amax-launcher"
     MongoPath="mongo"
     ShuttingDown=False
     CheckOutputDeque=deque(maxlen=10)
 
-    EosBlockLogPath="programs/eosio-blocklog/eosio-blocklog"
+    EosBlockLogPath="programs/amax-blocklog/amax-blocklog"
 
     FileDivider="================================================================="
     DataDir="var/lib/"
-    ConfigDir="etc/eosio/"
+    ConfigDir="etc/amax/"
 
     TimeFmt='%Y-%m-%dT%H:%M:%S.%f'
 

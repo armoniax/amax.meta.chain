@@ -151,7 +151,7 @@ endif()
 message( STATUS "Using '${CORE_SYMBOL_NAME}' as CORE symbol name" )
 
 if ("${AMAX_ROOT_KEY}" STREQUAL "")
-   set(AMAX_ROOT_KEY "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
+   set(AMAX_ROOT_KEY "AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 endif()
 
 message( STATUS "Using '${AMAX_ROOT_KEY}' as public key for 'amax' account" )
@@ -178,11 +178,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testnet.template ${CMAKE_CURRENT_BINA
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amax.version.in ${CMAKE_CURRENT_BINARY_DIR}/amax.version.hpp)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/amax.version.hpp DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR})
 
-set(EOS_ROOT_DIR ${CMAKE_BINARY_DIR})
+set(AMA_ROOT_DIR ${CMAKE_BINARY_DIR})
 configure_file(${CMAKE_SOURCE_DIR}/CMakeModules/amax-config.cmake.in ${CMAKE_BINARY_DIR}/lib/cmake/amax/amax-config.cmake @ONLY)
 configure_file(${CMAKE_SOURCE_DIR}/CMakeModules/EosioTesterBuild.cmake.in ${CMAKE_BINARY_DIR}/lib/cmake/amax/EosioTester.cmake @ONLY)
 
-set(EOS_ROOT_DIR ${CMAKE_INSTALL_PREFIX})
+set(AMA_ROOT_DIR ${CMAKE_INSTALL_PREFIX})
 configure_file(${CMAKE_SOURCE_DIR}/CMakeModules/amax-config.cmake.in ${CMAKE_BINARY_DIR}/modules/amax-config.cmake @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/modules/amax-config.cmake DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/amax)
 configure_file(${CMAKE_SOURCE_DIR}/CMakeModules/EosioTester.cmake.in ${CMAKE_BINARY_DIR}/modules/EosioTester.cmake @ONLY)

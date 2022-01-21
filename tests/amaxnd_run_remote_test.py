@@ -7,10 +7,10 @@ from TestHelper import TestHelper
 import subprocess
 
 ###############################################################
-# nodeos_run_remote_test
+# amaxnd_run_remote_test
 #
-#  Tests remote capability of the nodeos_run_test. Test will setup cluster and pass nodes info to nodeos_run_test. E.g.
-#  nodeos_run_remote_test.py -v --clean-run --dump-error-detail
+#  Tests remote capability of the amaxnd_run_test. Test will setup cluster and pass nodes info to amaxnd_run_test. E.g.
+#  amaxnd_run_remote_test.py -v --clean-run --dump-error-detail
 #
 ###############################################################
 
@@ -32,7 +32,7 @@ delay=1
 prodCount=1 # producers per producer node
 pnodes=1
 total_nodes=pnodes
-actualTest="tests/nodeos_run_test.py"
+actualTest="tests/amaxnd_run_test.py"
 testSuccessful=False
 
 cluster=Cluster(walletd=True)
@@ -46,7 +46,7 @@ try:
     Print("Stand up cluster")
 
     if cluster.launch(pnodes=pnodes, totalNodes=total_nodes, prodCount=prodCount, topo=topo, delay=delay, onlyBios=onlyBios) is False:
-        errorExit("Failed to stand up eos cluster.")
+        errorExit("Failed to stand up ama cluster.")
 
     Print ("Wait for Cluster stabilization")
     # wait for cluster to start producing blocks

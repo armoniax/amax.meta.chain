@@ -71,13 +71,13 @@ class currency_tester : public TESTER {
       }
 
       currency_tester()
-         :TESTER(),abi_ser(json::from_string(contracts::eosio_token_abi().data()).as<abi_def>(), abi_serializer::create_yield_function( abi_serializer_max_time ))
+         :TESTER(),abi_ser(json::from_string(contracts::amax_token_abi().data()).as<abi_def>(), abi_serializer::create_yield_function( abi_serializer_max_time ))
       {
          create_account( N(amax.token));
-         set_code( N(amax.token), contracts::eosio_token_wasm() );
+         set_code( N(amax.token), contracts::amax_token_wasm() );
 
          auto result = push_action(N(amax.token), N(create), mutable_variant_object()
-                 ("issuer",       eosio_token)
+                 ("issuer",       amax_token)
                  ("maximum_supply", "1000000000.0000 CUR")
                  ("can_freeze", 0)
                  ("can_recall", 0)
@@ -86,7 +86,7 @@ class currency_tester : public TESTER {
          wdump((result));
 
          result = push_action(N(amax.token), N(issue), mutable_variant_object()
-                 ("to",       eosio_token)
+                 ("to",       amax_token)
                  ("quantity", "1000000.0000 CUR")
                  ("memo", "gggggggggggg")
          );
@@ -95,10 +95,10 @@ class currency_tester : public TESTER {
       }
 
       abi_serializer abi_ser;
-      static const name eosio_token;
+      static const name amax_token;
 };
 
-const name currency_tester::eosio_token = N(amax.token);
+const name currency_tester::amax_token = N(amax.token);
 
 BOOST_AUTO_TEST_SUITE(currency_tests)
 
@@ -115,7 +115,7 @@ BOOST_FIXTURE_TEST_CASE( test_transfer, currency_tester ) try {
    // make a transfer from the contract to a user
    {
       auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-         ("from", eosio_token)
+         ("from", amax_token)
          ("to",   "alice")
          ("quantity", "100.0000 CUR")
          ("memo", "fund Alice")
@@ -132,14 +132,14 @@ BOOST_FIXTURE_TEST_CASE( test_duplicate_transfer, currency_tester ) {
    create_accounts( {N(alice)} );
 
    auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-      ("from", eosio_token)
+      ("from", amax_token)
       ("to",   "alice")
       ("quantity", "100.0000 CUR")
       ("memo", "fund Alice")
    );
 
    BOOST_REQUIRE_THROW(push_action(N(amax.token), N(transfer), mutable_variant_object()
-                                    ("from", eosio_token)
+                                    ("from", amax_token)
                                     ("to",   "alice")
                                     ("quantity", "100.0000 CUR")
                                     ("memo", "fund Alice")),
@@ -157,7 +157,7 @@ BOOST_FIXTURE_TEST_CASE( test_addtransfer, currency_tester ) try {
    // make a transfer from the contract to a user
    {
       auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-         ("from", eosio_token)
+         ("from", amax_token)
          ("to",   "alice")
          ("quantity", "100.0000 CUR")
          ("memo", "fund Alice")
@@ -172,7 +172,7 @@ BOOST_FIXTURE_TEST_CASE( test_addtransfer, currency_tester ) try {
    // make a transfer from the contract to a user
    {
       auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-         ("from", eosio_token)
+         ("from", amax_token)
          ("to",   "alice")
          ("quantity", "10.0000 CUR")
          ("memo", "add Alice")
@@ -192,7 +192,7 @@ BOOST_FIXTURE_TEST_CASE( test_overspend, currency_tester ) try {
    // make a transfer from the contract to a user
    {
       auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-         ("from", eosio_token)
+         ("from", amax_token)
          ("to",   "alice")
          ("quantity", "100.0000 CUR")
          ("memo", "fund Alice")
@@ -227,7 +227,7 @@ BOOST_FIXTURE_TEST_CASE( test_fullspend, currency_tester ) try {
    // make a transfer from the contract to a user
    {
       auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-         ("from", eosio_token)
+         ("from", amax_token)
          ("to",   "alice")
          ("quantity", "100.0000 CUR")
          ("memo", "fund Alice")
@@ -432,7 +432,7 @@ BOOST_FIXTURE_TEST_CASE( test_proxy, currency_tester ) try {
    fc::time_point expected_delivery(fc::seconds(control->head_block_time().sec_since_epoch()) + fc::seconds(10));
    {
       auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-         ("from", eosio_token)
+         ("from", amax_token)
          ("to",   "proxy")
          ("quantity", "5.0000 CUR")
          ("memo", "fund Proxy")
@@ -487,7 +487,7 @@ BOOST_FIXTURE_TEST_CASE( test_deferred_failure, currency_tester ) try {
    BOOST_REQUIRE_EQUAL(0, index.size());
 
    auto trace = push_action(N(amax.token), N(transfer), mutable_variant_object()
-      ("from", eosio_token)
+      ("from", amax_token)
       ("to",   "proxy")
       ("quantity", "5.0000 CUR")
       ("memo", "fund Proxy")
@@ -569,7 +569,7 @@ BOOST_FIXTURE_TEST_CASE( test_input_quantity, currency_tester ) try {
 
    // transfer to alice using right precision
    {
-      auto trace = transfer(eosio_token, N(alice), "100.0000 CUR");
+      auto trace = transfer(amax_token, N(alice), "100.0000 CUR");
 
       BOOST_CHECK_EQUAL(true, chain_has_transaction(trace->id));
       BOOST_CHECK_EQUAL(asset::from_string( "100.0000 CUR"), get_balance(N(alice)));

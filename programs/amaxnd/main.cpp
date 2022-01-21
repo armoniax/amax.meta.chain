@@ -87,8 +87,8 @@ int main(int argc, char** argv)
       app().set_full_version_string(eosio::version::version_full());
 
       auto root = fc::app_path();
-      app().set_default_data_dir(root / "eosio" / amaxnd::config::node_executable_name / "data" );
-      app().set_default_config_dir(root / "eosio" / amaxnd::config::node_executable_name / "config" );
+      app().set_default_data_dir(root / "amax" / amaxnd::config::node_executable_name / "data" );
+      app().set_default_config_dir(root / "amax" / amaxnd::config::node_executable_name / "config" );
       http_plugin::set_defaults({
          .default_unix_socket_path = "",
          .default_http_port = 8888

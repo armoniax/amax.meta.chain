@@ -142,24 +142,24 @@ BOOST_AUTO_TEST_CASE( forking ) try {
 
    auto r2 = c.create_accounts( {N(amax.token)} );
    wdump((fc::json::to_pretty_string(r2)));
-   c.set_code( N(amax.token), contracts::eosio_token_wasm() );
-   c.set_abi( N(amax.token), contracts::eosio_token_abi().data() );
+   c.set_code( N(amax.token), contracts::amax_token_wasm() );
+   c.set_abi( N(amax.token), contracts::amax_token_abi().data() );
    c.produce_blocks(10);
 
 
    auto cr = c.push_action( N(amax.token), N(create), N(amax.token), mutable_variant_object()
-              ("issuer",       "eosio" )
+              ("issuer",       "amax" )
               ("maximum_supply", core_from_string("10000000.0000"))
       );
 
    cr = c.push_action( N(amax.token), N(issue), config::system_account_name, mutable_variant_object()
-              ("to",       "eosio" )
+              ("to",       "amax" )
               ("quantity", core_from_string("100.0000"))
               ("memo", "")
       );
 
    cr = c.push_action( N(amax.token), N(transfer), config::system_account_name, mutable_variant_object()
-              ("from",     "eosio")
+              ("from",     "amax")
               ("to",       "dan" )
               ("quantity", core_from_string("100.0000"))
               ("memo", "")

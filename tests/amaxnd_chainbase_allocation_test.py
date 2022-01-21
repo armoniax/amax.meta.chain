@@ -13,7 +13,7 @@ import os
 import filecmp
 
 ###############################################################
-# nodeos_chainbase_allocation_test
+# amaxnd_chainbase_allocation_test
 #
 # Test snapshot creation and restarting from snapshot
 #
@@ -49,7 +49,7 @@ try:
     # - permission_object (bootstrap)
     # The bootstrap process has created account_object and code_object (by uploading the bios contract),
     # key_value_object (token creation), protocol_state_object (preactivation feature), and permission_object
-    # (automatically taken care by the automatically generated eosio account)
+    # (automatically taken care by the automatically generated amax account)
     assert cluster.launch(
         pnodes=1,
         prodCount=1,
@@ -57,7 +57,7 @@ try:
         totalNodes=2,
         useBiosBootFile=False,
         loadSystemContract=False,
-        specificExtraNodeosArgs={
+        specificExtraAmaxndArgs={
             1:"--read-mode irreversible --plugin eosio::producer_api_plugin"})
 
     producerNodeId = 0
@@ -66,22 +66,22 @@ try:
     irrNode = cluster.getNode(irrNodeId)
 
     # Create delayed transaction to create "generated_transaction_object"
-    cmd = "create account -j eosio sample EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\
-         EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV --delay-sec 600 -p eosio"
-    trans = producerNode.processCleosCmd(cmd, cmd, silentErrors=False)
+    cmd = "create account -j amax sample AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\
+         AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV --delay-sec 600 -p amax"
+    trans = producerNode.processAmaxclCmd(cmd, cmd, silentErrors=False)
     assert trans
 
     # Schedule a new producer to trigger new producer schedule for "global_property_object"
     newProducerAcc = Account("newprod")
-    newProducerAcc.ownerPublicKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
-    newProducerAcc.activePublicKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
-    producerNode.createAccount(newProducerAcc, cluster.eosioAccount)
+    newProducerAcc.ownerPublicKey = "AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+    newProducerAcc.activePublicKey = "AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+    producerNode.createAccount(newProducerAcc, cluster.amaxAccount)
 
     setProdsStr = '{"schedule": ['
     setProdsStr += '{"producer_name":' + newProducerAcc.name + ',"block_signing_key":' + newProducerAcc.activePublicKey + '}'
     setProdsStr += ']}'
-    cmd="push action -j eosio setprods '{}' -p eosio".format(setProdsStr)
-    trans = producerNode.processCleosCmd(cmd, cmd, silentErrors=False)
+    cmd="push action -j amax setprods '{}' -p amax".format(setProdsStr)
+    trans = producerNode.processAmaxclCmd(cmd, cmd, silentErrors=False)
     assert trans
     setProdsBlockNum = int(trans["processed"]["block_num"])
 

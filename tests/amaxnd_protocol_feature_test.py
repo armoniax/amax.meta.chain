@@ -12,7 +12,7 @@ from os.path import join
 from datetime import datetime
 
 ###############################################################
-# nodeos_protocol_feature_test
+# amaxnd_protocol_feature_test
 #
 # Many smaller tests centered around irreversible mode
 #
@@ -45,7 +45,7 @@ try:
     TestHelper.printSystemInfo("BEGIN")
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
-    cluster.launch(extraNodeosArgs=" --plugin eosio::producer_api_plugin  --http-max-response-time-ms 990000 ",
+    cluster.launch(extraAmaxndArgs=" --plugin eosio::producer_api_plugin  --http-max-response-time-ms 990000 ",
                    dontBootstrap=True,
                    pfSetupPolicy=PFSetupPolicy.NONE)
     biosNode = cluster.biosNode

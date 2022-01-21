@@ -115,7 +115,7 @@ Adds CPU and network bandwidth usage to only the first authorizer of a transacti
 /*
 Builtin protocol feature: FORWARD_SETCODE
 
-Forward eosio::setcode actions to the WebAssembly code deployed on the eosio account.
+Forward eosio::setcode actions to the WebAssembly code deployed on the amax account.
 */
             {}
          } )

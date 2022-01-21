@@ -122,7 +122,7 @@ struct abi_def {
    may_not_exist<vector<variant_def>>  variants;
 };
 
-abi_def eosio_contract_abi(const abi_def& eosio_system_abi);
+abi_def eosio_contract_abi(const abi_def& amax_system_abi);
 vector<type_def> common_type_defs();
 
 extern unsigned char eosio_abi_bin[2132];

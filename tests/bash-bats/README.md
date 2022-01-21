@@ -60,4 +60,4 @@ echo "[Centos 7]"
 docker exec -it centos7 bash -c "cd /eos && ./tests/bash-bats/bats-core/bin/bats -t tests/bash-bats/*.sh"
 ```
 
-- You'll need to modify the volume path ($HOME/BLOCKONE/eos.bats) to indicate where you've got eos cloned locally.
+- You'll need to modify the volume path ($HOME/BLOCKONE/eos.bats) to indicate where you've got ama cloned locally.

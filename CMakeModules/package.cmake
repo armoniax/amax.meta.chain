@@ -1,6 +1,6 @@
 set(VENDOR "armoniax")
 set(PROJECT_NAME "amax")
-set(DESC "Software for the EOS.IO network")
+set(DESC "Software for the AMAX network")
 set(URL "https://github.com/armoniax/amachain")
 set(EMAIL "support@block.one")
 

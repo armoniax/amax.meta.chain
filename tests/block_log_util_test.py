@@ -25,7 +25,7 @@ from core_symbol import CORE_SYMBOL
 def verifyBlockLog(expected_block_num, trimmedBlockLog):
     firstBlockNum = expected_block_num
     for block in trimmedBlockLog:
-        assert 'block_num' in block, print("ERROR: eosio-blocklog didn't return block output")
+        assert 'block_num' in block, print("ERROR: amax-blocklog didn't return block output")
         block_num = block['block_num']
         assert block_num == expected_block_num
         expected_block_num += 1
@@ -61,7 +61,7 @@ try:
     cluster.cleanup()
     Print("Stand up cluster")
     if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=pnodes, totalNodes=totalNodes, totalProducers=pnodes*prodCount, useBiosBootFile=False) is False:
-        Utils.errorExit("Failed to stand up eos cluster.")
+        Utils.errorExit("Failed to stand up ama cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)

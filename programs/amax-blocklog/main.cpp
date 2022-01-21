@@ -58,7 +58,7 @@ struct report_time {
 
     void report() {
         const auto duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - _start).count() / 1000;
-        ilog("eosio-blocklog - ${desc} took ${t} msec", ("desc", _desc)("t", duration));
+        ilog("amax-blocklog - ${desc} took ${t} msec", ("desc", _desc)("t", duration));
     }
 
     const std::chrono::high_resolution_clock::time_point _start;
@@ -271,7 +271,7 @@ void smoke_test(bfs::path block_dir) {
 
 int main(int argc, char** argv) {
    std::ios::sync_with_stdio(false); // for potential performance boost for large block log files
-   options_description cli ("eosio-blocklog command line options");
+   options_description cli ("amax-blocklog command line options");
    try {
       blocklog blog;
       blog.set_program_options(cli);

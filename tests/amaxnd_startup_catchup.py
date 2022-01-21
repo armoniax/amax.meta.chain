@@ -16,7 +16,7 @@ import math
 import re
 
 ###############################################################
-# nodeos_startup_catchup
+# amaxnd_startup_catchup
 #
 #  Test configures a producing node and <--txn-plugins count> non-producing nodes with the
 #  txn_test_gen_plugin.  Each non-producing node starts generating transactions and sending them
@@ -67,14 +67,14 @@ try:
 
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
-    specificExtraNodeosArgs={}
+    specificExtraAmaxndArgs={}
     txnGenNodeNum=pnodes  # next node after producer nodes
     for nodeNum in range(txnGenNodeNum, txnGenNodeNum+startedNonProdNodes):
-        specificExtraNodeosArgs[nodeNum]="--plugin eosio::txn_test_gen_plugin --txn-test-gen-account-prefix txntestacct"
+        specificExtraAmaxndArgs[nodeNum]="--plugin eosio::txn_test_gen_plugin --txn-test-gen-account-prefix txntestacct"
     Print("Stand up cluster")
     if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=pnodes, totalNodes=totalNodes, totalProducers=pnodes*prodCount,
-                      useBiosBootFile=False, specificExtraNodeosArgs=specificExtraNodeosArgs, unstartedNodes=catchupCount, loadSystemContract=False) is False:
-        Utils.errorExit("Failed to stand up eos cluster.")
+                      useBiosBootFile=False, specificExtraAmaxndArgs=specificExtraAmaxndArgs, unstartedNodes=catchupCount, loadSystemContract=False) is False:
+        Utils.errorExit("Failed to stand up ama cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
@@ -85,7 +85,7 @@ try:
         txnGenNodes.append(cluster.getNode(nodeNum))
 
     Print("Create accounts for generated txns")
-    txnGenNodes[0].txnGenCreateTestAccounts(cluster.eosioAccount.name, cluster.eosioAccount.activePrivateKey)
+    txnGenNodes[0].txnGenCreateTestAccounts(cluster.amaxAccount.name, cluster.amaxAccount.activePrivateKey)
 
     def lib(node):
         return node.getBlockNum(BlockType.lib)

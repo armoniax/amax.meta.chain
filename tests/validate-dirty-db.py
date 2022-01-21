@@ -38,24 +38,24 @@ seed=1
 Utils.Debug=debug
 testSuccessful=False
 
-def runNodeosAndGetOutput(myTimeout=3):
+def runAmaxndAndGetOutput(myTimeout=3):
     """Startup amaxnd, wait for timeout (before forced shutdown) and collect output. Stdout, stderr and return code are returned in a dictionary."""
     Print("Launching amaxnd process.")
-    cmd="programs/amaxnd/amaxnd --config-dir etc/eosio/node_bios --data-dir var/lib/node_bios --verbose-http-errors --http-validate-host=false"
+    cmd="programs/amaxnd/amaxnd --config-dir etc/amax/node_bios --data-dir var/lib/node_bios --verbose-http-errors --http-validate-host=false"
     Print("cmd: %s" % (cmd))
     proc=subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if debug: Print("Nodeos process launched.")
+    if debug: Print("Amaxnd process launched.")
 
     output={}
     try:
         if debug: Print("Setting amaxnd process timeout.")
         outs,errs = proc.communicate(timeout=myTimeout)
-        if debug: Print("Nodeos process has exited.")
+        if debug: Print("Amaxnd process has exited.")
         output["stdout"] = outs.decode("utf-8")
         output["stderr"] = errs.decode("utf-8")
         output["returncode"] = proc.returncode
     except (subprocess.TimeoutExpired) as _:
-        Print("ERROR: Nodeos is running beyond the defined wait time. Hard killing amaxnd instance.")
+        Print("ERROR: Amaxnd is running beyond the defined wait time. Hard killing amaxnd instance.")
         proc.send_signal(signal.SIGKILL)
         return (False, None)
 
@@ -78,7 +78,7 @@ try:
 
     Print("Stand up cluster")
     if cluster.launch(pnodes=pnodes, totalNodes=total_nodes, topo=topo, delay=delay, dontBootstrap=True) is False:
-        errorExit("Failed to stand up eos cluster.")
+        errorExit("Failed to stand up ama cluster.")
 
     node=cluster.getNode(0)
 
@@ -90,7 +90,7 @@ try:
 
     for i in range(1,4):
         Print("Attempt %d." % (i))
-        ret = runNodeosAndGetOutput(timeout)
+        ret = runAmaxndAndGetOutput(timeout)
         assert(ret)
         assert(isinstance(ret, tuple))
         if not ret[0]:

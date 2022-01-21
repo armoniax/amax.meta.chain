@@ -2,7 +2,7 @@
 set -eo pipefail
 # The purpose of this test is to ensure that the output of the "amaxnd --print-build-info" command.
 # This includes verifying valid output in JSON shape and checking parameters (only boost for now).
-echo '##### Nodeos Print Build Info Test #####'
+echo '##### Amaxnd Print Build Info Test #####'
 # orient ourselves
 [[ -z "$BUILD_ROOT" ]] && export BUILD_ROOT="$(pwd)"
 echo "Using BUILD_ROOT=\"$BUILD_ROOT\"."

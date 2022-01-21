@@ -609,7 +609,7 @@ launcher_def::initialize (const variables_map &vmap) {
     }
   }
 
-  config_dir_base = "etc/eosio";
+  config_dir_base = "etc/amax";
   data_dir_base = "var/lib";
   next_node = 0;
   ++prod_nodes; // add one for the bios node
@@ -646,7 +646,7 @@ launcher_def::initialize (const variables_map &vmap) {
     }
   }
 
-  char* erd_env_var = getenv ("EOSIO_HOME");
+  char* erd_env_var = getenv ("AMAX_HOME");
   if (erd_env_var == nullptr || std::string(erd_env_var).empty()) {
      erd_env_var = getenv ("PWD");
   }
@@ -659,7 +659,7 @@ launcher_def::initialize (const variables_map &vmap) {
 
   stage = bfs::path(erd);
   if (!bfs::exists(stage)) {
-    cerr << "\"" << erd << "\" is not a valid path. Please ensure environment variable EOSIO_HOME is set to the build path." << endl;
+    cerr << "\"" << erd << "\" is not a valid path. Please ensure environment variable AMAX_HOME is set to the build path." << endl;
     exit (-1);
   }
   stage /= bfs::path("staging");
@@ -888,7 +888,7 @@ launcher_def::bind_nodes () {
          auto pubkey = kp.get_public_key();
          node.keys.emplace_back (move(kp));
          if (is_bios) {
-            string prodname = "eosio";
+            string prodname = "amax";
             node.producers.push_back(prodname);
             producer_set.schedule.push_back({prodname,pubkey});
          }
@@ -1241,7 +1241,7 @@ launcher_def::write_setprods_file() {
   }
    producer_set_def no_bios;
    for (auto &p : producer_set.schedule) {
-      if (p.producer_name != "eosio")
+      if (p.producer_name != "amax")
          no_bios.schedule.push_back(p);
    }
   auto str = fc::json::to_pretty_string( no_bios, fc::time_point::maximum(), fc::json::output_formatting::stringify_large_ints_and_doubles );
@@ -1282,7 +1282,7 @@ launcher_def::write_bios_boot () {
          }
          else if (key == "cacmd") {
             for (auto &p : producer_set.schedule) {
-               if (p.producer_name == "eosio") {
+               if (p.producer_name == "amax") {
                   continue;
                }
                brb << "cacmd " << p.producer_name
@@ -1776,7 +1776,7 @@ launcher_def::bounce (const string& node_numbers) {
       const eosd_def& node = node_pair.second;
       const string node_num = node.get_node_num();
       cout << "Bouncing " << node.name << endl;
-      string cmd = "./scripts/eosio-tn_bounce.sh " + eosd_extra_args;
+      string cmd = "./scripts/mamx-tn_bounce.sh " + eosd_extra_args;
       if (node_num != "bios" && !specific_amaxnd_args.empty()) {
          const auto node_num_i = boost::lexical_cast<uint16_t,string>(node_num);
          if (specific_amaxnd_args.count(node_num_i)) {
@@ -1784,7 +1784,7 @@ launcher_def::bounce (const string& node_numbers) {
          }
       }
 
-      do_command(host, node.name, { { "EOSIO_HOME", host.eosio_home }, { "EOSIO_NODE", node_num } }, cmd);
+      do_command(host, node.name, { { "AMAX_HOME", host.eosio_home }, { "AMAX_NODE", node_num } }, cmd);
    }
 }
 
@@ -1796,9 +1796,9 @@ launcher_def::down (const string& node_numbers) {
       const eosd_def& node = node_pair.second;
       const string node_num = node.get_node_num();
       cout << "Taking down " << node.name << endl;
-      string cmd = "./scripts/eosio-tn_down.sh ";
+      string cmd = "./scripts/amax-tn_down.sh ";
       do_command(host, node.name,
-                 { { "EOSIO_HOME", host.eosio_home }, { "EOSIO_NODE", node_num }, { "EOSIO_TN_RESTART_CONFIG_DIR", node.config_dir_name } },
+                 { { "AMAX_HOME", host.eosio_home }, { "AMAX_NODE", node_num }, { "AMAX_TN_RESTART_CONFIG_DIR", node.config_dir_name } },
                  cmd);
    }
 }
@@ -1810,8 +1810,8 @@ launcher_def::roll (const string& host_names) {
    for (string host_name: hosts) {
       cout << "Rolling " << host_name << endl;
       auto host = find_host_by_name_or_address(host_name);
-      string cmd = "./scripts/eosio-tn_roll.sh ";
-      do_command(*host, host_name, { { "EOSIO_HOME", host->eosio_home } }, cmd);
+      string cmd = "./scripts/amax-tn_roll.sh ";
+      do_command(*host, host_name, { { "AMAX_HOME", host->eosio_home } }, cmd);
    }
 }
 
@@ -1961,9 +1961,9 @@ int main (int argc, char *argv[]) {
     ("launch,l",bpo::value<string>(), "select a subset of nodes to launch. Currently may be \"all\", \"none\", or \"local\". If not set, the default is to launch all unless an output file is named, in which case it starts none.")
     ("output,o",bpo::value<bfs::path>(&top.output),"save a copy of the generated topology in this file")
     ("kill,k", bpo::value<string>(&kill_arg),"The launcher retrieves the previously started process ids and issues a kill to each.")
-    ("down", bpo::value<string>(&down_nodes),"comma-separated list of node numbers that will be taken down using the eosio-tn_down.sh script")
-    ("bounce", bpo::value<string>(&bounce_nodes),"comma-separated list of node numbers that will be restarted using the eosio-tn_bounce.sh script")
-    ("roll", bpo::value<string>(&roll_nodes),"comma-separated list of host names where the nodes should be rolled to a new version using the eosio-tn_roll.sh script")
+    ("down", bpo::value<string>(&down_nodes),"comma-separated list of node numbers that will be taken down using the amax-tn_down.sh script")
+    ("bounce", bpo::value<string>(&bounce_nodes),"comma-separated list of node numbers that will be restarted using the mamx-tn_bounce.sh script")
+    ("roll", bpo::value<string>(&roll_nodes),"comma-separated list of host names where the nodes should be rolled to a new version using the amax-tn_roll.sh script")
     ("version,v", "print version information")
     ("help,h","print this list")
     ("config-dir", bpo::value<bfs::path>(), "Directory containing configuration files such as config.ini")

@@ -645,7 +645,7 @@ void new_chain_banner(const eosio::chain::controller& db)
       "*******************************\n"
       "*                             *\n"
       "*   ------ NEW CHAIN ------   *\n"
-      "*   -  Welcome to EOSIO!  -   *\n"
+      "*   -  Welcome to AMAX!  -   *\n"
       "*   -----------------------   *\n"
       "*                             *\n"
       "*******************************\n"
@@ -692,10 +692,10 @@ void producer_plugin::set_program_options(
                 default_priv_key.get_public_key().to_string() + "=KEY:" + default_priv_key.to_string()),
           "Key=Value pairs in the form <public-key>=<provider-spec>\n"
           "Where:\n"
-          "   <public-key>    \tis a string form of a vaild EOSIO public key\n\n"
+          "   <public-key>    \tis a string form of a vaild AMAX public key\n\n"
           "   <provider-spec> \tis a string in the form <provider-type>:<data>\n\n"
           "   <provider-type> \tis KEY, or WALLET\n\n"
-          "   KEY:<data>      \tis a string form of a valid EOSIO private key which maps to the provided public key\n\n"
+          "   KEY:<data>      \tis a string form of a valid AMAX private key which maps to the provided public key\n\n"
           "   WALLET:<data>    \tis the URL where wallet is available and the approptiate wallet(s) are unlocked")
          ("wallet-provider-timeout", boost::program_options::value<int32_t>()->default_value(5),
           "Limits the maximum time (in milliseconds) that is allowed for sending blocks to a wallet provider for signing")

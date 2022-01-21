@@ -33,7 +33,7 @@ def check_amaxcl_stderr(stderr: bytes, expected_match: bytes):
 
 
 def amaxks_auto_launch_test():
-    """Test that keos auto-launching works but can be optionally inhibited."""
+    """Test that amaxcl auto-launching works but can be optionally inhibited."""
     stop_amaxks()
 
     # Make sure that when '--no-auto-amaxks' is given, amaxks is not started by

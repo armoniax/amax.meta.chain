@@ -49,10 +49,10 @@ TEST_LABEL="[helpers]"
   run previous-install-prompt
   [[ -z $(echo "${output}") ]] || exit
   # Exists, prompt
-  mkdir -p $EOSIO_INSTALL_DIR
+  mkdir -p $AMAX_INSTALL_DIR
   run previous-install-prompt
-  [[ ! -z $(echo "${output}" | grep "EOSIO has already been installed into ${EOSIO_INSTALL_DIR}") ]] || exit
-  rm -rf $EOSIO_INSTALL_DIR
+  [[ ! -z $(echo "${output}" | grep "AMAX has already been installed into ${AMAX_INSTALL_DIR}") ]] || exit
+  rm -rf $AMAX_INSTALL_DIR
 }
 
 @test "${TEST_LABEL} > TEMP_DIR" {

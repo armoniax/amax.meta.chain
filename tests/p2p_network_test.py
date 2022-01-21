@@ -107,7 +107,7 @@ exchangeAccount.ownerPublicKey=PUB_KEY2
 print("Stand up walletd")
 if walletMgr.launch() is False:
     cmdError("%s" % (WalletdName))
-    errorExit("Failed to stand up eos walletd.")
+    errorExit("Failed to stand up ama walletd.")
 
 testWalletName="test"
 Print("Creating wallet \"%s\"." % (testWalletName))
@@ -133,14 +133,14 @@ if not walletMgr.importKey(defproduceraAccount, defproduceraWallet):
 
 node0=cluster.getNode(0)
 
-# eosio should have the same key as defproducera
-eosio = copy.copy(defproduceraAccount)
-eosio.name = "eosio"
+# amax should have the same key as defproducera
+amax = copy.copy(defproduceraAccount)
+amax.name = "amax"
 
 Print("Info of each node:")
 for i in range(len(hosts)):
     node = node0
-    cmd="%s %s get info" % (testUtils.Utils.EosClientPath, node.endpointArgs)
+    cmd="%s %s get info" % (testUtils.Utils.AmaxClientPath, node.endpointArgs)
     trans = node.runCmdReturnJson(cmd)
     Print("host %s: %s" % (hosts[i], trans))
 
@@ -148,7 +148,7 @@ for i in range(len(hosts)):
 wasmFile="amax.system.wasm"
 abiFile="amax.system.abi"
 Print("\nPush system contract %s %s" % (wasmFile, abiFile))
-trans=node0.publishContract(eosio.name, wasmFile, abiFile, waitForTransBlock=True)
+trans=node0.publishContract(amax.name, wasmFile, abiFile, waitForTransBlock=True)
 if trans is None:
     Utils.errorExit("Failed to publish amax.system.")
 else:
@@ -157,7 +157,7 @@ else:
 try:
     maxIndex = module.maxIndex()
     for cmdInd in range(maxIndex):
-        (transIdList, checkacct, expBal, errmsg) = module.execute(cmdInd, node0, testeraAccount, eosio)
+        (transIdList, checkacct, expBal, errmsg) = module.execute(cmdInd, node0, testeraAccount, amax)
 
         if len(transIdList) == 0 and len(checkacct) == 0:
             errorExit("failed to execute command in host %s:%s" % (hosts[0], errmsg))
