@@ -9,7 +9,7 @@
 	url = ../../eosio/berkeley-softfloat-3
 [submodule "libraries/fc"]
 	path = libraries/fc
-	url = ../../EOSIO/fc
+	url = ../../armoniax/fc	
 [submodule "libraries/wabt"]
 	path = libraries/wabt
 	url = ../../EOSIO/wabt
