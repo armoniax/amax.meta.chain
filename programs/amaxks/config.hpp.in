@@ -5,4 +5,6 @@
 
 namespace eosio { namespace amaxks { namespace config {
   const string key_store_executable_name = "${KEY_STORE_EXECUTABLE_NAME}";
+  const string wallet_folder_name = "${WALLET_FOLDER_NAME}";
+  
 }}}

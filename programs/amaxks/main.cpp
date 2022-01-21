@@ -73,12 +73,13 @@ bfs::path determine_home_directory()
 
 int main(int argc, char** argv)
 {
+   using amaxks::config::wallet_folder_name;
    try {
       app().set_version_string(eosio::version::version_client());
       app().set_full_version_string(eosio::version::version_full());
       bfs::path home = determine_home_directory();
-      app().set_default_data_dir(home / "eosio-wallet");
-      app().set_default_config_dir(home / "eosio-wallet");
+      app().set_default_data_dir(home / wallet_folder_name);
+      app().set_default_config_dir(home / wallet_folder_name);
       http_plugin::set_defaults({
          .default_unix_socket_path = amaxks::config::key_store_executable_name + ".sock",
          .default_http_port = 0

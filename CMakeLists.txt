@@ -37,6 +37,7 @@ endif()
 set( CLI_CLIENT_EXECUTABLE_NAME amaxcl )
 set( NODE_EXECUTABLE_NAME amaxnd )
 set( KEY_STORE_EXECUTABLE_NAME amaxks )
+set( WALLET_FOLDER_NAME amax-wallet )
 
 # http://stackoverflow.com/a/18369825
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
