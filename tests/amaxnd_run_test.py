@@ -13,7 +13,7 @@ import re
 ###############################################################
 # nodeos_run_test
 #
-# General test that tests a wide range of general use actions around amaxnd and amaxkm
+# General test that tests a wide range of general use actions around amaxnd and amaxks
 #
 ###############################################################
 
