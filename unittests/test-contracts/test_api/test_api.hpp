@@ -6,7 +6,7 @@
 
 namespace eosio { class transaction; }
 
-// NOTE: including eosiolib/transaction.hpp here causes !"unresolvable": env._ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv
+// NOTE: including eosio/transaction.hpp here causes !"unresolvable": env._ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv
 //       errors in api_tests/memory_tests
 
 #define WASM_TEST_HANDLER(CLASS, METHOD) \
@@ -33,7 +33,8 @@ struct test_types {
    static void string_to_name();
 };
 
-struct test_print {
+namespace test_print {
+   using namespace eosio::internal_use_do_not_use;   
    static void test_prints();
    static void test_prints_l();
    static void test_printi();
@@ -73,7 +74,9 @@ struct test_action {
    static void test_action_ordinal_bar(uint64_t receiver, uint64_t code, uint64_t action);
 };
 
-struct test_db {
+namespace test_db {
+   using namespace eosio::internal_use_do_not_use;
+
    static void primary_i64_general(uint64_t receiver, uint64_t code, uint64_t action);
    static void primary_i64_lowerbound(uint64_t receiver, uint64_t code, uint64_t action);
    static void primary_i64_upperbound(uint64_t receiver, uint64_t code, uint64_t action);
