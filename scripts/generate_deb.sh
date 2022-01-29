@@ -27,6 +27,8 @@ if [ ${DISTRIB_RELEASE} = "16.04" ]; then
   RELEASE_SPECIFIC_DEPS="libssl1.0.0, libicu55"
 elif [ ${DISTRIB_RELEASE} = "18.04" ]; then
   RELEASE_SPECIFIC_DEPS="libssl1.1, libicu60"
+elif [ ${DISTRIB_RELEASE} = "20.04" ]; then
+  RELEASE_SPECIFIC_DEPS="libssl1.1, libicu66"
 else
   echo "Unrecognized Ubuntu version.  Update generate_deb.sh.  Not generating .deb file."
   exit 1

@@ -88,3 +88,4 @@ var/lib/node_*
 
 !*.swagger.*
 b.sh
+build1
