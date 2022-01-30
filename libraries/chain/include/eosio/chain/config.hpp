@@ -35,7 +35,7 @@ const static name owner_name      { N(owner) };
 const static name eosio_any_name  { N(amax.any) };
 const static name eosio_code_name { N(amax.code) };
 
-const static int      block_interval_ms = 500;
+const static int      block_interval_ms = 1000;
 const static int      block_interval_us = block_interval_ms*1000;
 const static uint64_t block_timestamp_epoch = 946684800000ll; // epoch is year 2000.
 const static uint32_t genesis_num_supported_key_types = 2;
@@ -66,7 +66,7 @@ const static uint32_t   default_context_free_discount_net_usage_num  = 20; // TO
 const static uint32_t   default_context_free_discount_net_usage_den  = 100;
 const static uint32_t   transaction_id_net_usage                     = 32; // 32 bytes for the size of a transaction id
 
-const static uint32_t   default_max_block_cpu_usage                  = 200'000; /// max block cpu usage in microseconds
+const static uint32_t   default_max_block_cpu_usage                  = 400'000; /// max block cpu usage in microseconds
 const static uint32_t   default_target_block_cpu_usage_pct           = 10 * percent_1;
 const static uint32_t   default_max_transaction_cpu_usage            = 3*default_max_block_cpu_usage/4; /// max trx cpu usage in microseconds
 const static uint32_t   default_min_transaction_cpu_usage            = 100; /// min trx cpu usage in microseconds (10000 TPS equiv)
