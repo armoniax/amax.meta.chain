@@ -99,6 +99,11 @@ else()
   set(no_whole_archive_flag "--no-whole-archive")
 endif()
 
+if(NOT DEFINED BOOST_ROOT AND DEFINED ENV{BOOST_ROOT})
+  message(STATUS "reset BOOST_ROOT=ENV{BOOST_ROOT}:$ENV{BOOST_ROOT}")
+  set(BOOST_ROOT $ENV{BOOST_ROOT})
+endif()
+
 set( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
 # Most boost deps get implictly picked up via fc, as just about everything links to fc. In addition we pick up
 # the pthread dependency through fc.
