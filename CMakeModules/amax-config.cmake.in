@@ -1,8 +1,8 @@
 if(AMAX_ROOT STREQUAL "" OR NOT AMAX_ROOT)
    set(AMAX_ROOT "@AMA_ROOT_DIR@")
 endif()
-list(APPEND CMAKE_MODULE_PATH ${AMAX_ROOT}/lib/cmake/eosio)
-list(APPEND CMAKE_MODULE_PATH ${AMAX_ROOT}/lib64/cmake/eosio)
+list(APPEND CMAKE_MODULE_PATH ${AMAX_ROOT}/lib/cmake/amax)
+list(APPEND CMAKE_MODULE_PATH ${AMAX_ROOT}/lib64/cmake/amax)
 include(EosioTester)
 
 function(EXTRACT_MAJOR_MINOR_FROM_VERSION version success major minor)
