@@ -87,5 +87,6 @@ var/lib/node_*
 .DS_Store
 
 !*.swagger.*
-b.sh
-build1
+
+build.d/*
+.build*

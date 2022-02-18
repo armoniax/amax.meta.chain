@@ -3,6 +3,28 @@ find_package( Gperftools QUIET )
 ### Build contracts with cdt if available ###
 include(ExternalProject)
 
+
+if( AMAX_COMPILE_TEST_CONTRACTS )
+   set(EOSIO_WASM_OLD_BEHAVIOR "Off")
+   find_package(eosio.cdt REQUIRED)
+
+   message( STATUS "Building contracts in directory `amachain/unittests/test-contracts/`" )
+   ExternalProject_Add(
+      test_contracts_project
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test-contracts
+      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/test-contracts
+      CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${EOSIO_CDT_ROOT}/lib/cmake/eosio.cdt/EosioWasmToolchain.cmake -DAMAX_COMPILE_TEST_CONTRACTS=${AMAX_COMPILE_TEST_CONTRACTS}
+      UPDATE_COMMAND ""
+      PATCH_COMMAND ""
+      TEST_COMMAND ""
+      INSTALL_COMMAND ""
+      BUILD_ALWAYS 1
+   )
+else()
+  message( STATUS "Not building contracts in directory `eos/unittests/test-contracts/`" )
+  add_subdirectory(test-contracts)
+endif()
+
 if( GPERFTOOLS_FOUND )
    message( STATUS "Found gperftools; compiling tests with TCMalloc" )
    list( APPEND PLATFORM_SPECIFIC_LIBS tcmalloc )
@@ -87,25 +109,4 @@ if(ENABLE_COVERAGE_TESTING)
     COMMAND ;
     COMMENT "Open ./${Coverage_NAME}/index.html in your browser to view the coverage report."
   )
-endif()
-
-if( AMAX_COMPILE_TEST_CONTRACTS )
-   set(AMAX_WASM_OLD_BEHAVIOR "Off")
-   find_package(eosio.cdt REQUIRED)
-
-   message( STATUS "Building contracts in directory `eos/unittests/test-contracts/`" )
-   ExternalProject_Add(
-      test_contracts_project
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test-contracts
-      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/test-contracts
-      CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${EOSIO_CDT_ROOT}/lib/cmake/eosio.cdt/EosioWasmToolchain.cmake -DAMAX_COMPILE_TEST_CONTRACTS=${AMAX_COMPILE_TEST_CONTRACTS}
-      UPDATE_COMMAND ""
-      PATCH_COMMAND ""
-      TEST_COMMAND ""
-      INSTALL_COMMAND ""
-      BUILD_ALWAYS 1
-   )
-else()
-  message( STATUS "Not building contracts in directory `eos/unittests/test-contracts/`" )
-  add_subdirectory(test-contracts)
 endif()
