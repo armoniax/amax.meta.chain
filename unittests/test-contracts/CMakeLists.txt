@@ -1,6 +1,6 @@
 if( AMAX_COMPILE_TEST_CONTRACTS )
-   set(EOSIO_WASM_OLD_BEHAVIOR "Off")
-   find_package( eosio.cdt REQUIRED )
+   set(AMAX_WASM_OLD_BEHAVIOR "Off")
+   find_package( amax.cdt REQUIRED )
 endif()
 
 if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
