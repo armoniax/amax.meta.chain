@@ -141,7 +141,7 @@ void test_action::test_cf_action() {
       eosio::require_auth("test"_n);
       check( false, "authorization_api should not be allowed" );
    } else if ( cfa.payload == 207 ) {
-      // now();
+      current_time_point();
       check( false, "system_api should not be allowed" );
    } else if ( cfa.payload == 208 ) {
       current_time_point();
