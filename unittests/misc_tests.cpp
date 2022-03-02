@@ -676,7 +676,7 @@ BOOST_AUTO_TEST_CASE(alphabetic_sort)
   std::sort(words.begin(), words.end(), std::less<string>());
 
   vector<uint64_t> uwords;
-  for(const auto w: words) {
+  for(const auto &w: words) {
     auto n = name(w.c_str());
     uwords.push_back(n.to_uint64_t());
   }
@@ -684,7 +684,7 @@ BOOST_AUTO_TEST_CASE(alphabetic_sort)
   std::sort(uwords.begin(), uwords.end(), std::less<uint64_t>());
 
   vector<string> tmp;
-  for(const auto uw: uwords) {
+  for(const auto &uw: uwords) {
     auto str = name(uw).to_string();
     tmp.push_back(str);
   }
