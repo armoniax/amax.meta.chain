@@ -60,7 +60,7 @@ class currency_tester : public TESTER {
          return trace;
       }
 
-      auto issue(const account_name& to, const std::string& quantity, const std::string& memo = "") {
+      auto issue(const account_name& to, const std::string& quantity, const std::string& memo = "") {       
          auto trace = push_action(N(amax.token), N(issue), mutable_variant_object()
                                   ("to",       to)
                                   ("quantity", quantity)
@@ -586,12 +586,13 @@ BOOST_FIXTURE_TEST_CASE( test_input_quantity, currency_tester ) try {
       BOOST_REQUIRE_THROW(transfer(N(alice), N(carl), "20.50 USD"), eosio_assert_message_exception);
    }
 
-   // issue to alice using right precision
+   // issue to issuer using right precision
    {
-      auto trace = issue(N(alice), "25.0256 CUR");
+      auto b = get_balance(amax_token) + asset::from_string("25.0256 CUR");
+      auto trace = issue(amax_token, "25.0256 CUR");
 
       BOOST_CHECK_EQUAL(true, chain_has_transaction(trace->id));
-      BOOST_CHECK_EQUAL(asset::from_string("125.0256 CUR"), get_balance(N(alice)));
+      BOOST_CHECK_EQUAL(b, get_balance(amax_token));
    }
 
 
