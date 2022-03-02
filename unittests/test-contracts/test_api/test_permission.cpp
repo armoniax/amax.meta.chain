@@ -55,7 +55,8 @@ void test_permission::test_permission_last_used( uint64_t /* receiver */, uint64
 
    auto params = unpack_action_data<test_permission_last_used_msg>();
 
-   check( get_permission_last_used(params.account, params.permission).sec_since_epoch() == params.last_used_time, "unexpected last used permission time" );
+   check( get_permission_last_used(params.account, params.permission).sec_since_epoch() == params.last_used_time / 1000000, 
+      "unexpected last used permission time" );
 }
 
 void test_permission::test_account_creation_time( uint64_t /* receiver */, uint64_t code, uint64_t action ) {
@@ -65,5 +66,6 @@ void test_permission::test_account_creation_time( uint64_t /* receiver */, uint6
 
    auto params = unpack_action_data<test_permission_last_used_msg>();
 
-   check( get_account_creation_time(params.account).sec_since_epoch() == params.last_used_time, "unexpected account creation time" );
+   check( get_account_creation_time(params.account).sec_since_epoch() == params.last_used_time / 1000000, 
+      "unexpected account creation time" );
 }
