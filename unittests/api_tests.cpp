@@ -24,9 +24,11 @@
 #include <eosio/chain/generated_transaction_object.hpp>
 #include <eosio/chain/wasm_interface.hpp>
 #include <eosio/chain/resource_limits.hpp>
+#include <eosio/chain/fixed_bytes.hpp>
 
 #include <fc/crypto/digest.hpp>
 #include <fc/crypto/sha256.hpp>
+#include <fc/crypto/sha1.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/variant_object.hpp>
 
@@ -1320,7 +1322,8 @@ BOOST_FIXTURE_TEST_CASE(deferred_transaction_tests, TESTER) { try {
       } );
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_transaction", {});
       BOOST_CHECK_THROW(CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_transaction", {}), deferred_tx_duplicate);
-      produce_blocks( 3 );
+      // produce_blocks( 3 );
+      produce_block(fc::milliseconds(1500));
 
       //check that only one deferred transaction executed
       auto dtrxs = get_scheduled_transactions();
@@ -1346,7 +1349,8 @@ BOOST_FIXTURE_TEST_CASE(deferred_transaction_tests, TESTER) { try {
       } );
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_transaction_replace", {});
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_transaction_replace", {});
-      produce_blocks( 3 );
+      // produce_blocks( 3 );
+      produce_block(fc::milliseconds(1500));
 
       //check that only one deferred transaction executed
       auto billed_cpu_time_us = control->get_global_properties().configuration.min_transaction_cpu_usage;
@@ -1465,6 +1469,12 @@ BOOST_FIXTURE_TEST_CASE(deferred_transaction_tests, TESTER) { try {
       push_action(config::system_account_name, N(setpriv), config::system_account_name,  mutable_variant_object()
                                                           ("account", "testapi")
                                                           ("is_priv", 1));
+      
+        // Verify testapi is privileged
+      const auto& testapi_acc = get<account_metadata_object, by_name>(N(testapi));
+      produce_block();
+      BOOST_TEST(testapi_acc.is_privileged() == true);
+                                                 
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_tx_with_dtt_action", fc::raw::pack(dtt_act1));
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_tx_with_dtt_action", fc::raw::pack(dtt_act2));
    }
@@ -1894,11 +1904,13 @@ BOOST_FIXTURE_TEST_CASE(crypto_tests, TESTER) { try {
       auto hash = trx.sig_digest( control->get_chain_id() );
       auto sig = priv_key.sign(hash);
 
+      auto hash_data = eosio::fixed_bytes<32>();
+      std::copy(hash.data(), hash.data() + hash.data_size(), (char*)hash_data.data());
       auto pk     = fc::raw::pack( pub_key );
-      auto sigs   = fc::raw::pack( sig );
+      auto sigs   = fc::raw::pack( sig );    
       vector<char> payload(8192);
       datastream<char*> payload_ds(payload.data(), payload.size());
-      fc::raw::pack(payload_ds,  hash, (uint32_t)pk.size(), (uint32_t)sigs.size() );
+      fc::raw::pack(payload_ds,  hash_data, (uint32_t)pk.size(), (uint32_t)sigs.size() );
       payload_ds.write(pk.data(), pk.size() );
       payload_ds.write(sigs.data(), sigs.size());
       payload.resize(payload_ds.tellp());

@@ -180,6 +180,16 @@ extern "C" {
    }
 }
 
+template<size_t Size>
+bool fixed_bytes_cmp(void *s1, uint32_t s1_size, eosio::fixed_bytes<Size> &bytes) {
+   auto data = bytes.extract_as_byte_array();
+   if (s1_size != data.size()) return false;
+   
+   return my_memcmp(s1, data.data(), data.size());
+}
+
+#define FIXED_BYTES_CMP(s1, bytes) fixed_bytes_cmp((void *)s1, sizeof(s1), bytes)
+
 struct sig_hash_key_header {
    checksum256 hash;
    uint32_t         pk_len;
@@ -245,59 +255,59 @@ void test_crypto::test_recover_key_partial() {
 
 void test_crypto::test_sha1() {
    auto cs1 = sha1( test1, my_strlen(test1));
-   check(  my_memcmp((void *)test1_ok_1, cs1.data(), cs1.size()), "sha1 test1" );
+   check(  FIXED_BYTES_CMP(test1_ok_1, cs1), "sha1 test1" );
 
    auto cs3 = sha1( test3, my_strlen(test3));
-   check(  my_memcmp((void *)test3_ok_1, cs3.data(), cs3.size()), "sha1 test3" );
+   check(  FIXED_BYTES_CMP(test3_ok_1, cs3), "sha1 test3" );
 
    auto cs4 = sha1( test4, my_strlen(test4));
-   check(  my_memcmp((void *)test4_ok_1, cs4.data(), cs4.size()), "sha1 test4" );
+   check(  FIXED_BYTES_CMP(test4_ok_1, cs4), "sha1 test4" );
 
    auto cs5 = sha1( test5, my_strlen(test5));
-   check(  my_memcmp((void *)test5_ok_1, cs5.data(), cs5.size()), "sha1 test5" );
+   check(  FIXED_BYTES_CMP(test5_ok_1, cs5), "sha1 test5" );
 }
 
 void test_crypto::test_sha256() {
    auto cs1 = sha256( test1, my_strlen(test1));
-   check(  my_memcmp((void *)test1_ok_256, cs1.data(), cs1.size()), "sha256 test1" );
+   check(  FIXED_BYTES_CMP(test1_ok_256, cs1), "sha256 test1" );
 
    auto cs3 = sha256( test3, my_strlen(test3));
-   check(  my_memcmp((void *)test3_ok_256, cs3.data(), cs3.size()), "sha256 test3" );
+   check(  FIXED_BYTES_CMP(test3_ok_256, cs3), "sha256 test3" );
 
    auto cs4 = sha256( test4, my_strlen(test4));
-   check(  my_memcmp((void *)test4_ok_256, cs4.data(), cs4.size()), "sha256 test4" );
+   check(  FIXED_BYTES_CMP(test4_ok_256, cs4), "sha256 test4" );
 
 
    auto cs5 = sha256( test5, my_strlen(test5));
-   check(  my_memcmp((void *)test5_ok_256, cs5.data(), cs5.size()), "sha256 test5" );
+   check(  FIXED_BYTES_CMP(test5_ok_256, cs5), "sha256 test5" );
 }
 
 void test_crypto::test_sha512() {
    auto cs1 = sha512( test1, my_strlen(test1));
-   check(  my_memcmp((void *)test1_ok_512, cs1.data(), cs1.size()), "sha512 test1" );
+   check(  FIXED_BYTES_CMP(test1_ok_512, cs1), "sha512 test1" );
 
    auto cs3 = sha512( test3, my_strlen(test3));
-   check(  my_memcmp((void *)test3_ok_512, cs3.data(), cs3.size()), "sha512 test3" );
+   check(  FIXED_BYTES_CMP(test3_ok_512, cs3), "sha512 test3" );
 
    auto cs4 = sha512( test4, my_strlen(test4));
-   check(  my_memcmp((void *)test4_ok_512, cs4.data(), cs4.size()), "sha512 test4" );
+   check(  FIXED_BYTES_CMP(test4_ok_512, cs4), "sha512 test4" );
 
    auto cs5 = sha512( test5, my_strlen(test5));
-   check(  my_memcmp((void *)test5_ok_512, cs5.data(), cs5.size()), "sha512 test5" );   
+   check(  FIXED_BYTES_CMP(test5_ok_512, cs5), "sha512 test5" );   
 }
 
 void test_crypto::test_ripemd160() {
    auto cs1 = ripemd160( test1, my_strlen(test1));
-   check(  my_memcmp((void *)test1_ok_ripe, cs1.data(), cs1.size()), "ripemd160 test1" );
+   check(  FIXED_BYTES_CMP(test1_ok_ripe, cs1), "ripemd160 test1" );
 
    auto cs3 = ripemd160( test3, my_strlen(test3));
-   check(  my_memcmp((void *)test3_ok_ripe, cs3.data(), cs3.size()), "ripemd160 test3" );
+   check(  FIXED_BYTES_CMP(test3_ok_ripe, cs3), "ripemd160 test3" );
 
    auto cs4 = ripemd160( test4, my_strlen(test4));
-   check(  my_memcmp((void *)test4_ok_ripe, cs4.data(), cs4.size()), "ripemd160 test4" );
+   check(  FIXED_BYTES_CMP(test4_ok_ripe, cs4), "ripemd160 test4" );
 
    auto cs5 = ripemd160( test5, my_strlen(test5));
-   check(  my_memcmp((void *)test5_ok_ripe, cs5.data(), cs5.size()), "ripemd160 test5" );     
+   check(  FIXED_BYTES_CMP(test5_ok_ripe, cs5), "ripemd160 test5" );     
 }
 
 void test_crypto::sha256_null() {
@@ -307,22 +317,22 @@ void test_crypto::sha256_null() {
 
 void test_crypto::sha1_no_data() {
    auto ret = sha1( test2, my_strlen(test2) );
-   check( my_memcmp((void *)test2_ok_1, ret.data(), ret.size()), "sha1 test2" );
+   check( FIXED_BYTES_CMP(test2_ok_1, ret), "sha1 test2" );
 }
 
 void test_crypto::sha256_no_data() {
    auto ret = sha256( test2, my_strlen(test2) );
-   check( my_memcmp((void *)test2_ok_256, ret.data(), ret.size()), "sha256 test2" );
+   check( FIXED_BYTES_CMP(test2_ok_256, ret), "sha256 test2" );
 }
 
 void test_crypto::sha512_no_data() {
    auto ret = sha512( test2, my_strlen(test2) );
-   check( my_memcmp((void *)test2_ok_512, ret.data(), ret.size()), "sha512 test2" );
+   check( FIXED_BYTES_CMP(test2_ok_512, ret), "sha512 test2" );
 }
 
 void test_crypto::ripemd160_no_data() {
    auto ret = ripemd160( test2, my_strlen(test2) );
-   check( my_memcmp((void *)test2_ok_ripe, ret.data(), ret.size()), "ripemd160 test2" );
+   check( FIXED_BYTES_CMP(test2_ok_ripe, ret), "ripemd160 test2" );
 }
 
 
