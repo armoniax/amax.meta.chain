@@ -69,9 +69,9 @@ BOOST_FIXTURE_TEST_CASE( delay_error_create_account, validating_tester) { try {
 
    ilog( fc::json::to_pretty_string(trx) );
    auto trace = push_transaction( trx );
-   edump((*trace));
+//    edump((*trace));
 
-   produce_blocks(6);
+   produce_blocks(3);
 
    auto scheduled_trxs = get_scheduled_transactions();
    BOOST_REQUIRE_EQUAL(scheduled_trxs.size(), 1u);

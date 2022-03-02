@@ -578,7 +578,6 @@ namespace eosio { namespace testing {
       if (no_throw) return r;
       if( r->except_ptr ) std::rethrow_exception( r->except_ptr );
       if( r->except)  throw *r->except;
-      dlog( "tx.console: ${d} ", ("d", r->action_traces.front().console) );
       return r;
    } FC_RETHROW_EXCEPTIONS( warn, "transaction_header: ${header}, billed_cpu_time_us: ${billed}",
                             ("header", transaction_header(trx) ) ("billed", billed_cpu_time_us))
