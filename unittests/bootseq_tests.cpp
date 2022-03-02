@@ -189,7 +189,7 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
     try {
 
         // Create amax.msig and amax.token
-        create_accounts({N(amax.msig), N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake), N(amax.vpay), N(amax.bpay), N(amax.saving) });
+        create_accounts({N(amax.msig), N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake), N(amax.vpay), N(amax.bpay), N(amax.saving), N(amax.rex) });
         // Set code for the following accounts:
         //  - amax (code: amax.bios) (already set by tester constructor)
         //  - amax.msig (code: amax.msig)
