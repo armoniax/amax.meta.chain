@@ -68,10 +68,9 @@ BOOST_FIXTURE_TEST_CASE( delay_error_create_account, validating_tester) { try {
    trx.sign( get_private_key( creator, "active" ), control->get_chain_id()  );
 
    ilog( fc::json::to_pretty_string(trx) );
-   auto trace = push_transaction( trx );
-//    edump((*trace));
+   push_transaction( trx );
 
-   produce_blocks(3);
+   produce_blocks(3 * 1000 / config::block_interval_ms);
 
    auto scheduled_trxs = get_scheduled_transactions();
    BOOST_REQUIRE_EQUAL(scheduled_trxs.size(), 1u);
@@ -205,7 +204,8 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("1.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(18);
+   BOOST_REQUIRE(fc::seconds(10) > fc::milliseconds(config::block_interval_ms * 2));
+   chain.produce_block(fc::seconds(10) - fc::milliseconds(config::block_interval_ms * 2));
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("99.0000 CUR"), liquid_balance);
