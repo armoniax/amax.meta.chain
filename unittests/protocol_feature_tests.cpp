@@ -25,14 +25,16 @@ BOOST_AUTO_TEST_CASE( activate_preactivate_feature ) try {
 
    c.produce_block();
 
-   // Cannot set latest bios contract since it requires intrinsics that have not yet been whitelisted.
-   BOOST_CHECK_EXCEPTION( c.set_code( config::system_account_name, contracts::amax_bios_wasm() ),
-                          wasm_exception, fc_exception_message_is("env.is_feature_activated unresolveable")
-   );
+   // disable_protocol_preactivate_feature protocol checking
+   // // Cannot set latest bios contract since it requires intrinsics that have not yet been whitelisted.
+   // BOOST_CHECK_EXCEPTION( c.set_code( config::system_account_name, contracts::amax_bios_wasm() ),
+   //                        wasm_exception, fc_exception_message_is("env.is_feature_activated unresolveable")
+   // );
+   // 
+   // // But the old bios contract can still be set.
+   // c.set_code( config::system_account_name, contracts::before_preactivate_amax_bios_wasm() );
+   // c.set_abi( config::system_account_name, contracts::before_preactivate_amax_bios_abi().data() );
 
-   // But the old bios contract can still be set.
-   c.set_code( config::system_account_name, contracts::before_preactivate_amax_bios_wasm() );
-   c.set_abi( config::system_account_name, contracts::before_preactivate_amax_bios_abi().data() );
 
    auto t = c.control->pending_block_time();
    c.control->abort_block();

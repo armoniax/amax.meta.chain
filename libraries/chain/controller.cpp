@@ -3324,8 +3324,8 @@ fc::optional<chain_id_type> controller::extract_chain_id_from_db( const path& st
 template<>
 void controller_impl::on_activation<builtin_protocol_feature_t::preactivate_feature>() {
    db.modify( db.get<protocol_state_object>(), [&]( auto& ps ) {
-      add_intrinsic_to_whitelist( ps.whitelisted_intrinsics, "preactivate_feature" );
-      add_intrinsic_to_whitelist( ps.whitelisted_intrinsics, "is_feature_activated" );
+      // add_intrinsic_to_whitelist( ps.whitelisted_intrinsics, "preactivate_feature" );
+      // add_intrinsic_to_whitelist( ps.whitelisted_intrinsics, "is_feature_activated" );
    } );
 }
 

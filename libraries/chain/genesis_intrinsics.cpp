@@ -170,7 +170,9 @@ const std::vector<const char*> genesis_intrinsics = {
    "memcpy",
    "memmove",
    "memcmp",
-   "memset"
+   "memset",
+   "preactivate_feature",
+   "is_feature_activated"
 };
 
 } } // namespace eosio::chain
