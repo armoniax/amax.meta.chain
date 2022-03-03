@@ -79,8 +79,8 @@ cleanup()
 # result stored in HEAD_BLOCK_NUM
 getHeadBlockNum()
 {
-  INFO="$(programs/amaxcl/amaxcl get info)"
-  verifyErrorCode "amaxcl get info"
+  INFO="$(programs/amcli/amcli get info)"
+  verifyErrorCode "amcli get info"
   HEAD_BLOCK_NUM="$(echo "$INFO" | awk '/head_block_num/ {print $2}')"
   # remove trailing coma
   HEAD_BLOCK_NUM=${HEAD_BLOCK_NUM%,}
@@ -126,22 +126,22 @@ echo endPort: $endPort
 port2=$startPort
 while [ $port2  -ne $endport ]; do
     echo Request block 1 from node on port $port2
-    TRANS_INFO="$(programs/amaxcl/amaxcl --port $port2 get block 1)"
-    verifyErrorCode "amaxcl get block"
+    TRANS_INFO="$(programs/amcli/amcli --port $port2 get block 1)"
+    verifyErrorCode "amcli get block"
     port2=`expr $port2 + 1`
 done
 
 # create 3 keys
-KEYS="$(programs/amaxcl/amaxcl create key)"
-verifyErrorCode "amaxcl create key"
+KEYS="$(programs/amcli/amcli create key)"
+verifyErrorCode "amcli create key"
 PRV_KEY1="$(echo "$KEYS" | awk '/Private/ {print $3}')"
 PUB_KEY1="$(echo "$KEYS" | awk '/Public/ {print $3}')"
-KEYS="$(programs/amaxcl/amaxcl create key)"
-verifyErrorCode "amaxcl create key"
+KEYS="$(programs/amcli/amcli create key)"
+verifyErrorCode "amcli create key"
 PRV_KEY2="$(echo "$KEYS" | awk '/Private/ {print $3}')"
 PUB_KEY2="$(echo "$KEYS" | awk '/Public/ {print $3}')"
-KEYS="$(programs/amaxcl/amaxcl create key)"
-verifyErrorCode "amaxcl create key"
+KEYS="$(programs/amcli/amcli create key)"
+verifyErrorCode "amcli create key"
 PRV_KEY3="$(echo "$KEYS" | awk '/Private/ {print $3}')"
 PUB_KEY3="$(echo "$KEYS" | awk '/Public/ {print $3}')"
 if [ -z "$PRV_KEY1" ] || [ -z "$PRV_KEY2" ] || [ -z "$PRV_KEY3" ] || [ -z "$PUB_KEY1" ] || [ -z "$PUB_KEY2" ] || [ -z "$PUB_KEY3" ]; then
@@ -150,21 +150,21 @@ fi
 
 
 # create wallet for inita
-PASSWORD_INITA="$(programs/amaxcl/amaxcl wallet create --name inita)"
-verifyErrorCode "amaxcl wallet create"
+PASSWORD_INITA="$(programs/amcli/amcli wallet create --name inita)"
+verifyErrorCode "amcli wallet create"
 # strip out password from output
 PASSWORD_INITA="$(echo "$PASSWORD_INITA" | awk '/PW/ {print $1}')"
 # remove leading/trailing quotes
 PASSWORD_INITA=${PASSWORD_INITA#\"}
 PASSWORD_INITA=${PASSWORD_INITA%\"}
-programs/amaxcl/amaxcl wallet import --name inita --private-key $INITA_PRV_KEY
-verifyErrorCode "amaxcl wallet import"
-programs/amaxcl/amaxcl wallet import --name inita --private-key $PRV_KEY1
-verifyErrorCode "amaxcl wallet import"
-programs/amaxcl/amaxcl wallet import --name inita --private-key $PRV_KEY2
-verifyErrorCode "amaxcl wallet import"
-programs/amaxcl/amaxcl wallet import --name inita --private-key $PRV_KEY3
-verifyErrorCode "amaxcl wallet import"
+programs/amcli/amcli wallet import --name inita --private-key $INITA_PRV_KEY
+verifyErrorCode "amcli wallet import"
+programs/amcli/amcli wallet import --name inita --private-key $PRV_KEY1
+verifyErrorCode "amcli wallet import"
+programs/amcli/amcli wallet import --name inita --private-key $PRV_KEY2
+verifyErrorCode "amcli wallet import"
+programs/amcli/amcli wallet import --name inita --private-key $PRV_KEY3
+verifyErrorCode "amcli wallet import"
 
 #
 # Account and Transfer Tests
@@ -172,12 +172,12 @@ verifyErrorCode "amaxcl wallet import"
 
 # create new account
 echo Creating account testera
-ACCOUNT_INFO="$(programs/amaxcl/amaxcl create account inita testera $PUB_KEY1 $PUB_KEY3)"
-verifyErrorCode "amaxcl create account"
+ACCOUNT_INFO="$(programs/amcli/amcli create account inita testera $PUB_KEY1 $PUB_KEY3)"
+verifyErrorCode "amcli create account"
 waitForNextBlock
 # verify account created
-ACCOUNT_INFO="$(programs/amaxcl/amaxcl get account testera)"
-verifyErrorCode "amaxcl get account"
+ACCOUNT_INFO="$(programs/amcli/amcli get account testera)"
+verifyErrorCode "amcli get account"
 count=`echo $ACCOUNT_INFO | grep -c "staked_balance"`
 if [ $count == 0 ]; then
   error "FAILURE - account creation failed: $ACCOUNT_INFO"
@@ -189,8 +189,8 @@ echo Producing node port: $pPort
 while [ $port  -ne $endport ]; do
 
     echo Sending transfer request to node on port $port.
-    TRANSFER_INFO="$(programs/amaxcl/amaxcl transfer inita testera 975321 "test transfer")"
-    verifyErrorCode "amaxcl transfer"
+    TRANSFER_INFO="$(programs/amcli/amcli transfer inita testera 975321 "test transfer")"
+    verifyErrorCode "amcli transfer"
     getTransactionId "$TRANSFER_INFO"
     echo Transaction id: $TRANS_ID
 
@@ -200,8 +200,8 @@ while [ $port  -ne $endport ]; do
     port2=$startPort
     while [ $port2  -ne $endport ]; do
 	echo Verifying transaction exists on node on port $port2
-   TRANS_INFO="$(programs/amaxcl/amaxcl --port $port2 get transaction $TRANS_ID)"
-   verifyErrorCode "amaxcl get transaction trans_id of <$TRANS_INFO> from node on port $port2"
+   TRANS_INFO="$(programs/amcli/amcli --port $port2 get transaction $TRANS_ID)"
+   verifyErrorCode "amcli get transaction trans_id of <$TRANS_INFO> from node on port $port2"
 	port2=`expr $port2 + 1`
     done
 

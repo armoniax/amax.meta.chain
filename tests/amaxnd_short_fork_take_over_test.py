@@ -137,7 +137,7 @@ killEosInstances=not dontKill
 killWallet=not dontKill
 
 WalletdName=Utils.EosWalletName
-ClientName="amaxcl"
+ClientName="amcli"
 
 try:
     TestHelper.printSystemInfo("BEGIN")

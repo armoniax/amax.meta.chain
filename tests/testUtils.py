@@ -53,7 +53,7 @@ class Utils:
     Debug=False
     FNull = open(os.devnull, 'w')
 
-    AmaxClientPath="programs/amaxcl/amaxcl"
+    AmaxClientPath="programs/amcli/amcli"
     MiscEosClientArgs="--no-auto-amaxks"
 
     EosWalletName="amaxks"

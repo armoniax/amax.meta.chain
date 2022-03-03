@@ -1,5 +1,5 @@
 add_subdirectory( amaxnd )
-add_subdirectory( amaxcl )
+add_subdirectory( amcli )
 add_subdirectory( amaxks )
 add_subdirectory( amax-launcher )
 add_subdirectory( amax-blocklog )

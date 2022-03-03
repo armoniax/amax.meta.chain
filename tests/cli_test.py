@@ -16,9 +16,9 @@ def amaxnd_help_test():
     assert(re.search(b'Options for .*_plugin', help_text))
 
 
-def amaxcl_help_test(args):
-    """Test that amaxcl help contains option and subcommand descriptions"""
-    help_text = subprocess.check_output(["./programs/amaxcl/amaxcl"] + args)
+def amcli_help_test(args):
+    """Test that amcli help contains option and subcommand descriptions"""
+    help_text = subprocess.check_output(["./programs/amcli/amcli"] + args)
 
     assert(b'Options:' in help_text)
     assert(b'Subcommands:' in help_text)
@@ -27,7 +27,7 @@ def amaxcl_help_test(args):
 def cli11_bugfix_test():
     """Test that subcommand names can be used as option arguments"""
     completed_process = subprocess.run(
-        ['./programs/amaxcl/amaxcl', '-u', 'http://localhost:0/',
+        ['./programs/amcli/amcli', '-u', 'http://localhost:0/',
          'push', 'action', 'accout', 'action', '["data"]', '-p', 'wallet'],
         check=False,
         stderr=subprocess.PIPE)
@@ -46,23 +46,23 @@ def cli11_optional_option_arg_test():
     chain = 'cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f'
     key = '5Jgfqh3svgBZvCAQkcnUX8sKmVUkaUekYDGqFakm52Ttkc5MBA4'
 
-    output = subprocess.check_output(['./programs/amaxcl/amaxcl', 'sign',
+    output = subprocess.check_output(['./programs/amcli/amcli', 'sign',
                                       '-c', chain, '-k', '{}'],
                                      input=key.encode(),
                                      stderr=subprocess.DEVNULL)
     assert(b'signatures' in output)
 
-    output = subprocess.check_output(['./programs/amaxcl/amaxcl', 'sign',
+    output = subprocess.check_output(['./programs/amcli/amcli', 'sign',
                                       '-c', chain, '-k', key, '{}'])
     assert(b'signatures' in output)
 
 
 amaxnd_help_test()
 
-amaxcl_help_test(['--help'])
-amaxcl_help_test(['system', '--help'])
-amaxcl_help_test(['version', '--help'])
-amaxcl_help_test(['wallet', '--help'])
+amcli_help_test(['--help'])
+amcli_help_test(['system', '--help'])
+amcli_help_test(['version', '--help'])
+amcli_help_test(['wallet', '--help'])
 
 cli11_bugfix_test()
 

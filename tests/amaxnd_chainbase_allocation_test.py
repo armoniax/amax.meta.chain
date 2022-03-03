@@ -68,7 +68,7 @@ try:
     # Create delayed transaction to create "generated_transaction_object"
     cmd = "create account -j amax sample AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\
          AMA6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV --delay-sec 600 -p amax"
-    trans = producerNode.processAmaxclCmd(cmd, cmd, silentErrors=False)
+    trans = producerNode.processAmcliCmd(cmd, cmd, silentErrors=False)
     assert trans
 
     # Schedule a new producer to trigger new producer schedule for "global_property_object"
@@ -81,7 +81,7 @@ try:
     setProdsStr += '{"producer_name":' + newProducerAcc.name + ',"block_signing_key":' + newProducerAcc.activePublicKey + '}'
     setProdsStr += ']}'
     cmd="push action -j amax setprods '{}' -p amax".format(setProdsStr)
-    trans = producerNode.processAmaxclCmd(cmd, cmd, silentErrors=False)
+    trans = producerNode.processAmcliCmd(cmd, cmd, silentErrors=False)
     assert trans
     setProdsBlockNum = int(trans["processed"]["block_num"])
 

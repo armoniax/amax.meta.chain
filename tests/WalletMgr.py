@@ -284,7 +284,7 @@ class WalletMgr(object):
                 shutil.copyfileobj(f, sys.stdout)
 
     def killall(self, allInstances=False):
-        """Kill amaxcl instances. allInstances will kill all amaxcl instances running on the system."""
+        """Kill amcli instances. allInstances will kill all amcli instances running on the system."""
         if self.__walletPid:
             Utils.Print("Killing wallet manager process %d" % (self.__walletPid))
             os.kill(self.__walletPid, signal.SIGKILL)

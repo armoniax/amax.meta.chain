@@ -61,9 +61,9 @@ $ ./amaxnd -d ~/eos.data/generator_node --config-dir ~/eos.data/generator_node -
 
 ### Create a wallet on the non-producer and set bios contract
 ```bash
-$ ./amaxcl wallet create --to-console
-$ ./amaxcl wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
-$ ./amaxcl set contract amax ~/eos/build.release/contracts/amax.bios/ 
+$ ./amcli wallet create --to-console
+$ ./amcli wallet import --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+$ ./amcli set contract amax ~/eos/build.release/contracts/amax.bios/ 
 ```
 
 ### Initialize the accounts txn_test_gen_plugin uses

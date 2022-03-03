@@ -1,16 +1,16 @@
 /**
   @defgroup eosclienttool
 
-  @section intro Introduction to amaxcl
+  @section intro Introduction to amcli
 
-  `amaxcl` is a command line tool that interfaces with the REST api exposed by @ref amaxnd. In order to use `amaxcl` you will need to
+  `amcli` is a command line tool that interfaces with the REST api exposed by @ref amaxnd. In order to use `amcli` you will need to
   have a local copy of `amaxnd` running and configured to load the 'eosio::chain_api_plugin'.
 
-   amaxcl contains documentation for all of its commands. For a list of all commands known to amaxcl, simply run it with no arguments:
+   amcli contains documentation for all of its commands. For a list of all commands known to amcli, simply run it with no arguments:
 ```
-$ ./amaxcl
+$ ./amcli
 Command Line Interface to AMAX Client
-Usage: programs/amaxcl/amaxcl [OPTIONS] SUBCOMMAND
+Usage: programs/amcli/amcli [OPTIONS] SUBCOMMAND
 
 Options:
   -h,--help                   Print this help message and exit
@@ -37,17 +37,17 @@ Subcommands:
 ```
 To get help with any particular subcommand, run it with no arguments as well:
 ```
-$ ./amaxcl create
+$ ./amcli create
 Create various items, on and off the blockchain
-Usage: ./amaxcl create SUBCOMMAND
+Usage: ./amcli create SUBCOMMAND
 
 Subcommands:
   key                         Create a new keypair and print the public and private keys
   account                     Create a new account on the blockchain (assumes system contract does not restrict RAM usage)
 
-$ ./amaxcl create account
+$ ./amcli create account
 Create a new account on the blockchain (assumes system contract does not restrict RAM usage)
-Usage: ./amaxcl create account [OPTIONS] creator name OwnerKey ActiveKey
+Usage: ./amcli create account [OPTIONS] creator name OwnerKey ActiveKey
 
 Positionals:
   creator TEXT                The name of the account creating the new account
@@ -954,10 +954,10 @@ void ensure_amaxks_running(CLI::App* app) {
 
     boost::filesystem::path binPath = boost::dll::program_location();
     binPath.remove_filename();
-    // This extra check is necessary when running amaxcl like this: ./amaxcl ...
+    // This extra check is necessary when running amcli like this: ./amcli ...
     if (binPath.filename_is_dot())
         binPath.remove_filename();
-    binPath.append(key_store_executable_name); // if amaxcl and amaxks are in the same installation directory
+    binPath.append(key_store_executable_name); // if amcli and amaxks are in the same installation directory
     if (!boost::filesystem::exists(binPath)) {
         binPath.remove_filename().remove_filename().append("amaxks").append(key_store_executable_name);
     }
@@ -1195,12 +1195,12 @@ struct approve_producer_subcommand {
                                ("table_key", "owner")
                                ("lower_bound", name(voter).to_uint64_t())
                                ("upper_bound", name(voter).to_uint64_t() + 1)
-                               // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                               // Change to voter.value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                               // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                               // Change to voter.value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                ("limit", 1)
             );
             auto res = result.as<eosio::chain_apis::read_only::get_table_rows_result>();
-            // Condition in if statement below can simply be res.rows.empty() when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+            // Condition in if statement below can simply be res.rows.empty() when amcli no longer needs to support amaxnd versions older than 1.5.0
             // Although since this subcommand will actually change the voter's vote, it is probably better to just keep this check to protect
             //  against future potential chain_plugin bugs.
             if( res.rows.empty() || res.rows[0].get_object()["owner"].as_string() != name(voter).to_string() ) {
@@ -1248,12 +1248,12 @@ struct unapprove_producer_subcommand {
                                ("table_key", "owner")
                                ("lower_bound", name(voter).to_uint64_t())
                                ("upper_bound", name(voter).to_uint64_t() + 1)
-                               // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                               // Change to voter.value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                               // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                               // Change to voter.value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                ("limit", 1)
             );
             auto res = result.as<eosio::chain_apis::read_only::get_table_rows_result>();
-            // Condition in if statement below can simply be res.rows.empty() when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+            // Condition in if statement below can simply be res.rows.empty() when amcli no longer needs to support amaxnd versions older than 1.5.0
             // Although since this subcommand will actually change the voter's vote, it is probably better to just keep this check to protect
             //  against future potential chain_plugin bugs.
             if( res.rows.empty() || res.rows[0].get_object()["owner"].as_string() != name(voter).to_string() ) {
@@ -1522,15 +1522,15 @@ struct bidname_info_subcommand {
                                ("code", "amax")("scope", "amax")("table", "namebids")
                                ("lower_bound", name(newname).to_uint64_t())
                                ("upper_bound", name(newname).to_uint64_t() + 1)
-                               // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                               // Change to newname.value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                               // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                               // Change to newname.value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                ("limit", 1));
          if ( print_json ) {
             std::cout << fc::json::to_pretty_string(rawResult) << std::endl;
             return;
          }
          auto result = rawResult.as<eosio::chain_apis::read_only::get_table_rows_result>();
-         // Condition in if statement below can simply be res.rows.empty() when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+         // Condition in if statement below can simply be res.rows.empty() when amcli no longer needs to support amaxnd versions older than 1.5.0
          if( result.rows.empty() || result.rows[0].get_object()["newname"].as_string() != name(newname).to_string() ) {
             std::cout << "No bidname record found" << std::endl;
             return;
@@ -2218,7 +2218,7 @@ void get_account( const string& accountName, const string& coresym, bool json_fo
          auto net_total = to_asset(res.total_resources.get_object()["net_weight"].as_string());
 
          if( net_total.get_symbol() != unstaking.get_symbol() ) {
-            // Core symbol of amaxnd responding to the request is different than core symbol built into amaxcl
+            // Core symbol of amaxnd responding to the request is different than core symbol built into amcli
             unstaking = asset( 0, net_total.get_symbol() ); // Correct core symbol for unstaking asset.
             staked = asset( 0, net_total.get_symbol() ); // Correct core symbol for staked asset.
          }
@@ -3578,14 +3578,14 @@ int main( int argc, char** argv ) {
                                  ("table_key", "")
                                  ("lower_bound", name(proposal_name).to_uint64_t())
                                  ("upper_bound", name(proposal_name).to_uint64_t() + 1)
-                                 // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                                 // Change to name(proposal_name).value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                                 // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                                 // Change to name(proposal_name).value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                  ("limit", 1)
                            );
       //std::cout << fc::json::to_pretty_string(result) << std::endl;
 
       const auto& rows1 = result1.get_object()["rows"].get_array();
-      // Condition in if statement below can simply be rows.empty() when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+      // Condition in if statement below can simply be rows.empty() when amcli no longer needs to support amaxnd versions older than 1.5.0
       if( rows1.empty() || rows1[0].get_object()["proposal_name"] != proposal_name ) {
          std::cerr << "Proposal not found" << std::endl;
          return;
@@ -3614,8 +3614,8 @@ int main( int argc, char** argv ) {
                                        ("table_key", "")
                                        ("lower_bound", name(proposal_name).to_uint64_t())
                                        ("upper_bound", name(proposal_name).to_uint64_t() + 1)
-                                       // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                                       // Change to name(proposal_name).value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                                       // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                                       // Change to name(proposal_name).value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                        ("limit", 1)
                                  );
             rows2 = result2.get_object()["rows"].get_array();
@@ -3646,8 +3646,8 @@ int main( int argc, char** argv ) {
                                        ("table_key", "")
                                        ("lower_bound", name(proposal_name).to_uint64_t())
                                        ("upper_bound", name(proposal_name).to_uint64_t() + 1)
-                                       // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                                       // Change to name(proposal_name).value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                                       // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                                       // Change to name(proposal_name).value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                        ("limit", 1)
                                  );
             const auto& rows3 = result3.get_object()["rows"].get_array();
@@ -3679,8 +3679,8 @@ int main( int argc, char** argv ) {
                                           ("table_key", "")
                                           ("lower_bound", a.first.to_uint64_t())
                                           ("upper_bound", a.first.to_uint64_t() + 1)
-                                          // Less than ideal upper_bound usage preserved so amaxcl can still work with old buggy amaxnd versions
-                                          // Change to name(proposal_name).value when amaxcl no longer needs to support amaxnd versions older than 1.5.0
+                                          // Less than ideal upper_bound usage preserved so amcli can still work with old buggy amaxnd versions
+                                          // Change to name(proposal_name).value when amcli no longer needs to support amaxnd versions older than 1.5.0
                                           ("limit", 1)
                                     );
                const auto& rows4 = result4.get_object()["rows"].get_array();

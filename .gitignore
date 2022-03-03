@@ -46,11 +46,11 @@ libraries/wasm-jit/Source/Programs/Disassemble
 libraries/wasm-jit/Source/Programs/Test
 libraries/wasm-jit/Source/Programs/wavm
 
-programs/amaxcl/amaxcl
+programs/amcli/amcli
 programs/js_operation_serializer/js_operation_serializer
 programs/data-dir
 programs/amax-abigen/amax-abigen
-programs/amaxcl/config.hpp
+programs/amcli/config.hpp
 programs/amax-applesedemo/amax-applesedemo
 programs/amax-launcher/config.hpp
 programs/amax-launcher/amax-launcher
