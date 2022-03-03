@@ -13,7 +13,7 @@ import re
 ###############################################################
 # amnod_run_test
 #
-# General test that tests a wide range of general use actions around amnod and amaxks
+# General test that tests a wide range of general use actions around amnod and amkey
 #
 ###############################################################
 

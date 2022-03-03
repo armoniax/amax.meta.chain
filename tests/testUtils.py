@@ -54,10 +54,10 @@ class Utils:
     FNull = open(os.devnull, 'w')
 
     AmaxClientPath="programs/amcli/amcli"
-    MiscEosClientArgs="--no-auto-amaxks"
+    MiscEosClientArgs="--no-auto-amkey"
 
-    EosWalletName="amaxks"
-    EosWalletPath="programs/amaxks/"+ EosWalletName
+    EosWalletName="amkey"
+    EosWalletPath="programs/amkey/"+ EosWalletName
 
     EosServerName="amnod"
     EosServerPath="programs/amnod/"+ EosServerName

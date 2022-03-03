@@ -12,13 +12,13 @@ from testUtils import Utils
 Wallet=namedtuple("Wallet", "name password host port")
 # pylint: disable=too-many-instance-attributes
 class WalletMgr(object):
-    __walletLogOutFile="test_amaxks_out.log"
-    __walletLogErrFile="test_amaxks_err.log"
+    __walletLogOutFile="test_amkey_out.log"
+    __walletLogErrFile="test_amkey_err.log"
     __walletDataDir="test_wallet_0"
     __MaxPort=9999
 
     # pylint: disable=too-many-arguments
-    # walletd [True|False] True=Launch wallet(amaxks) process; False=Manage launch process externally.
+    # walletd [True|False] True=Launch wallet(amkey) process; False=Manage launch process externally.
     def __init__(self, walletd, amnodPort=8888, amnodHost="localhost", port=9899, host="localhost"):
         self.walletd=walletd
         self.amnodPort=amnodPort
@@ -56,7 +56,7 @@ class WalletMgr(object):
 
     def launch(self):
         if not self.walletd:
-            Utils.Print("ERROR: Wallet Manager wasn't configured to launch amaxks")
+            Utils.Print("ERROR: Wallet Manager wasn't configured to launch amkey")
             return False
 
         if self.isLaunched():
@@ -87,7 +87,7 @@ class WalletMgr(object):
             popen=subprocess.Popen(cmd.split(), stdout=sout, stderr=serr)
             self.__walletPid=popen.pid
 
-        # Give amaxks time to warm up
+        # Give amkey time to warm up
         time.sleep(2)
 
         try:

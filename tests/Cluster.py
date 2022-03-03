@@ -48,11 +48,11 @@ class Cluster(object):
     __bootlog="amax-ignition-wd/bootlog.txt"
 
     # pylint: disable=too-many-arguments
-    # walletd [True|False] Is amaxks running. If not load the wallet plugin
+    # walletd [True|False] Is amkey running. If not load the wallet plugin
     def __init__(self, walletd=False, localCluster=True, host="localhost", port=8888, walletHost="localhost", walletPort=9899, enableMongo=False
                  , mongoHost="localhost", mongoPort=27017, mongoDb="AMAtest", defproduceraPrvtKey=None, defproducerbPrvtKey=None, staging=False):
         """Cluster container.
-        walletd [True|False] Is wallet amaxks running. If not load the wallet plugin
+        walletd [True|False] Is wallet amkey running. If not load the wallet plugin
         localCluster [True|False] Is cluster local to host.
         host: ama server host
         port: ama server port

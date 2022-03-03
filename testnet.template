@@ -51,9 +51,9 @@ echo "FEATURE_DIGESTS: $FEATURE_DIGESTS" >> $logfile
 
 echo "http-server-address = $wdaddr" > $wddir/config.ini
 
-programs/amaxks/amaxks --config-dir $wddir --data-dir $wddir --http-max-response-time-ms 99999 2> $wddir/wdlog.txt &
+programs/amkey/amkey --config-dir $wddir --data-dir $wddir --http-max-response-time-ms 99999 2> $wddir/wdlog.txt &
 echo $$ > ignition_wallet.pid
-echo amaxks log in $wddir/wdlog.txt >> $logfile
+echo amkey log in $wddir/wdlog.txt >> $logfile
 sleep 1
 
 ecmd () {
@@ -141,4 +141,4 @@ programs/amcli/amcli --wallet-url $wdurl --url http://$bioshost:$biosport push a
 # ------ DO NOT ALTER THE NEXT LINE -------
 ###INSERT cacmd
 
-pkill -15 amaxks
+pkill -15 amkey

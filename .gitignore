@@ -54,7 +54,7 @@ programs/amcli/config.hpp
 programs/amax-applesedemo/amax-applesedemo
 programs/amax-launcher/config.hpp
 programs/amax-launcher/amax-launcher
-programs/amaxks/amaxks
+programs/amkey/amkey
 programs/amnod/config.hpp
 programs/amnod/amnod
 

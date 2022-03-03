@@ -282,7 +282,7 @@ void wallet_manager::start_lock_watch(std::shared_ptr<boost::asio::deadline_time
       if(ec != boost::system::error_code()) {
          if(rc.type() == bfs::file_not_found) {
             appbase::app().quit();
-            EOS_THROW(wallet_exception, "Lock file removed while amaxks still running.  Terminating.");
+            EOS_THROW(wallet_exception, "Lock file removed while amkey still running.  Terminating.");
          }
       }
       t->expires_from_now(boost::posix_time::seconds(1));
@@ -291,7 +291,7 @@ void wallet_manager::start_lock_watch(std::shared_ptr<boost::asio::deadline_time
 }
 
 void wallet_manager::initialize_lock() {
-   //This is technically somewhat racy in here -- if multiple amaxks are in this function at once.
+   //This is technically somewhat racy in here -- if multiple amkey are in this function at once.
    //I've considered that an acceptable tradeoff to maintain cross-platform boost constructs here
    lock_path = dir / "wallet.lock";
    {
@@ -301,7 +301,7 @@ void wallet_manager::initialize_lock() {
    wallet_dir_lock = std::make_unique<boost::interprocess::file_lock>(lock_path.string().c_str());
    if(!wallet_dir_lock->try_lock()) {
       wallet_dir_lock.reset();
-      EOS_THROW(wallet_exception, "Failed to lock access to wallet directory; is another amaxks running?");
+      EOS_THROW(wallet_exception, "Failed to lock access to wallet directory; is another amkey running?");
    }
    auto timer = std::make_shared<boost::asio::deadline_timer>(appbase::app().get_io_service(), boost::posix_time::seconds(1));
    start_lock_watch(timer);

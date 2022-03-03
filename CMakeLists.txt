@@ -36,7 +36,7 @@ endif()
 
 set( CLI_CLIENT_EXECUTABLE_NAME amcli )
 set( NODE_EXECUTABLE_NAME amnod )
-set( KEY_STORE_EXECUTABLE_NAME amaxks )
+set( KEY_STORE_EXECUTABLE_NAME amkey )
 set( WALLET_FOLDER_NAME amax-wallet )
 
 # http://stackoverflow.com/a/18369825

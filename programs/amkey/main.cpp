@@ -73,7 +73,7 @@ bfs::path determine_home_directory()
 
 int main(int argc, char** argv)
 {
-   using amaxks::config::wallet_folder_name;
+   using amkey::config::wallet_folder_name;
    try {
       app().set_version_string(eosio::version::version_client());
       app().set_full_version_string(eosio::version::version_full());
@@ -81,7 +81,7 @@ int main(int argc, char** argv)
       app().set_default_data_dir(home / wallet_folder_name);
       app().set_default_config_dir(home / wallet_folder_name);
       http_plugin::set_defaults({
-         .default_unix_socket_path = amaxks::config::key_store_executable_name + ".sock",
+         .default_unix_socket_path = amkey::config::key_store_executable_name + ".sock",
          .default_http_port = 0
       });
       app().register_plugin<wallet_api_plugin>();
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
          return -1;
       initialize_logging();
       auto& http = app().get_plugin<http_plugin>();
-      http.add_handler("/v1/" + amaxks::config::key_store_executable_name + "/stop", [&a=app()](string, string, url_response_callback cb) { cb(200, fc::variant(fc::variant_object())); a.quit(); } );
+      http.add_handler("/v1/" + amkey::config::key_store_executable_name + "/stop", [&a=app()](string, string, url_response_callback cb) { cb(200, fc::variant(fc::variant_object())); a.quit(); } );
       app().startup();
       app().exec();
    } catch (const fc::exception& e) {

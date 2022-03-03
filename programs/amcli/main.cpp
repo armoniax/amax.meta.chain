@@ -17,7 +17,7 @@ Options:
   -u,--url TEXT=http://localhost:8888/
                               the http/https URL where amnod is running
   --wallet-url TEXT=http://localhost:8888/
-                              the http/https URL where amaxks is running
+                              the http/https URL where amkey is running
   -r,--header                 pass specific HTTP header, repeat this option to pass multiple headers
   -n,--no-verify              don't verify peer certificate when using HTTPS
   -v,--verbose                output verbose errors and action output
@@ -144,7 +144,7 @@ FC_DECLARE_EXCEPTION( localized_exception, 10000000, "an error occured" );
     FC_MULTILINE_MACRO_END \
   )
 
-//copy pasta from amaxks's main.cpp
+//copy pasta from amkey's main.cpp
 bfs::path determine_home_directory()
 {
    bfs::path home;
@@ -183,7 +183,7 @@ bool   tx_use_old_rpc = false;
 string tx_json_save_file;
 bool   print_request = false;
 bool   print_response = false;
-bool   no_auto_amaxks = false;
+bool   no_auto_amkey = false;
 bool   verbose = false;
 
 uint8_t  tx_max_cpu_usage = 0;
@@ -932,10 +932,10 @@ void try_local_port(uint32_t duration) {
    }
 }
 
-void ensure_amaxks_running(CLI::App* app) {
-    if (no_auto_amaxks)
+void ensure_amkey_running(CLI::App* app) {
+    if (no_auto_amkey)
         return;
-    // get, version, net, convert do not require amaxks
+    // get, version, net, convert do not require amkey
     if (tx_skip_sign || app->got_subcommand("get") || app->got_subcommand("version") || app->got_subcommand("net") || app->got_subcommand("convert"))
         return;
     if (app->get_subcommand("create")->got_subcommand("key")) // create key does not require wallet
@@ -957,9 +957,9 @@ void ensure_amaxks_running(CLI::App* app) {
     // This extra check is necessary when running amcli like this: ./amcli ...
     if (binPath.filename_is_dot())
         binPath.remove_filename();
-    binPath.append(key_store_executable_name); // if amcli and amaxks are in the same installation directory
+    binPath.append(key_store_executable_name); // if amcli and amkey are in the same installation directory
     if (!boost::filesystem::exists(binPath)) {
-        binPath.remove_filename().remove_filename().append("amaxks").append(key_store_executable_name);
+        binPath.remove_filename().remove_filename().append("amkey").append(key_store_executable_name);
     }
 
     if (boost::filesystem::exists(binPath)) {
@@ -2423,8 +2423,8 @@ int main( int argc, char** argv ) {
 
    app.add_option( "-r,--header", header_opt_callback, localized("pass specific HTTP header; repeat this option to pass multiple headers"));
    app.add_flag( "-n,--no-verify", no_verify, localized("don't verify peer certificate when using HTTPS"));
-   app.add_flag( "--no-auto-" + string(key_store_executable_name), no_auto_amaxks, localized("don't automatically launch a ${k} if one is not currently running", ("k", key_store_executable_name)));
-   app.parse_complete_callback([&app]{ ensure_amaxks_running(&app);});
+   app.add_flag( "--no-auto-" + string(key_store_executable_name), no_auto_amkey, localized("don't automatically launch a ${k} if one is not currently running", ("k", key_store_executable_name)));
+   app.parse_complete_callback([&app]{ ensure_amkey_running(&app);});
 
    app.add_flag( "-v,--verbose", verbose, localized("output verbose errors and action console output"));
    app.add_flag("--print-request", print_request, localized("print HTTP request to STDERR"));
@@ -3309,8 +3309,8 @@ int main( int argc, char** argv ) {
 
    auto stopKeosd = wallet->add_subcommand("stop", localized("Stop ${k}.", ("k", key_store_executable_name)));
    stopKeosd->callback([] {
-      const auto& v = call(wallet_url, amaxks_stop);
-      if ( !v.is_object() || v.get_object().size() != 0 ) { //on success amaxks responds with empty object
+      const auto& v = call(wallet_url, amkey_stop);
+      if ( !v.is_object() || v.get_object().size() != 0 ) { //on success amkey responds with empty object
          std::cerr << fc::json::to_pretty_string(v) << std::endl;
       } else {
          std::cout << "OK" << std::endl;
