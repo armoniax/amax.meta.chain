@@ -7,10 +7,10 @@ from TestHelper import TestHelper
 import subprocess
 
 ###############################################################
-# amaxnd_run_remote_test
+# amnod_run_remote_test
 #
-#  Tests remote capability of the amaxnd_run_test. Test will setup cluster and pass nodes info to amaxnd_run_test. E.g.
-#  amaxnd_run_remote_test.py -v --clean-run --dump-error-detail
+#  Tests remote capability of the amnod_run_test. Test will setup cluster and pass nodes info to amnod_run_test. E.g.
+#  amnod_run_remote_test.py -v --clean-run --dump-error-detail
 #
 ###############################################################
 
@@ -32,7 +32,7 @@ delay=1
 prodCount=1 # producers per producer node
 pnodes=1
 total_nodes=pnodes
-actualTest="tests/amaxnd_run_test.py"
+actualTest="tests/amnod_run_test.py"
 testSuccessful=False
 
 cluster=Cluster(walletd=True)
@@ -58,7 +58,7 @@ try:
     defproducerbPrvtKey=producerKeys["defproducerb"]["private"]
 
     cmd="%s --dont-launch --defproducera_prvt_key %s --defproducerb_prvt_key %s %s %s %s" % (actualTest, defproduceraPrvtKey, defproducerbPrvtKey, "-v" if debug else "", "--leave-running" if dontKill else "", "--only-bios" if onlyBios else "")
-    Print("Starting up %s test: %s" % ("amaxnd", actualTest))
+    Print("Starting up %s test: %s" % ("amnod", actualTest))
     Print("cmd: %s\n" % (cmd))
     if 0 != subprocess.call(cmd, shell=True):
         errorExit("failed to run cmd.")

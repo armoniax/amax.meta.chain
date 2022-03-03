@@ -33,7 +33,7 @@ wdurl=http://$wdaddr
 #    cnt_dir=$CONTRACT_DIR
 #    sys=$SYS_CONTRACT
 # where $BIOS_HOSTNAME is replaced by the hostname portion of the http-server-address configured
-# for the amaxnd instance running to bios producer
+# for the amnod instance running to bios producer
 # ------ DO NOT ALTER THE NEXT LINE -------
 ###INSERT envars
 

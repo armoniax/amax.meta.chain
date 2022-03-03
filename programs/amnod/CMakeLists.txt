@@ -16,15 +16,15 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../../.git)
     execute_process(
       COMMAND ${GIT_EXECUTABLE} rev-parse --short=8 HEAD
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../.."
-      OUTPUT_VARIABLE "amaxnd_BUILD_VERSION"
+      OUTPUT_VARIABLE "amnod_BUILD_VERSION"
       ERROR_QUIET
       OUTPUT_STRIP_TRAILING_WHITESPACE)
-    message(STATUS "Git commit revision: ${amaxnd_BUILD_VERSION}")
+    message(STATUS "Git commit revision: ${amnod_BUILD_VERSION}")
   else()
-    set(amaxnd_BUILD_VERSION 0)
+    set(amnod_BUILD_VERSION 0)
   endif()
 else()
-  set(amaxnd_BUILD_VERSION 0)
+  set(amnod_BUILD_VERSION 0)
 endif()
 
 configure_file(config.hpp.in config.hpp ESCAPE_QUOTES)

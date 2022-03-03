@@ -16,7 +16,7 @@ import math
 import re
 
 ###############################################################
-# amaxnd_startup_catchup
+# amnod_startup_catchup
 #
 #  Test configures a producing node and <--txn-plugins count> non-producing nodes with the
 #  txn_test_gen_plugin.  Each non-producing node starts generating transactions and sending them
@@ -67,13 +67,13 @@ try:
 
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
-    specificExtraAmaxndArgs={}
+    specificExtraAmnodArgs={}
     txnGenNodeNum=pnodes  # next node after producer nodes
     for nodeNum in range(txnGenNodeNum, txnGenNodeNum+startedNonProdNodes):
-        specificExtraAmaxndArgs[nodeNum]="--plugin eosio::txn_test_gen_plugin --txn-test-gen-account-prefix txntestacct"
+        specificExtraAmnodArgs[nodeNum]="--plugin eosio::txn_test_gen_plugin --txn-test-gen-account-prefix txntestacct"
     Print("Stand up cluster")
     if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=pnodes, totalNodes=totalNodes, totalProducers=pnodes*prodCount,
-                      useBiosBootFile=False, specificExtraAmaxndArgs=specificExtraAmaxndArgs, unstartedNodes=catchupCount, loadSystemContract=False) is False:
+                      useBiosBootFile=False, specificExtraAmnodArgs=specificExtraAmnodArgs, unstartedNodes=catchupCount, loadSystemContract=False) is False:
         Utils.errorExit("Failed to stand up ama cluster.")
 
     Print("Validating system accounts after bootstrap")

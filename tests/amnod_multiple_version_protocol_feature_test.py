@@ -14,9 +14,9 @@ from os.path import join, exists
 from datetime import datetime
 
 ###############################################################
-# amaxnd_multiple_version_protocol_feature_test
+# amnod_multiple_version_protocol_feature_test
 #
-# Test for verifying that older versions of amaxnd can work with newer versions of amaxnd.
+# Test for verifying that older versions of amnod can work with newer versions of amnod.
 #
 ###############################################################
 
@@ -36,11 +36,11 @@ walletMgr=WalletMgr(True)
 cluster=Cluster(walletd=True)
 cluster.setWalletMgr(walletMgr)
 
-def restartNode(node: Node, nodeId, chainArg=None, addSwapFlags=None, amaxndPath=None):
+def restartNode(node: Node, nodeId, chainArg=None, addSwapFlags=None, amnodPath=None):
     if not node.killed:
         node.kill(signal.SIGTERM)
     isRelaunchSuccess = node.relaunch(nodeId, chainArg, addSwapFlags=addSwapFlags,
-                                      timeout=5, cachePopen=True, amaxndPath=amaxndPath)
+                                      timeout=5, cachePopen=True, amnodPath=amnodPath)
     assert isRelaunchSuccess, "Fail to relaunch"
 
 def shouldNodeContainPreactivateFeature(node):
@@ -94,9 +94,9 @@ try:
     # version 1.7 did not provide a default value for "--last-block-time-offset-us" so this is needed to
     # avoid dropping late blocks
     assert cluster.launch(pnodes=4, totalNodes=4, prodCount=1, totalProducers=4,
-                          extraAmaxndArgs=" --plugin eosio::producer_api_plugin ",
+                          extraAmnodArgs=" --plugin eosio::producer_api_plugin ",
                           useBiosBootFile=False,
-                          specificExtraAmaxndArgs={
+                          specificExtraAmnodArgs={
                              0:"--http-max-response-time-ms 990000",
                              1:"--http-max-response-time-ms 990000",
                              2:"--http-max-response-time-ms 990000",
@@ -186,16 +186,16 @@ try:
     # Restart old node with newest version
     # Before we are migrating to new version, use --export-reversible-blocks as the old version
     # and --import-reversible-blocks with the new version to ensure the compatibility of the reversible blocks
-    # Finally, when we restart the 4th node with the version of amaxnd that supports protocol feature,
+    # Finally, when we restart the 4th node with the version of amnod that supports protocol feature,
     # all nodes should be in sync, and the 4th node will also contain PREACTIVATE_FEATURE
     portableRevBlkPath = os.path.join(Utils.getNodeDataDir(oldNodeId), "rev_blk_portable_format")
     oldNode.kill(signal.SIGTERM)
     # Note, for the following relaunch, these will fail to relaunch immediately (expected behavior of export/import), so the chainArg will not replace the old cmd
     oldNode.relaunch(oldNodeId, chainArg="--export-reversible-blocks {}".format(portableRevBlkPath), timeout=1)
-    oldNode.relaunch(oldNodeId, chainArg="--import-reversible-blocks {}".format(portableRevBlkPath), timeout=1, amaxndPath="programs/amaxnd/amaxnd")
+    oldNode.relaunch(oldNodeId, chainArg="--import-reversible-blocks {}".format(portableRevBlkPath), timeout=1, amnodPath="programs/amnod/amnod")
     os.remove(portableRevBlkPath)
 
-    restartNode(oldNode, oldNodeId, chainArg="--replay", amaxndPath="programs/amaxnd/amaxnd")
+    restartNode(oldNode, oldNodeId, chainArg="--replay", amnodPath="programs/amnod/amnod")
     time.sleep(2) # Give some time to replay
 
     assert areNodesInSync(allNodes), "All nodes should be in sync"

@@ -1354,8 +1354,8 @@ class Node(object):
 
     # TBD: make nodeId an internal property
     # pylint: disable=too-many-locals
-    # If amaxndPath is equal to None, it will use the existing amaxnd path
-    def relaunch(self, nodeId, chainArg=None, newChain=False, timeout=Utils.systemWaitTimeout, addSwapFlags=None, cachePopen=False, amaxndPath=None):
+    # If amnodPath is equal to None, it will use the existing amnod path
+    def relaunch(self, nodeId, chainArg=None, newChain=False, timeout=Utils.systemWaitTimeout, addSwapFlags=None, cachePopen=False, amnodPath=None):
 
         assert(self.pid is None)
         assert(self.killed)
@@ -1365,7 +1365,7 @@ class Node(object):
 
         cmdArr=[]
         splittedCmd=self.cmd.split()
-        if amaxndPath: splittedCmd[0] = amaxndPath
+        if amnodPath: splittedCmd[0] = amnodPath
         myCmd=" ".join(splittedCmd)
         toAddOrSwap=copy.deepcopy(addSwapFlags) if addSwapFlags is not None else {}
         if not newChain:

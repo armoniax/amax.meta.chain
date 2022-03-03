@@ -11,9 +11,9 @@ import decimal
 import re
 
 ###############################################################
-# amaxnd_run_test
+# amnod_run_test
 #
-# General test that tests a wide range of general use actions around amaxnd and amaxks
+# General test that tests a wide range of general use actions around amnod and amaxks
 #
 ###############################################################
 

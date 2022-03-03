@@ -14,7 +14,7 @@ from TestHelper import TestHelper
 
 ###############################################################
 # block_log_util_test
-#  Test verifies that the blockLogUtil is still compatible with amaxnd
+#  Test verifies that the blockLogUtil is still compatible with amnod
 ###############################################################
 
 Print=Utils.Print

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
-# The purpose of this test is to ensure that the output of the "amaxnd --version" command matches the version string defined by our CMake files
-echo '##### Amaxnd Version Label Test #####'
+# The purpose of this test is to ensure that the output of the "amnod --version" command matches the version string defined by our CMake files
+echo '##### Amnod Version Label Test #####'
 # orient ourselves
 [[ -z "$BUILD_ROOT" ]] && export BUILD_ROOT="$(pwd)"
 echo "Using BUILD_ROOT=\"$BUILD_ROOT\"."
@@ -15,12 +15,12 @@ if [[ -z "$EXPECTED" ]]; then
     exit 1
 fi
 echo "Expecting \"$EXPECTED\"..."
-# get amaxnd version
-ACTUAL=$($BUILD_ROOT/bin/amaxnd --version)
+# get amnod version
+ACTUAL=$($BUILD_ROOT/bin/amnod --version)
 EXIT_CODE=$?
 # verify 0 exit code explicitly
 if [[ $EXIT_CODE -ne 0 ]]; then
-    echo "Amaxnd produced non-zero exit code \"$EXIT_CODE\"."
+    echo "Amnod produced non-zero exit code \"$EXIT_CODE\"."
     exit $EXIT_CODE
 fi
 # test version

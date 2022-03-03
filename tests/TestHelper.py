@@ -64,7 +64,7 @@ class TestHelper(object):
             parser.add_argument("--kill-sig", type=str, choices=[Utils.SigKillTag, Utils.SigTermTag], help="kill signal.",
                     default=Utils.SigKillTag)
         if "--kill-count" in includeArgs:
-            parser.add_argument("--kill-count", type=int, help="amaxnd instances to kill", default=-1)
+            parser.add_argument("--kill-count", type=int, help="amnod instances to kill", default=-1)
         if "--seed" in includeArgs:
             parser.add_argument("--seed", type=int, help="random seed", default=1)
 
@@ -105,9 +105,9 @@ class TestHelper(object):
         if "--only-bios" in includeArgs:
             parser.add_argument("--only-bios", help="Limit testing to bios node.", action='store_true')
         if "--clean-run" in includeArgs:
-            parser.add_argument("--clean-run", help="Kill all amaxnd and kleos instances", action='store_true')
+            parser.add_argument("--clean-run", help="Kill all amnod and kleos instances", action='store_true')
         if "--sanity-test" in includeArgs:
-            parser.add_argument("--sanity-test", help="Validates amaxnd and kleos are in path and can be started up.", action='store_true')
+            parser.add_argument("--sanity-test", help="Validates amnod and kleos are in path and can be started up.", action='store_true')
         if "--alternate-version-labels-file" in includeArgs:
             parser.add_argument("--alternate-version-labels-file", type=str, help="Provide a file to define the labels that can be used in the test and the path to the version installation associated with that.")
 

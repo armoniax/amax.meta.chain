@@ -8,9 +8,9 @@ import subprocess
 import re
 
 
-def amaxnd_help_test():
-    """Test that amaxnd help contains option descriptions"""
-    help_text = subprocess.check_output(["./programs/amaxnd/amaxnd", "--help"])
+def amnod_help_test():
+    """Test that amnod help contains option descriptions"""
+    help_text = subprocess.check_output(["./programs/amnod/amnod", "--help"])
 
     assert(re.search(b'Application.*Options', help_text))
     assert(re.search(b'Options for .*_plugin', help_text))
@@ -38,7 +38,7 @@ def cli11_bugfix_test():
 
     # Make sure that the command failed because of the connection error,
     # not the command line parsing error.
-    assert(b'Failed to connect to amaxnd' in completed_process.stderr)
+    assert(b'Failed to connect to amnod' in completed_process.stderr)
 
 
 def cli11_optional_option_arg_test():
@@ -57,7 +57,7 @@ def cli11_optional_option_arg_test():
     assert(b'signatures' in output)
 
 
-amaxnd_help_test()
+amnod_help_test()
 
 amcli_help_test(['--help'])
 amcli_help_test(['system', '--help'])

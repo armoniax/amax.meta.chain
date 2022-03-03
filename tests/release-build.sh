@@ -3,11 +3,11 @@
 echo ''
 echo '                         ##### Release Build Test #####'
 echo ''
-echo '    The purpose of this test is to ensure that amaxnd was built with compiler'
+echo '    The purpose of this test is to ensure that amnod was built with compiler'
 echo 'optimizations enabled. While there is no way to programmatically determine that'
-echo 'given one binary, we do set a debug flag in amaxnd when it is built with'
+echo 'given one binary, we do set a debug flag in amnod when it is built with'
 echo 'asserts. This test checks that debug flag. Anyone intending to build and install'
-echo 'amaxnd from source should perform a "release build" which excludes asserts and'
+echo 'amnod from source should perform a "release build" which excludes asserts and'
 echo 'debugging symbols, and performs compiler optimizations.'
 echo ''
 # check for jq
@@ -16,14 +16,14 @@ if ! $(jq --version 1>/dev/null); then
     echo ''
     exit 1
 fi
-# find amaxnd
-[[ $(git --version) ]] && cd "$(git rev-parse --show-toplevel)/build/programs/amaxnd" || cd "$(dirname "${BASH_SOURCE[0]}")/../programs/amaxnd"
-if [[ ! -f amaxnd ]]; then
-    echo 'ERROR: amaxnd binary not found!'
+# find amnod
+[[ $(git --version) ]] && cd "$(git rev-parse --show-toplevel)/build/programs/amnod" || cd "$(dirname "${BASH_SOURCE[0]}")/../programs/amnod"
+if [[ ! -f amnod ]]; then
+    echo 'ERROR: amnod binary not found!'
     echo ''
     echo 'I looked here...'
-    echo "$ ls -la \"$(pwd)/programs/amaxnd\""
-    ls -la "$(pwd)/programs/amaxnd"
+    echo "$ ls -la \"$(pwd)/programs/amnod\""
+    ls -la "$(pwd)/programs/amnod"
     echo '...which I derived from one of these paths:'
     echo '$ echo "$(git rev-parse --show-toplevel)/build"'
     echo "$(git rev-parse --show-toplevel)/build"
@@ -32,8 +32,8 @@ if [[ ! -f amaxnd ]]; then
     echo 'Release build test not run.'
     exit 1
 fi
-# run amaxnd to generate state files
-./amaxnd --extract-build-info build-info.json 1>/dev/null 2>/dev/null
+# run amnod to generate state files
+./amnod --extract-build-info build-info.json 1>/dev/null 2>/dev/null
 if [[ ! -f build-info.json ]]; then
     echo 'ERROR: Build info JSON file not found!'
     echo ''

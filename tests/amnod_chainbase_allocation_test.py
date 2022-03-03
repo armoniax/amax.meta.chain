@@ -13,7 +13,7 @@ import os
 import filecmp
 
 ###############################################################
-# amaxnd_chainbase_allocation_test
+# amnod_chainbase_allocation_test
 #
 # Test snapshot creation and restarting from snapshot
 #
@@ -57,7 +57,7 @@ try:
         totalNodes=2,
         useBiosBootFile=False,
         loadSystemContract=False,
-        specificExtraAmaxndArgs={
+        specificExtraAmnodArgs={
             1:"--read-mode irreversible --plugin eosio::producer_api_plugin"})
 
     producerNodeId = 0

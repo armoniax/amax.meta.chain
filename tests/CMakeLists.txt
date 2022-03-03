@@ -31,17 +31,17 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/distributed-transactions-test.py ${CM
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/distributed-transactions-remote-test.py ${CMAKE_CURRENT_BINARY_DIR}/distributed-transactions-remote-test.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sample-cluster-map.json ${CMAKE_CURRENT_BINARY_DIR}/sample-cluster-map.json COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/restart-scenarios-test.py ${CMAKE_CURRENT_BINARY_DIR}/restart-scenarios-test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_startup_catchup.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_startup_catchup.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_forked_chain_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_forked_chain_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_short_fork_take_over_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_short_fork_take_over_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_run_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_run_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_run_remote_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_run_remote_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_under_min_avail_ram.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_under_min_avail_ram.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_voting_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_voting_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_irreversible_mode_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_irreversible_mode_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_chainbase_allocation_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_chainbase_allocation_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_protocol_feature_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_protocol_feature_test.py COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_multiple_version_protocol_feature_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_multiple_version_protocol_feature_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_startup_catchup.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_startup_catchup.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_forked_chain_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_forked_chain_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_short_fork_take_over_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_short_fork_take_over_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_run_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_run_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_run_remote_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_run_remote_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_under_min_avail_ram.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_under_min_avail_ram.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_voting_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_voting_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_irreversible_mode_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_irreversible_mode_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_chainbase_allocation_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_chainbase_allocation_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_protocol_feature_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_protocol_feature_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_multiple_version_protocol_feature_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_multiple_version_protocol_feature_test.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/consensus-validation-malicious-producers.py ${CMAKE_CURRENT_BINARY_DIR}/consensus-validation-malicious-producers.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/validate-dirty-db.py ${CMAKE_CURRENT_BINARY_DIR}/validate-dirty-db.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/launcher_test.py ${CMAKE_CURRENT_BINARY_DIR}/launcher_test.py COPYONLY)
@@ -52,30 +52,30 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/release-build.sh ${CMAKE_CURRENT_BINA
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version-label.sh ${CMAKE_CURRENT_BINARY_DIR}/version-label.sh COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/full-version-label.sh ${CMAKE_CURRENT_BINARY_DIR}/full-version-label.sh COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/print-build-info.sh ${CMAKE_CURRENT_BINARY_DIR}/print-build-info.sh COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amaxnd_producer_watermark_test.py ${CMAKE_CURRENT_BINARY_DIR}/amaxnd_producer_watermark_test.py COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amnod_producer_watermark_test.py ${CMAKE_CURRENT_BINARY_DIR}/amnod_producer_watermark_test.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cli_test.py ${CMAKE_CURRENT_BINARY_DIR}/cli_test.py COPYONLY)
 
 #To run plugin_test with all log from blockchain displayed, put --verbose after --, i.e. plugin_test -- --verbose
 add_test(NAME plugin_test COMMAND plugin_test --report_level=detailed --color_output)
 
-add_test(NAME amaxnd_sanity_test COMMAND tests/amaxnd_run_test.py -v --sanity-test --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_sanity_test PROPERTY LABELS nonparallelizable_tests)
-add_test(NAME amaxnd_run_test COMMAND tests/amaxnd_run_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_run_test PROPERTY LABELS nonparallelizable_tests)
+add_test(NAME amnod_sanity_test COMMAND tests/amnod_run_test.py -v --sanity-test --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_sanity_test PROPERTY LABELS nonparallelizable_tests)
+add_test(NAME amnod_run_test COMMAND tests/amnod_run_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_run_test PROPERTY LABELS nonparallelizable_tests)
 add_test(NAME block_log_util_test COMMAND tests/block_log_util_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_property(TEST block_log_util_test PROPERTY LABELS nonparallelizable_tests)
 
 add_test(NAME p2p_dawn515_test COMMAND tests/p2p_tests/dawn_515/test.sh WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_property(TEST p2p_dawn515_test PROPERTY LABELS nonparallelizable_tests)
 if(BUILD_MONGO_DB_PLUGIN)
-  add_test(NAME amaxnd_run_test-mongodb COMMAND tests/amaxnd_run_test.py --mongodb -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-  set_property(TEST amaxnd_run_test-mongodb PROPERTY LABELS nonparallelizable_tests)
+  add_test(NAME amnod_run_test-mongodb COMMAND tests/amnod_run_test.py --mongodb -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+  set_property(TEST amnod_run_test-mongodb PROPERTY LABELS nonparallelizable_tests)
 endif()
 
 add_test(NAME producer-preactivate-feature-test COMMAND tests/prod_preactivation_test.py --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_property(TEST producer-preactivate-feature-test PROPERTY LABELS nonparallelizable_tests)
-add_test(NAME amaxnd_protocol_feature_test COMMAND tests/amaxnd_protocol_feature_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_protocol_feature_test PROPERTY LABELS nonparallelizable_tests)
+add_test(NAME amnod_protocol_feature_test COMMAND tests/amnod_protocol_feature_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_protocol_feature_test PROPERTY LABELS nonparallelizable_tests)
 
 add_test(NAME distributed-transactions-test COMMAND tests/distributed-transactions-test.py -d 2 -p 4 -n 6 -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_property(TEST distributed-transactions-test PROPERTY LABELS nonparallelizable_tests)
@@ -100,49 +100,49 @@ add_test(NAME full-version-label-test COMMAND tests/full-version-label.sh "v${VE
 add_test(NAME print-build-info-test COMMAND tests/print-build-info.sh ${CMAKE_SOURCE_DIR} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Long running tests
-add_test(NAME amaxnd_sanity_lr_test COMMAND tests/amaxnd_run_test.py -v --sanity-test --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_sanity_lr_test PROPERTY LABELS long_running_tests)
-add_test(NAME amaxnd_run_check_lr_test COMMAND tests/amaxnd_run_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_run_check_lr_test PROPERTY LABELS long_running_tests)
-add_test(NAME amaxnd_remote_lr_test COMMAND tests/amaxnd_run_remote_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_remote_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_sanity_lr_test COMMAND tests/amnod_run_test.py -v --sanity-test --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_sanity_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_run_check_lr_test COMMAND tests/amnod_run_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_run_check_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_remote_lr_test COMMAND tests/amnod_run_remote_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_remote_lr_test PROPERTY LABELS long_running_tests)
 
 #add_test(NAME distributed_transactions_lr_test COMMAND tests/distributed-transactions-test.py -d 2 -p 21 -n 21 -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 #set_property(TEST distributed_transactions_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_forked_chain_lr_test COMMAND tests/amaxnd_forked_chain_test.py -v --wallet-port 9901 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_forked_chain_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_forked_chain_lr_test COMMAND tests/amnod_forked_chain_test.py -v --wallet-port 9901 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_forked_chain_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_voting_lr_test COMMAND tests/amaxnd_voting_test.py -v --wallet-port 9902 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_voting_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_voting_lr_test COMMAND tests/amnod_voting_test.py -v --wallet-port 9902 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_voting_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_under_min_avail_ram_lr_test COMMAND tests/amaxnd_under_min_avail_ram.py -v --wallet-port 9904 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_tests_properties(amaxnd_under_min_avail_ram_lr_test PROPERTIES TIMEOUT 3000)
-set_property(TEST amaxnd_under_min_avail_ram_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_under_min_avail_ram_lr_test COMMAND tests/amnod_under_min_avail_ram.py -v --wallet-port 9904 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(amnod_under_min_avail_ram_lr_test PROPERTIES TIMEOUT 3000)
+set_property(TEST amnod_under_min_avail_ram_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_irreversible_mode_lr_test COMMAND tests/amaxnd_irreversible_mode_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_irreversible_mode_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_irreversible_mode_lr_test COMMAND tests/amnod_irreversible_mode_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_irreversible_mode_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_chainbase_allocation_lr_test COMMAND tests/amaxnd_chainbase_allocation_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_chainbase_allocation_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_chainbase_allocation_lr_test COMMAND tests/amnod_chainbase_allocation_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_chainbase_allocation_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_startup_catchup_lr_test COMMAND tests/amaxnd_startup_catchup.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_tests_properties(amaxnd_startup_catchup_lr_test PROPERTIES TIMEOUT 3000)
-set_property(TEST amaxnd_startup_catchup_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_startup_catchup_lr_test COMMAND tests/amnod_startup_catchup.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(amnod_startup_catchup_lr_test PROPERTIES TIMEOUT 3000)
+set_property(TEST amnod_startup_catchup_lr_test PROPERTY LABELS long_running_tests)
 
-add_test(NAME amaxnd_short_fork_take_over_lr_test COMMAND tests/amaxnd_short_fork_take_over_test.py -v --wallet-port 9905 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_short_fork_take_over_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_short_fork_take_over_lr_test COMMAND tests/amnod_short_fork_take_over_test.py -v --wallet-port 9905 --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_short_fork_take_over_lr_test PROPERTY LABELS long_running_tests)
 
 if(ENABLE_MULTIVERSION_PROTOCOL_TEST)
   set(ALTERNATE_VERSION_LABELS_FILE "${CMAKE_BINARY_DIR}/tests/multiversion_paths.conf")
 
-  add_test(NAME amaxnd_multiple_version_protocol_feature_mv_test COMMAND tests/amaxnd_multiple_version_protocol_feature_test.py
+  add_test(NAME amnod_multiple_version_protocol_feature_mv_test COMMAND tests/amnod_multiple_version_protocol_feature_test.py
            -v --clean-run --dump-error-detail --alternate-version-labels-file ${ALTERNATE_VERSION_LABELS_FILE} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-  set_property(TEST amaxnd_multiple_version_protocol_feature_mv_test PROPERTY LABELS mixed_version_tests)
+  set_property(TEST amnod_multiple_version_protocol_feature_mv_test PROPERTY LABELS mixed_version_tests)
 endif()
 
-add_test(NAME amaxnd_producer_watermark_lr_test COMMAND tests/amaxnd_producer_watermark_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_property(TEST amaxnd_producer_watermark_lr_test PROPERTY LABELS long_running_tests)
+add_test(NAME amnod_producer_watermark_lr_test COMMAND tests/amnod_producer_watermark_test.py -v --clean-run --dump-error-detail WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_property(TEST amnod_producer_watermark_lr_test PROPERTY LABELS long_running_tests)
 
 
 add_test(NAME cli_test COMMAND tests/cli_test.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -164,8 +164,8 @@ if(ENABLE_COVERAGE_TESTING)
   endif() # NOT GENHTML_PATH
 
   # no spaces allowed within tests list
-  set(ctest_tests 'plugin_test|p2p_dawn515_test|amaxnd_run_test|distributed-transactions-test|restart-scenarios-test_resync')
-  set(ctest_exclude_tests 'amaxnd_run_remote_test|amaxnd_run_test-mongodb|distributed-transactions-remote-test|restart-scenarios-test_replay')
+  set(ctest_tests 'plugin_test|p2p_dawn515_test|amnod_run_test|distributed-transactions-test|restart-scenarios-test_resync')
+  set(ctest_exclude_tests 'amnod_run_remote_test|amnod_run_test-mongodb|distributed-transactions-remote-test|restart-scenarios-test_replay')
 
   # Setup target
   add_custom_target(${Coverage_NAME}

@@ -59,8 +59,8 @@ class Utils:
     EosWalletName="amaxks"
     EosWalletPath="programs/amaxks/"+ EosWalletName
 
-    EosServerName="amaxnd"
-    EosServerPath="programs/amaxnd/"+ EosServerName
+    EosServerName="amnod"
+    EosServerPath="programs/amnod/"+ EosServerName
 
     EosLauncherPath="programs/amax-launcher/amax-launcher"
     MongoPath="mongo"

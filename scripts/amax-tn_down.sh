@@ -10,7 +10,7 @@ if [ "$PWD" != "$AMAX_HOME" ]; then
     exit -1
 fi
 
-prog=amaxnd
+prog=amnod
 
 DD=var/lib/node_$AMAX_NODE
 runtest=`cat $DD/$prog.pid`

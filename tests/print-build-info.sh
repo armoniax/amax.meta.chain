@@ -1,15 +1,15 @@
 #!/bin/bash
 set -eo pipefail
-# The purpose of this test is to ensure that the output of the "amaxnd --print-build-info" command.
+# The purpose of this test is to ensure that the output of the "amnod --print-build-info" command.
 # This includes verifying valid output in JSON shape and checking parameters (only boost for now).
-echo '##### Amaxnd Print Build Info Test #####'
+echo '##### Amnod Print Build Info Test #####'
 # orient ourselves
 [[ -z "$BUILD_ROOT" ]] && export BUILD_ROOT="$(pwd)"
 echo "Using BUILD_ROOT=\"$BUILD_ROOT\"."
 [[ -z "$CMAKE_SOURCE_DIR" ]] && export CMAKE_SOURCE_DIR="$1"
 
 exec 9>&1 # enable tee to write to STDOUT as a file
-PRINT_BUILD_INFO="$BUILD_ROOT/bin/amaxnd --print-build-info 2>&1 | tee >(cat - >&9) || :"
+PRINT_BUILD_INFO="$BUILD_ROOT/bin/amnod --print-build-info 2>&1 | tee >(cat - >&9) || :"
 echo "$ $PRINT_BUILD_INFO"
 OUTPUT="$(eval $PRINT_BUILD_INFO)"
 

@@ -111,10 +111,10 @@ INITA_PRV_KEY="5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
 # cleanup from last run
 cleanup
 
-# stand up amaxnd cluster
+# stand up amnod cluster
 launcherOpts="-p $pnodes -n $total_nodes -s $topo -d $delay"
-echo Launcher options: --amaxnd \"--plugin eosio::wallet_api_plugin\" $launcherOpts
-programs/amax-launcher/amax-launcher --amaxnd "--plugin eosio::wallet_api_plugin" $launcherOpts
+echo Launcher options: --amnod \"--plugin eosio::wallet_api_plugin\" $launcherOpts
+programs/amax-launcher/amax-launcher --amnod "--plugin eosio::wallet_api_plugin" $launcherOpts
 sleep 7
 
 startPort=8888

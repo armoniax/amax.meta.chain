@@ -55,8 +55,8 @@ programs/amax-applesedemo/amax-applesedemo
 programs/amax-launcher/config.hpp
 programs/amax-launcher/amax-launcher
 programs/amaxks/amaxks
-programs/amaxnd/config.hpp
-programs/amaxnd/amaxnd
+programs/amnod/config.hpp
+programs/amnod/amnod
 
 scripts/tn_init.sh
 

@@ -16,7 +16,7 @@ import subprocess
 import shutil
 
 ###############################################################
-# amaxnd_irreversible_mode_test
+# amnod_irreversible_mode_test
 #
 # Many smaller tests centered around irreversible mode
 #
@@ -159,7 +159,7 @@ try:
       pnodes=1,
       useBiosBootFile=False,
       topo="mesh",
-      specificExtraAmaxndArgs={
+      specificExtraAmnodArgs={
          0:"--enable-stale-production",
          4:"--read-mode irreversible",
          6:"--read-mode irreversible",

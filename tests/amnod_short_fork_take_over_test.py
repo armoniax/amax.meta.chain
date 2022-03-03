@@ -15,9 +15,9 @@ import re
 import signal
 
 ###############################################################
-# amaxnd_short_fork_take_over_test
+# amnod_short_fork_take_over_test
 #
-# Similar scenario to amaxnd_forked_chain_test, except that there are only 3 producers and, after the "bridge" node is
+# Similar scenario to amnod_forked_chain_test, except that there are only 3 producers and, after the "bridge" node is
 # shutdown, the second producer node is also shutdown.  Then the "bridge" node is re-started followed by the producer
 # node being started.
 #
@@ -146,9 +146,9 @@ try:
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
     Print("Stand up cluster")
-    specificExtraAmaxndArgs={}
+    specificExtraAmnodArgs={}
     # producer nodes will be mapped to 0 through totalProducerNodes-1, so the number totalProducerNodes will be the non-producing node
-    specificExtraAmaxndArgs[totalProducerNodes]="--plugin eosio::test_control_api_plugin"
+    specificExtraAmnodArgs[totalProducerNodes]="--plugin eosio::test_control_api_plugin"
 
 
     # ***   setup topogrophy   ***
@@ -157,7 +157,7 @@ try:
     # and the only connection between those 2 groups is through the bridge node
     if cluster.launch(prodCount=2, topo="bridge", pnodes=totalProducerNodes,
                       totalNodes=totalNodes, totalProducers=totalProducers,
-                      useBiosBootFile=False, specificExtraAmaxndArgs=specificExtraAmaxndArgs, onlySetProds=True) is False:
+                      useBiosBootFile=False, specificExtraAmnodArgs=specificExtraAmnodArgs, onlySetProds=True) is False:
         Utils.cmdError("launcher")
         Utils.errorExit("Failed to stand up ama cluster.")
     Print("Validating system accounts after bootstrap")

@@ -35,7 +35,7 @@ else()
 endif()
 
 set( CLI_CLIENT_EXECUTABLE_NAME amcli )
-set( NODE_EXECUTABLE_NAME amaxnd )
+set( NODE_EXECUTABLE_NAME amnod )
 set( KEY_STORE_EXECUTABLE_NAME amaxks )
 set( WALLET_FOLDER_NAME amax-wallet )
 
@@ -57,7 +57,7 @@ endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 set(BUILD_DOXYGEN FALSE CACHE BOOL "Build doxygen documentation on every make")
 set(BUILD_MONGO_DB_PLUGIN FALSE CACHE BOOL "Build mongo database plugin")
-set(ENABLE_MULTIVERSION_PROTOCOL_TEST FALSE CACHE BOOL "Enable amaxnd multiversion protocol test")
+set(ENABLE_MULTIVERSION_PROTOCOL_TEST FALSE CACHE BOOL "Enable amnod multiversion protocol test")
 
 # add defaults for openssl
 if(APPLE AND UNIX AND "${OPENSSL_ROOT_DIR}" STREQUAL "")

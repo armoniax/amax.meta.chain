@@ -1,4 +1,4 @@
-add_subdirectory( amaxnd )
+add_subdirectory( amnod )
 add_subdirectory( amcli )
 add_subdirectory( amaxks )
 add_subdirectory( amax-launcher )

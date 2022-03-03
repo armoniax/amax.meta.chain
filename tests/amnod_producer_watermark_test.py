@@ -7,28 +7,16 @@ from WalletMgr import WalletMgr
 from Node import Node
 from TestHelper import TestHelper
 
+import time
 import decimal
 import math
 import re
 
 ###############################################################
-# amaxnd_voting_test
-#
-# This test sets up multiple producing nodes, each with multiple producers per node. Different combinations of producers
-# are voted into the production schedule and the block production is analyzed to determine if the correct producers are
-# producing blocks and in the right number and order.
-#
+# amnod_producer_watermark_test
+# --dump-error-details <Upon error print etc/amax/node_*/config.ini and var/lib/node_*/stderr.log to stdout>
+# --keep-logs <Don't delete var/lib/node_* folders upon test completion>
 ###############################################################
-
-class ProducerToNode:
-    map={}
-
-    @staticmethod
-    def populate(node, num):
-        for prod in node.producers:
-            ProducerToNode.map[prod]=num
-            Utils.Print("Producer=%s for nodeNum=%s" % (prod,num))
-
 def isValidBlockProducer(prodsActive, blockNum, node):
     blockProducer=node.getBlockProducerByNum(blockNum)
     if blockProducer not in prodsActive:
@@ -44,10 +32,28 @@ def validBlockProducer(prodsActive, prodsSeen, blockNum, node):
         Utils.cmdError("block producer %s for blockNum=%s not elected, belongs to node %s" % (blockProducer, blockNum, ProducerToNode.map[blockProducer]))
         Utils.errorExit("Failed because of incorrect block producer")
     prodsSeen[blockProducer]=True
+    return blockProducer
 
-def setActiveProducers(prodsActive, activeProducers):
-    for prod in prodsActive:
-        prodsActive[prod]=prod in activeProducers
+def setProds(sharedProdKey):
+    setProdsStr='{"schedule": ['
+    firstTime=True
+    for name in ["defproducera", "shrproducera", "defproducerb", "defproducerc"]:
+        if firstTime:
+            firstTime = False
+        else:
+            setProdsStr += ','
+        key = cluster.defProducerAccounts[name].activePublicKey
+        if name == "shrproducera":
+            key = sharedProdKey
+        setProdsStr += ' { "producer_name": "%s", "block_signing_key": "%s" }' % (name, key)
+
+    setProdsStr += ' ] }'
+    Utils.Print("setprods: %s" % (setProdsStr))
+    opts="--permission amax@active"
+    # pylint: disable=redefined-variable-type
+    trans=cluster.biosNode.pushMessage("amax", "setprods", setProdsStr, opts)
+    if trans is None or not trans[0]:
+        Utils.Print("ERROR: Failed to set producer with cmd %s" % (setProdsStr))
 
 def verifyProductionRounds(trans, node, prodsActive, rounds):
     blockNum=node.getNextCleanProductionCycle(trans)
@@ -76,7 +82,7 @@ def verifyProductionRounds(trans, node, prodsActive, rounds):
     while adjust:
         invalidCount+=1
         if lastBlockProducer==blockProducer:
-            saw+=1;
+            saw+=1
         else:
             if saw>=12:
                 startingFrom=blockNum
@@ -103,10 +109,12 @@ def verifyProductionRounds(trans, node, prodsActive, rounds):
     prodsSeen=None
     reportFirstMissedBlock=False
     Utils.Print("Verify %s complete rounds of all producers producing" % (rounds))
+
+    prodsSize = len(prodsActive)
     for i in range(0, rounds):
         prodsSeen={}
         lastBlockProducer=None
-        for j in range(0, 21):
+        for j in range(0, prodsSize):
             # each new set of 12 blocks should have a different blockProducer 
             if lastBlockProducer is not None and lastBlockProducer==node.getBlockProducerByNum(blockNum):
                 Utils.cmdError("expected blockNum %s to be produced by any of the valid producers except %s" % (blockNum, lastBlockProducer))
@@ -115,8 +123,7 @@ def verifyProductionRounds(trans, node, prodsActive, rounds):
             # make sure that the next set of 12 blocks all have the same blockProducer
             lastBlockProducer=node.getBlockProducerByNum(blockNum)
             for k in range(0, 12):
-                validBlockProducer(prodsActive, prodsSeen, blockNum, node1)
-                blockProducer=node.getBlockProducerByNum(blockNum)
+                blockProducer = validBlockProducer(prodsActive, prodsSeen, blockNum, node1)
                 if lastBlockProducer!=blockProducer:
                     if not reportFirstMissedBlock:
                         printStr=""
@@ -135,8 +142,8 @@ def verifyProductionRounds(trans, node, prodsActive, rounds):
 
     # make sure that we have seen all 21 producers
     prodsSeenKeys=prodsSeen.keys()
-    if len(prodsSeenKeys)!=21:
-        Utils.cmdError("only saw %s producers of expected 21. At blockNum %s only the following producers were seen: %s" % (len(prodsSeenKeys), blockNum, ",".join(prodsSeenKeys)))
+    if len(prodsSeenKeys) != prodsSize:
+        Utils.cmdError("only saw %s producers of expected %d. At blockNum %s only the following producers were seen: %s" % (len(prodsSeenKeys), prodsSize, blockNum, ",".join(prodsSeenKeys)))
         Utils.errorExit("Failed because of missing block producers")
 
     Utils.Debug=temp
@@ -145,12 +152,10 @@ def verifyProductionRounds(trans, node, prodsActive, rounds):
 Print=Utils.Print
 errorExit=Utils.errorExit
 
-from core_symbol import CORE_SYMBOL
-
 args = TestHelper.parse_args({"--prod-count","--dump-error-details","--keep-logs","-v","--leave-running","--clean-run",
                               "--wallet-port"})
 Utils.Debug=args.v
-totalNodes=4
+totalNodes=3
 cluster=Cluster(walletd=True)
 dumpErrorDetails=args.dump_error_details
 keepLogs=args.keep_logs
@@ -168,87 +173,82 @@ WalletdName=Utils.EosWalletName
 ClientName="amcli"
 
 try:
+    assert(totalNodes == 3)
+
     TestHelper.printSystemInfo("BEGIN")
     cluster.setWalletMgr(walletMgr)
 
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
     Print("Stand up cluster")
-    if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=totalNodes, totalNodes=totalNodes, totalProducers=totalNodes*21, useBiosBootFile=False) is False:
+    if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=totalNodes, totalNodes=totalNodes, totalProducers=totalNodes, useBiosBootFile=False, onlySetProds=True, sharedProducers=1) is False:
         Utils.cmdError("launcher")
         Utils.errorExit("Failed to stand up ama cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
 
-    accounts=cluster.createAccountKeys(5)
-    if accounts is None:
-        Utils.errorExit("FAILURE - create keys")
-    accounts[0].name="tester111111"
-    accounts[1].name="tester222222"
-    accounts[2].name="tester333333"
-    accounts[3].name="tester444444"
-    accounts[4].name="tester555555"
-
-    testWalletName="test"
-
-    Print("Creating wallet \"%s\"." % (testWalletName))
-    testWallet=walletMgr.create(testWalletName, [cluster.amaxAccount,accounts[0],accounts[1],accounts[2],accounts[3],accounts[4]])
-
-    for _, account in cluster.defProducerAccounts.items():
-        walletMgr.importKey(account, testWallet, ignoreDupKeyWarning=True)
-
-    Print("Wallet \"%s\" password=%s." % (testWalletName, testWallet.password.encode("utf-8")))
-
-    for i in range(0, totalNodes):
-        node=cluster.getNode(i)
-        node.producers=Cluster.parseProducers(i)
-        for prod in node.producers:
-            trans=node.regproducer(cluster.defProducerAccounts[prod], "http::/mysite.com", 0, waitForTransBlock=False, exitOnError=True)
-
     node0=cluster.getNode(0)
     node1=cluster.getNode(1)
     node2=cluster.getNode(2)
-    node3=cluster.getNode(3)
 
     node=node0
-    # create accounts via amax as otherwise a bid is needed
-    for account in accounts:
-        Print("Create new account %s via %s" % (account.name, cluster.amaxAccount.name))
-        trans=node.createInitializeAccount(account, cluster.amaxAccount, stakedDeposit=0, waitForTransBlock=False, stakeNet=1000, stakeCPU=1000, buyRAM=1000, exitOnError=True)
-        transferAmount="100000000.0000 {0}".format(CORE_SYMBOL)
-        Print("Transfer funds %s from account %s to %s" % (transferAmount, cluster.amaxAccount.name, account.name))
-        node.transferFunds(cluster.amaxAccount, account, transferAmount, "test transfer")
-        trans=node.delegatebw(account, 20000000.0000, 20000000.0000, waitForTransBlock=True, exitOnError=True)
+    numprod = totalNodes + 1
 
-    # containers for tracking producers
+    trans=None
     prodsActive={}
-    for i in range(0, 4):
-        node=cluster.getNode(i)
-        ProducerToNode.populate(node, i)
-        for prod in node.producers:
-            prodsActive[prod]=False
+    prodsActive["shrproducera"] = True
+    prodsActive["defproducera"] = True
+    prodsActive["defproducerb"] = True
+    prodsActive["defproducerc"] = True
 
-    #first account will vote for node0 producers, all others will vote for node1 producers
-    node=node0
-    for account in accounts:
-        trans=node.vote(account, node.producers, waitForTransBlock=True)
-        node=node1
+    Print("Wait for initial schedule: defproducera(node 0) shrproducera(node 2) defproducerb(node 1) defproducerc(node 2)")
+    
+    tries=10
+    while tries > 0:
+        node.infoValid = False
+        info = node.getInfo()
+        if node.infoValid and node.lastRetrievedHeadBlockProducer != "amax":
+            break
+        time.sleep(1)
+        tries = tries-1
+    if tries == 0:
+        Utils.errorExit("failed to wait for initial schedule")
 
-    setActiveProducers(prodsActive, node1.producers)
+    # try to change signing key of shrproducera, shrproducera will produced by node1 instead of node2
+    Print("change producer signing key, shrproducera will be produced by node1 instead of node2")
+    shracc_node1 = cluster.defProducerAccounts["shrproducera"]
+    shracc_node1.activePublicKey = cluster.defProducerAccounts["defproducerb"].activePublicKey
+    setProds(shracc_node1.activePublicKey)
+    Print("sleep for 4/3 rounds...")
+    time.sleep(numprod * 6 * 4 / 3)
+    verifyProductionRounds(trans, node0, prodsActive, 1)
 
-    verifyProductionRounds(trans, node2, prodsActive, 2)
+    # change signing key of shrproducera that no one can sign
+    accounts = cluster.createAccountKeys(1)
+    Print("change producer signing key of shrproducera that none of the node has")
+    shracc_node1.activePublicKey = accounts[0].activePublicKey
+    del prodsActive["shrproducera"]
+    setProds(shracc_node1.activePublicKey)
+    Print("sleep for 4/3 rounds...")
+    time.sleep(numprod * 6 * 4 / 3)
+    verifyProductionRounds(trans, node0, prodsActive, 1)
 
-    # test shifting all 21 away from one node to another
-    # first account will vote for node2 producers, all others will vote for node3 producers
-    node1
-    for account in accounts:
-        trans=node.vote(account, node.producers, waitForTransBlock=True)
-        node=node2
-
-    setActiveProducers(prodsActive, node2.producers)
-
-    verifyProductionRounds(trans, node1, prodsActive, 2)
+    # change signing key back to node1
+    Print("change producer signing key of shrproducera so that node1 can produce again")
+    shracc_node1.activePublicKey = cluster.defProducerAccounts["defproducerb"].activePublicKey
+    prodsActive["shrproducera"] = True
+    setProds(shracc_node1.activePublicKey)
+    tries=numprod * 6 * 4 # give 4 rounds
+    while tries > 0:
+        node.infoValid = False
+        info = node.getInfo()
+        if node.infoValid and node.lastRetrievedHeadBlockProducer == "shrproducera":
+            break
+        time.sleep(1)
+        tries = tries-1
+    if tries == 0:
+        Utils.errorExit("shrproducera failed to produce")
 
     testSuccessful=True
 finally:

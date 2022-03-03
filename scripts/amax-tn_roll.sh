@@ -39,7 +39,7 @@ fi
 
 prog=""
 RD=""
-for p in eosd amaxd amaxnd; do
+for p in eosd amaxd amnod; do
     prog=$p
     RD=bin
     if [ -f $RD/$prog ]; then
@@ -55,7 +55,7 @@ for p in eosd amaxd amaxnd; do
 done
 
 if [ \( -z "$prog" \) -o \( -z "$RD" \) ]; then
-    echo unable to locate binary for eosd or amaxd or amaxnd
+    echo unable to locate binary for eosd or amaxd or amnod
     exit 1
 fi
 

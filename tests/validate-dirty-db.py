@@ -11,7 +11,7 @@ import signal
 ###############################################################
 # validate-dirty-db
 #
-# Test for validating the dirty db flag sticks repeated amaxnd restart attempts
+# Test for validating the dirty db flag sticks repeated amnod restart attempts
 #
 ###############################################################
 
@@ -38,24 +38,24 @@ seed=1
 Utils.Debug=debug
 testSuccessful=False
 
-def runAmaxndAndGetOutput(myTimeout=3):
-    """Startup amaxnd, wait for timeout (before forced shutdown) and collect output. Stdout, stderr and return code are returned in a dictionary."""
-    Print("Launching amaxnd process.")
-    cmd="programs/amaxnd/amaxnd --config-dir etc/amax/node_bios --data-dir var/lib/node_bios --verbose-http-errors --http-validate-host=false"
+def runAmnodAndGetOutput(myTimeout=3):
+    """Startup amnod, wait for timeout (before forced shutdown) and collect output. Stdout, stderr and return code are returned in a dictionary."""
+    Print("Launching amnod process.")
+    cmd="programs/amnod/amnod --config-dir etc/amax/node_bios --data-dir var/lib/node_bios --verbose-http-errors --http-validate-host=false"
     Print("cmd: %s" % (cmd))
     proc=subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if debug: Print("Amaxnd process launched.")
+    if debug: Print("Amnod process launched.")
 
     output={}
     try:
-        if debug: Print("Setting amaxnd process timeout.")
+        if debug: Print("Setting amnod process timeout.")
         outs,errs = proc.communicate(timeout=myTimeout)
-        if debug: Print("Amaxnd process has exited.")
+        if debug: Print("Amnod process has exited.")
         output["stdout"] = outs.decode("utf-8")
         output["stderr"] = errs.decode("utf-8")
         output["returncode"] = proc.returncode
     except (subprocess.TimeoutExpired) as _:
-        Print("ERROR: Amaxnd is running beyond the defined wait time. Hard killing amaxnd instance.")
+        Print("ERROR: Amnod is running beyond the defined wait time. Hard killing amnod instance.")
         proc.send_signal(signal.SIGKILL)
         return (False, None)
 
@@ -85,16 +85,16 @@ try:
     Print("Kill cluster nodes.")
     cluster.killall(allInstances=killAll)
 
-    Print("Restart amaxnd repeatedly to ensure dirty database flag sticks.")
+    Print("Restart amnod repeatedly to ensure dirty database flag sticks.")
     timeout=6
 
     for i in range(1,4):
         Print("Attempt %d." % (i))
-        ret = runAmaxndAndGetOutput(timeout)
+        ret = runAmnodAndGetOutput(timeout)
         assert(ret)
         assert(isinstance(ret, tuple))
         if not ret[0]:
-            errorExit("Failed to startup amaxnd successfully on try number %d" % (i))
+            errorExit("Failed to startup amnod successfully on try number %d" % (i))
         assert(ret[1])
         assert(isinstance(ret[1], dict))
         # pylint: disable=unsubscriptable-object

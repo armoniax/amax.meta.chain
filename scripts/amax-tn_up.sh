@@ -6,8 +6,8 @@
 
 connected="0"
 
-rundir=programs/amaxnd
-prog=amaxnd
+rundir=programs/amnod
+prog=amnod
 
 # Quote any args that are "*", so they are not expanded
 qargs=`echo "$*" | sed -e 's/ \* / "*" /' -e 's/ \*$/ "*"/'`
@@ -18,7 +18,7 @@ if [ "$PWD" != "$AMAX_HOME" ]; then
 fi
 
 if [ ! -e $rundir/$prog ]; then
-    echo unable to locate binary for amaxnd
+    echo unable to locate binary for amnod
     exit -1
 fi
 

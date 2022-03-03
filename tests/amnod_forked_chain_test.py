@@ -13,7 +13,7 @@ from TestHelper import TestHelper
 import signal
 
 ###############################################################
-# amaxnd_forked_chain_test
+# amnod_forked_chain_test
 # 
 # This test sets up 2 producing nodes and one "bridge" node using test_control_api_plugin.
 #   One producing node has 11 of the elected producers and the other has 10 of the elected producers.
@@ -159,9 +159,9 @@ try:
     cluster.killall(allInstances=killAll)
     cluster.cleanup()
     Print("Stand up cluster")
-    specificExtraAmaxndArgs={}
+    specificExtraAmnodArgs={}
     # producer nodes will be mapped to 0 through totalProducerNodes-1, so the number totalProducerNodes will be the non-producing node
-    specificExtraAmaxndArgs[totalProducerNodes]="--plugin eosio::test_control_api_plugin"
+    specificExtraAmnodArgs[totalProducerNodes]="--plugin eosio::test_control_api_plugin"
 
 
     # ***   setup topogrophy   ***
@@ -171,7 +171,7 @@ try:
 
     if cluster.launch(prodCount=prodCount, topo="bridge", pnodes=totalProducerNodes,
                       totalNodes=totalNodes, totalProducers=totalProducers,
-                      useBiosBootFile=False, specificExtraAmaxndArgs=specificExtraAmaxndArgs) is False:
+                      useBiosBootFile=False, specificExtraAmnodArgs=specificExtraAmnodArgs) is False:
         Utils.cmdError("launcher")
         Utils.errorExit("Failed to stand up ama cluster.")
     Print("Validating system accounts after bootstrap")

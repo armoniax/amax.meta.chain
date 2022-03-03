@@ -13,8 +13,8 @@
 
 pushd $AMAX_HOME
 
-if [ ! -f programs/amaxnd/amaxnd ]; then
-    echo unable to locate binary for amaxnd
+if [ ! -f programs/amnod/amnod ]; then
+    echo unable to locate binary for amnod
     exit 1
 fi
 

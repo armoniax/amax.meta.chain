@@ -406,8 +406,8 @@ struct launcher_def {
    bfs::path data_dir_base;
    bool skip_transaction_signatures = false;
    string eosd_extra_args;
-   std::map<uint,string> specific_amaxnd_args;
-   std::map<uint,string> specific_amaxnd_installation_paths;
+   std::map<uint,string> specific_amnod_args;
+   std::map<uint,string> specific_amnod_installation_paths;
    testnet_def network;
    string gelf_endpoint;
    vector <string> aliases;
@@ -575,8 +575,8 @@ launcher_def::initialize (const variables_map &vmap) {
      server_ident_file = vmap["servers"].as<string>();
   }
 
-  retrieve_paired_array_parameters(vmap, "specific-num", "specific-" + string(node_executable_name), specific_amaxnd_args);
-  retrieve_paired_array_parameters(vmap, "spcfc-inst-num", "spcfc-inst-" + string(node_executable_name), specific_amaxnd_installation_paths);
+  retrieve_paired_array_parameters(vmap, "specific-num", "specific-" + string(node_executable_name), specific_amnod_args);
+  retrieve_paired_array_parameters(vmap, "spcfc-inst-num", "spcfc-inst-" + string(node_executable_name), specific_amnod_installation_paths);
 
   using namespace std::chrono;
   system_clock::time_point now = system_clock::now();
@@ -642,7 +642,7 @@ launcher_def::initialize (const variables_map &vmap) {
         cerr << "\"--specific-num\" provided value= " << num << " is higher than \"--nodes\" provided value=" << total_nodes << endl;
         exit (-1);
       }
-      specific_amaxnd_args[num] = specific_args[i];
+      specific_amnod_args[num] = specific_args[i];
     }
   }
 
@@ -1535,13 +1535,13 @@ launcher_def::launch (eosd_def &instance, string &gts) {
   info.remote = !host->is_local();
 
   string install_path;
-  if (instance.name != "bios" && !specific_amaxnd_installation_paths.empty()) {
+  if (instance.name != "bios" && !specific_amnod_installation_paths.empty()) {
      const auto node_num = boost::lexical_cast<uint16_t,string>(instance.get_node_num());
-     if (specific_amaxnd_installation_paths.count(node_num)) {
-        install_path = specific_amaxnd_installation_paths[node_num] + "/";
+     if (specific_amnod_installation_paths.count(node_num)) {
+        install_path = specific_amnod_installation_paths[node_num] + "/";
      }
   }
-  string eosdcmd = install_path + "programs/amaxnd/" + string(node_executable_name) + " ";
+  string eosdcmd = install_path + "programs/amnod/" + string(node_executable_name) + " ";
   if (skip_transaction_signatures) {
     eosdcmd += "--skip-transaction-signatures ";
   }
@@ -1559,10 +1559,10 @@ launcher_def::launch (eosd_def &instance, string &gts) {
        eosdcmd += eosd_extra_args + " ";
     }
   }
-  if (instance.name != "bios" && !specific_amaxnd_args.empty()) {
+  if (instance.name != "bios" && !specific_amnod_args.empty()) {
      const auto node_num = boost::lexical_cast<uint16_t,string>(instance.get_node_num());
-     if (specific_amaxnd_args.count(node_num)) {
-        eosdcmd += specific_amaxnd_args[node_num] + " ";
+     if (specific_amnod_args.count(node_num)) {
+        eosdcmd += specific_amnod_args[node_num] + " ";
      }
   }
 
@@ -1777,10 +1777,10 @@ launcher_def::bounce (const string& node_numbers) {
       const string node_num = node.get_node_num();
       cout << "Bouncing " << node.name << endl;
       string cmd = "./scripts/mamx-tn_bounce.sh " + eosd_extra_args;
-      if (node_num != "bios" && !specific_amaxnd_args.empty()) {
+      if (node_num != "bios" && !specific_amnod_args.empty()) {
          const auto node_num_i = boost::lexical_cast<uint16_t,string>(node_num);
-         if (specific_amaxnd_args.count(node_num_i)) {
-            cmd += " " + specific_amaxnd_args[node_num_i];
+         if (specific_amnod_args.count(node_num_i)) {
+            cmd += " " + specific_amnod_args[node_num_i];
          }
       }
 

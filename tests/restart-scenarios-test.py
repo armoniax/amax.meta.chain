@@ -10,9 +10,9 @@ import random
 ###############################################################
 # restart-scenarios-test
 #
-# Tests restart scenarios for amaxnd.  Uses "-c" flag to indicate "replay" (--replay-blockchain), "resync"
+# Tests restart scenarios for amnod.  Uses "-c" flag to indicate "replay" (--replay-blockchain), "resync"
 # (--delete-all-blocks), "hardReplay"(--hard-replay-blockchain), and "none" to indicate what kind of restart flag should
-# be used. This is one of the only test that actually verify that amaxnd terminates with a good exit status.
+# be used. This is one of the only test that actually verify that amnod terminates with a good exit status.
 #
 ###############################################################
 
@@ -95,7 +95,7 @@ try:
     Print("Kill %d cluster node instances." % (killCount))
     if cluster.killSomeEosInstances(killCount, killSignal) is False:
         errorExit("Failed to kill Eos instances")
-    Print("amaxnd instances killed.")
+    Print("amnod instances killed.")
 
     Print("Spread funds and validate")
     if not cluster.spreadFundsAndValidate(10):
@@ -108,7 +108,7 @@ try:
     Print ("Relaunch dead cluster nodes instances.")
     if cluster.relaunchEosInstances(cachePopen=True) is False:
         errorExit("Failed to relaunch Eos instances")
-    Print("amaxnd instances relaunched.")
+    Print("amnod instances relaunched.")
 
     Print ("Resyncing cluster nodes.")
     if not cluster.waitOnClusterSync():
@@ -129,7 +129,7 @@ try:
             if node.popenProc is not None:
                 atLeastOne=True
                 node.interruptAndVerifyExitStatus()
-        assert atLeastOne, "Test is setup to verify that a cleanly interrupted amaxnd exits with an exit status of 0, but this test may no longer be setup to do that"
+        assert atLeastOne, "Test is setup to verify that a cleanly interrupted amnod exits with an exit status of 0, but this test may no longer be setup to do that"
 
     testSuccessful=True
 finally:

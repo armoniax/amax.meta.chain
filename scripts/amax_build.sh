@@ -180,7 +180,7 @@ if [[ $ARCH == "Linux" ]]; then
 fi
 
 if [ "$ARCH" == "Darwin" ]; then
-   # opt/gettext: amaxnd requires Intl, which requires gettext; it's keg only though and we don't want to force linking: https://github.com/armoniax/amachain/issues/2240#issuecomment-396309884
+   # opt/gettext: amnod requires Intl, which requires gettext; it's keg only though and we don't want to force linking: https://github.com/armoniax/amachain/issues/2240#issuecomment-396309884
    # AMAX_INSTALL_DIR/lib/cmake: mongo_db_plugin.cpp:25:10: fatal error: 'bsoncxx/builder/basic/kvp.hpp' file not found
    CMAKE_PREFIX_PATHS="/usr/local/opt/gettext;${AMAX_INSTALL_DIR}"
    FILE="${SCRIPT_DIR}/amax_build_darwin.sh"
