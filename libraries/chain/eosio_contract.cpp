@@ -405,4 +405,14 @@ void apply_amax_canceldelay(apply_context& context) {
    context.cancel_deferred_transaction(transaction_id_to_sender_id(trx_id), account_name());
 }
 
+
+void apply_amax_activate(apply_context& context) {
+   auto& db  = context.db;
+   auto  act = context.get_action().data_as<activate>();
+
+   context.require_authorization(act.get_account());
+
+   context.control.preactivate_feature( act.feature_digest );
+}
+
 } } // namespace eosio::chain

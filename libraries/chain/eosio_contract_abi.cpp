@@ -12,6 +12,7 @@ vector<type_def> common_type_defs() {
    types.push_back( type_def{"table_name", "name"} );
    types.push_back( type_def{"transaction_id_type", "checksum256"} );
    types.push_back( type_def{"block_id_type", "checksum256"} );
+   types.push_back( type_def{"digest_type", "checksum256"} );
    types.push_back( type_def{"weight_type", "uint16"} );
 
    return types;
@@ -213,6 +214,12 @@ abi_def eosio_contract_abi(const abi_def& amax_system_abi)
       }
    });
 
+   eos_abi.structs.emplace_back( struct_def {
+      "activate", "", {
+         {"feature_digest", "digest_type"}
+      }
+   });
+
    // TODO add ricardian contracts
    eos_abi.actions.push_back( action_def{name("newaccount"), "newaccount",""} );
    eos_abi.actions.push_back( action_def{name("setcode"), "setcode",""} );
@@ -224,6 +231,7 @@ abi_def eosio_contract_abi(const abi_def& amax_system_abi)
    eos_abi.actions.push_back( action_def{name("canceldelay"), "canceldelay",""} );
    eos_abi.actions.push_back( action_def{name("onerror"), "onerror",""} );
    eos_abi.actions.push_back( action_def{name("onblock"), "onblock",""} );
+   eos_abi.actions.push_back( action_def{name("activate"), "activate",""} );
 
    return eos_abi;
 }

@@ -351,6 +351,7 @@ struct controller_impl {
 */
 
    SET_APP_HANDLER( amax, amax, canceldelay );
+   SET_APP_HANDLER( amax, amax, activate );
    }
 
    /**

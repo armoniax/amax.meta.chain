@@ -27,6 +27,8 @@ namespace eosio { namespace chain {
    void apply_amax_setabi(apply_context&);
 
    void apply_amax_canceldelay(apply_context&);
+   
+   void apply_amax_activate(apply_context& context);
    ///@}  end action handlers
 
 } } /// namespace eosio::chain
