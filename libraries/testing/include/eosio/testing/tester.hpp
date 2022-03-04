@@ -379,7 +379,10 @@ namespace eosio { namespace testing {
          }
 
          void schedule_protocol_features_wo_preactivation(const vector<digest_type> feature_digests);
-         void preactivate_protocol_features(const vector<digest_type> feature_digests);
+         void preactivate_protocol_feature(  const digest_type &feature_digest,
+                                             uint32_t expiration = DEFAULT_EXPIRATION_DELTA,
+                                             uint32_t delay_sec = 0);
+         void preactivate_protocol_features(const vector<digest_type> &feature_digests);
          void preactivate_all_builtin_protocol_features();
 
          static genesis_state default_genesis() {

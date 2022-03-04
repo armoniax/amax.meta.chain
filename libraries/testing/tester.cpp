@@ -1112,10 +1112,24 @@ namespace eosio { namespace testing {
       );
    }
 
-   void base_tester::preactivate_protocol_features(const vector<digest_type> feature_digests) {
+   void base_tester::preactivate_protocol_feature( const digest_type &feature_digest,
+                                                   uint32_t expiration,
+                                                   uint32_t delay_sec) {
+      signed_transaction trx;
+      trx.actions.emplace_back( vector<permission_level>{{config::system_account_name, config::active_name}},
+                              activate{
+                                 .feature_digest    = feature_digest
+                              });
+
+      set_transaction_headers( trx, expiration, delay_sec );
+      trx.sign( get_private_key( config::system_account_name, "active" ), control->get_chain_id() );
+      
+      push_transaction( trx );          
+   }
+
+   void base_tester::preactivate_protocol_features(const vector<digest_type> &feature_digests) {
       for( const auto& feature_digest: feature_digests ) {
-         push_action( config::system_account_name, N(activate), config::system_account_name,
-                      fc::mutable_variant_object()("feature_digest", feature_digest) );
+         preactivate_protocol_feature(feature_digest);                   
       }
    }
 

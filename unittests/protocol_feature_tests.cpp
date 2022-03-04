@@ -109,8 +109,7 @@ BOOST_AUTO_TEST_CASE( double_preactivation ) try {
    auto d = pfm.get_builtin_digest( builtin_protocol_feature_t::only_link_to_existing_permission );
    BOOST_REQUIRE( d );
 
-   c.push_action( config::system_account_name, N(activate), config::system_account_name,
-                  fc::mutable_variant_object()("feature_digest", *d), 10 );
+   c.preactivate_protocol_feature(*d, 10);
 
    std::string expected_error_msg("protocol feature with digest '");
    {
@@ -120,8 +119,7 @@ BOOST_AUTO_TEST_CASE( double_preactivation ) try {
       expected_error_msg += "' is already pre-activated";
    }
 
-   BOOST_CHECK_EXCEPTION(  c.push_action( config::system_account_name, N(activate), config::system_account_name,
-                                          fc::mutable_variant_object()("feature_digest", *d), 20 ),
+   BOOST_CHECK_EXCEPTION(  c.preactivate_protocol_feature(*d, 20 ),
                            protocol_feature_exception,
                            fc_exception_message_is( expected_error_msg )
    );
