@@ -12,19 +12,6 @@ namespace eosio { namespace chain {
    const std::unordered_map<builtin_protocol_feature_t, builtin_protocol_feature_spec, enum_hash<builtin_protocol_feature_t>>
    builtin_protocol_feature_codenames =
       boost::assign::map_list_of<builtin_protocol_feature_t, builtin_protocol_feature_spec>
-         (  builtin_protocol_feature_t::preactivate_feature, builtin_protocol_feature_spec{
-            "PREACTIVATE_FEATURE",
-            fc::variant("64fe7df32e9b86be2b296b3f81dfd527f84e82b98e363bc97e40bc7a83733310").as<digest_type>(),
-            // SHA256 hash of the raw message below within the comment delimiters (do not modify message below).
-/*
-Builtin protocol feature: PREACTIVATE_FEATURE
-
-Adds privileged intrinsic to enable a contract to pre-activate a protocol feature specified by its digest.
-Pre-activated protocol features must be activated in the next block.
-*/
-            {},
-            {time_point{}, false, true} // enabled without preactivation and ready to go at any time
-         } )
          (  builtin_protocol_feature_t::only_link_to_existing_permission, builtin_protocol_feature_spec{
             "ONLY_LINK_TO_EXISTING_PERMISSION",
             fc::variant("f3c3d91c4603cde2397268bfed4e662465293aab10cd9416db0d442b8cec2949").as<digest_type>(),

@@ -192,31 +192,19 @@ namespace eosio { namespace testing {
    void base_tester::execute_setup_policy(const setup_policy policy) {
       const auto& pfm = control->get_protocol_feature_manager();
 
-      auto schedule_preactivate_protocol_feature = [&]() {
-         auto preactivate_feature_digest = pfm.get_builtin_digest(builtin_protocol_feature_t::preactivate_feature);
-         FC_ASSERT( preactivate_feature_digest, "PREACTIVATE_FEATURE not found" );
-         schedule_protocol_features_wo_preactivation( { *preactivate_feature_digest } );
-      };
-
       switch (policy) {
          case setup_policy::old_bios_only: {
             set_before_preactivate_bios_contract();
             break;
          }
          case setup_policy::preactivate_feature_only: {
-            schedule_preactivate_protocol_feature();
-            produce_block(); // block production is required to activate protocol feature
             break;
          }
          case setup_policy::preactivate_feature_and_new_bios: {
-            schedule_preactivate_protocol_feature();
-            produce_block();
             set_before_producer_authority_bios_contract();
             break;
          }
-         case setup_policy::full: {
-            schedule_preactivate_protocol_feature();
-            produce_block();            
+         case setup_policy::full: {           
             set_before_producer_authority_bios_contract();
             preactivate_all_builtin_protocol_features();
             produce_block();
