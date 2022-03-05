@@ -7,6 +7,7 @@ if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
    add_compile_options(-fcolor-diagnostics)
 endif()
 
+add_subdirectory( amax.basic )
 add_subdirectory( asserter )
 add_subdirectory( deferred_test )
 add_subdirectory( get_sender_test )

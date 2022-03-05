@@ -751,6 +751,7 @@ BOOST_AUTO_TEST_CASE( fix_linkauth_restriction ) { try {
 
 } FC_LOG_AND_RETHROW() }
 
+#ifdef DISALLOW_EMPTY_PRODUCER_SCHEDULE_TEST
 BOOST_AUTO_TEST_CASE( disallow_empty_producer_schedule_test ) { try {
    tester c( setup_policy::preactivate_feature_and_new_bios );
 
@@ -777,6 +778,7 @@ BOOST_AUTO_TEST_CASE( disallow_empty_producer_schedule_test ) { try {
    BOOST_CHECK( std::equal( schedule.begin(), schedule.end(), c.control->active_producers().producers.begin()) );
 
 } FC_LOG_AND_RETHROW() }
+#endif //DISALLOW_EMPTY_PRODUCER_SCHEDULE_TEST
 
 BOOST_AUTO_TEST_CASE( restrict_action_to_self_test ) { try {
    tester c( setup_policy::preactivate_feature_and_new_bios );
@@ -1335,7 +1337,7 @@ BOOST_AUTO_TEST_CASE( webauthn_producer ) { try {
    c.produce_block();
 
    vector<legacy::producer_key> waprodsched = {{N(waprod), public_key_type("PUB_WA_WdCPfafVNxVMiW5ybdNs83oWjenQXvSt1F49fg9mv7qrCiRwHj5b38U3ponCFWxQTkDsMC"s)}};
-
+   
    BOOST_CHECK_THROW(
       c.push_action(config::system_account_name, N(setprods), config::system_account_name, fc::mutable_variant_object()("schedule", waprodsched)),
       eosio::chain::unactivated_key_type
