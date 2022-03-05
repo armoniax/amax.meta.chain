@@ -2110,6 +2110,28 @@ struct closerex_subcommand {
    }
 };
 
+struct activate_subcommand {
+   digest_type feature_digest;
+
+   const name act_name{ N(activate) };
+
+   activate_subcommand(CLI::App* actionRoot) {
+      auto activate_cmd = actionRoot->add_subcommand("activate", localized("Activate protocol feature"));
+      activate_cmd->add_option("feature_digest", feature_digest, localized("hash of the protocol feature to activate"))->required();
+
+      add_standard_transaction_options(activate_cmd, config::system_account_name.to_string() + "@active");
+
+      activate_cmd->callback([this] {
+            fc::variant act_payload = fc::mutable_variant_object()
+               ("feature_digest", feature_digest);
+            auto accountPermissions = get_account_permissions(tx_permission, {config::system_account_name, config::active_name});
+            send_actions({
+                action{ accountPermissions, activate { .feature_digest   = feature_digest } } 
+            });
+      });
+   }
+};
+
 void get_account( const string& accountName, const string& coresym, bool json_format ) {
    fc::variant json;
    if (coresym.empty()) {
@@ -3950,6 +3972,7 @@ int main( int argc, char** argv ) {
    auto rexexec        = rexexec_subcommand(rex);
    auto closerex       = closerex_subcommand(rex);
 
+   auto activate       = activate_subcommand(system);
 
    try {
        app.parse(argc, argv);
