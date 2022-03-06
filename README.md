@@ -1,1 +1,1 @@
-# amachain
+# amax.chain

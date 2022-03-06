@@ -1,24 +1,24 @@
 [submodule "libraries/chainbase"]
 	path = libraries/chainbase
-	url = ../../eosio/chainbase
+	url = https://github.com/eosio/chainbase
 [submodule "libraries/appbase"]
 	path = libraries/appbase
-	url = ../../eosio/appbase
+	url = https://github.com/eosio/appbase
 [submodule "libraries/softfloat"]
 	path = libraries/softfloat
-	url = ../../eosio/berkeley-softfloat-3
+	url = https://github.com/eosio/berkeley-softfloat-3
 [submodule "libraries/fc"]
 	path = libraries/fc
-	url = ../../armoniax/fc	
-[submodule "libraries/wabt"]
-	path = libraries/wabt
-	url = ../../EOSIO/wabt
+	url = ../../armoniax/amax.fc	
+# [submodule "libraries/wabt"]
+# 	path = libraries/wabt
+# 	url = ../../EOSIO/wabt
 [submodule "libraries/yubihsm"]
 	path = libraries/yubihsm
-	url = ../../Yubico/yubihsm-shell
+	url = https://github.com/Yubico/yubihsm-shell
 [submodule "libraries/eos-vm"]
 	path = libraries/eos-vm
-	url = ../../eosio/eos-vm
+	url = https://github.com/eosio/eos-vm
 [submodule "wasm-spec-tests"]
 	path = wasm-spec-tests
-	url = ../../EOSIO/eosio-wasm-spec-tests
+	url = https://github.com/EOSIO/eosio-wasm-spec-tests
