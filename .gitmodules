@@ -9,7 +9,7 @@
 	url = https://github.com/eosio/berkeley-softfloat-3
 [submodule "libraries/fc"]
 	path = libraries/fc
-	url = git@github.com:armoniax/amax.fc.git	
+	url = https://github.com/armoniax/amax.fc.git
 # [submodule "libraries/wabt"]
 # 	path = libraries/wabt
 # 	url = ../../EOSIO/wabt
