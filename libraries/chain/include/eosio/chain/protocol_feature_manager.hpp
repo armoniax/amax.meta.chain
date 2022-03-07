@@ -10,7 +10,7 @@ enum class protocol_feature_t : uint32_t {
 };
 
 enum class builtin_protocol_feature_t : uint32_t {
-   only_link_to_existing_permission,
+   only_link_to_existing_permission = 1,
    replace_deferred,
    no_duplicate_deferred_id,
    fix_linkauth_restriction,
