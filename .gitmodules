@@ -10,9 +10,9 @@
 [submodule "libraries/fc"]
 	path = libraries/fc
 	url = https://github.com/armoniax/amax.fc.git
-# [submodule "libraries/wabt"]
-# 	path = libraries/wabt
-# 	url = ../../EOSIO/wabt
+[submodule "libraries/wabt"]
+	path = libraries/wabt
+	url = https://github.com/EOSIO/wabt
 [submodule "libraries/yubihsm"]
 	path = libraries/yubihsm
 	url = https://github.com/Yubico/yubihsm-shell
