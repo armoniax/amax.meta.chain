@@ -23,7 +23,7 @@ abi_def eosio_contract_abi(const abi_def& amax_system_abi)
    abi_def eos_abi(amax_system_abi);
 
    if( eos_abi.version.size() == 0 ) {
-      eos_abi.version = "eosio::abi/1.0";
+      eos_abi.version = "amax::abi/1.0";
    }
 
    fc::move_append(eos_abi.types, common_type_defs());

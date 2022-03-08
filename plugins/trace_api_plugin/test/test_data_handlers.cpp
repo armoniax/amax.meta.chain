@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_SUITE(abi_data_handler_tests)
          },
          {}, {}, {}
       );
-      abi.version = "eosio::abi/1.";
+      abi.version = "amax::abi/1.";
 
       abi_data_handler handler(exception_handler{});
       handler.add_abi("alice"_n, abi);
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_SUITE(abi_data_handler_tests)
          },
          {}, {}, {}
       );
-      abi.version = "eosio::abi/1.";
+      abi.version = "amax::abi/1.";
 
       abi_data_handler handler(exception_handler{});
       handler.add_abi("alice"_n, abi);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_SUITE(abi_data_handler_tests)
          },
          {}, {}, {}
       );
-      abi.version = "eosio::abi/1.";
+      abi.version = "amax::abi/1.";
 
       bool log_called = false;
       abi_data_handler handler([&log_called](const exception_with_context& ){log_called = true;});

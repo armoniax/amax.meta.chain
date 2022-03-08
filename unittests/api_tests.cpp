@@ -2418,7 +2418,7 @@ BOOST_FIXTURE_TEST_CASE(eosio_assert_code_tests, TESTER) { try {
 
    const char* abi_string = R"=====(
 {
-   "version": "eosio::abi/1.0",
+   "version": "amax::abi/1.0",
    "types": [],
    "structs": [],
    "actions": [],
