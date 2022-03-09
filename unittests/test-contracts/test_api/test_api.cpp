@@ -160,6 +160,7 @@ extern "C" {
       WASM_TEST_HANDLER_EX( test_permission, check_authorization        );
       WASM_TEST_HANDLER_EX( test_permission, test_permission_last_used  );
       WASM_TEST_HANDLER_EX( test_permission, test_account_creation_time );
+      WASM_TEST_HANDLER_EX( test_permission, test_account_creator );
 
       //unhandled test call
       check( false, "Unknown Test ahhh!" );

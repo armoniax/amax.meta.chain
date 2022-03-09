@@ -48,6 +48,13 @@ struct test_permission_last_used_msg {
    EOSLIB_SERIALIZE( test_permission_last_used_msg, (account)(permission)(last_used_time) )
 };
 
+struct test_creator {
+   eosio::name account;
+   eosio::name creator;
+
+   EOSLIB_SERIALIZE( test_creator, (account)(creator) )
+};
+
 void test_permission::test_permission_last_used( uint64_t /* receiver */, uint64_t code, uint64_t action ) {
    (void)code;
    (void)action;
@@ -68,4 +75,16 @@ void test_permission::test_account_creation_time( uint64_t /* receiver */, uint6
 
    check( get_account_creation_time(params.account).sec_since_epoch() == params.last_used_time / 1000000, 
       "unexpected account creation time" );
+}
+
+void test_permission::test_account_creator( uint64_t /* receiver */, uint64_t code, uint64_t action ) {
+   (void)code;
+   (void)action;
+   using namespace eosio;
+
+   auto params = unpack_action_data<test_creator>();
+   auto got_creator = get_account_creator(params.account);
+   check( got_creator == params.creator, 
+      "unexpected account creator expected:" + params.creator.to_string() 
+      + " but got:" +  got_creator.to_string());
 }

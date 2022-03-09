@@ -171,6 +171,13 @@ struct test_permission_last_used_action {
 
 FC_REFLECT( test_permission_last_used_action, (account)(permission)(last_used_time) )
 
+struct test_creator_action {
+   account_name account;
+   account_name creator;
+};
+
+FC_REFLECT( test_creator_action, (account)(creator) )
+
 constexpr uint64_t TEST_METHOD(const char* CLASS, const char *METHOD) {
   return ( (uint64_t(DJBH(CLASS))<<32) | uint32_t(DJBH(METHOD)) );
 }
@@ -2399,6 +2406,30 @@ BOOST_FIXTURE_TEST_CASE(account_creation_time_tests, TESTER) { try {
                        fc::raw::pack(test_permission_last_used_action{
                            N(alice), config::active_name,
                            alice_creation_time
+                       })
+   );
+
+   produce_block();
+
+   BOOST_REQUIRE_EQUAL( validate(), true );
+} FC_LOG_AND_RETHROW() }
+
+
+/*************************************************************************************
+ * account_creation_time_tests test cases
+ *************************************************************************************/
+BOOST_FIXTURE_TEST_CASE(account_creator_tests, TESTER) { try {
+   produce_block();
+   create_account( N(testapi) );
+   produce_block();
+   set_code(N(testapi), contracts::test_api_wasm() );
+   produce_block();
+
+   create_account( N(alice), config::system_account_name );
+
+   CALL_TEST_FUNCTION( *this, "test_permission", "test_account_creator",
+                       fc::raw::pack(test_creator_action {
+                           N(alice), config::system_account_name,
                        })
    );
 
