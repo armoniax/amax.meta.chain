@@ -42,7 +42,7 @@ namespace eosio { namespace chain {
       indexed_by<
          ordered_unique<tag<by_id>, member<account_object, account_object::id_type, &account_object::id>>,
          ordered_unique<tag<by_name>, member<account_object, account_name, &account_object::name>>,
-         ordered_unique<tag<by_creator>, member<account_object, account_name, &account_object::creator>>
+         ordered_non_unique<tag<by_creator>, member<account_object, account_name, &account_object::creator>>
       >
    >;
 
