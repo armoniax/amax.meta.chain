@@ -130,6 +130,7 @@ template <typename ST>
 datastream<ST>& operator<<(datastream<ST>& ds, const history_serial_wrapper<eosio::chain::account_object>& obj) {
    fc::raw::pack(ds, fc::unsigned_int(0));
    fc::raw::pack(ds, as_type<uint64_t>(obj.obj.name.to_uint64_t()));
+   fc::raw::pack(ds, as_type<uint64_t>(obj.obj.creator.to_uint64_t()));
    fc::raw::pack(ds, as_type<eosio::chain::block_timestamp_type>(obj.obj.creation_date));
    fc::raw::pack(ds, as_type<eosio::chain::shared_string>(obj.obj.abi));
    return ds;

@@ -2432,6 +2432,7 @@ read_only::get_account_results read_only::get_account( const get_account_params&
    const auto& accnt_obj = db.get_account( result.account_name );
    const auto& accnt_metadata_obj = db.db().get<account_metadata_object,by_name>( result.account_name );
 
+   result.creator          = accnt_metadata_obj.creator;
    result.privileged       = accnt_metadata_obj.is_privileged();
    result.last_code_update = accnt_metadata_obj.last_code_update;
    result.created          = accnt_obj.creation_date;

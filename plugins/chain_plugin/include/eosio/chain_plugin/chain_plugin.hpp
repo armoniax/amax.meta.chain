@@ -147,6 +147,7 @@ public:
 
    struct get_account_results {
       name                       account_name;
+      name                       creator;
       uint32_t                   head_block_num = 0;
       fc::time_point             head_block_time;
 

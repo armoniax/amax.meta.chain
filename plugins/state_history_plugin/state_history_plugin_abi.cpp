@@ -211,6 +211,7 @@ extern const char* const state_history_plugin_abi = R"({
         {
             "name": "account_v0", "fields": [
                 { "type": "name", "name": "name" },
+                { "type": "name", "name": "creator" },
                 { "type": "block_timestamp_type", "name": "creation_date" },
                 { "type": "bytes", "name": "abi" }
             ]

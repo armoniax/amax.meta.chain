@@ -94,6 +94,7 @@ void apply_amax_newaccount(apply_context& context) {
 
    const auto& new_account = db.create<account_object>([&](auto& a) {
       a.name = create.name;
+      a.creator = create.creator;
       a.creation_date = context.control.pending_block_time();
    });
 

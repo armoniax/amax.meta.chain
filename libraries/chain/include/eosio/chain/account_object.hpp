@@ -14,6 +14,7 @@ namespace eosio { namespace chain {
 
       id_type              id;
       account_name         name; //< name should not be changed within a chainbase modifier lambda
+      account_name         creator;
       block_timestamp_type creation_date;
       shared_blob          abi;
 
@@ -35,11 +36,13 @@ namespace eosio { namespace chain {
    using account_id_type = account_object::id_type;
 
    struct by_name;
+   struct by_creator;
    using account_index = chainbase::shared_multi_index_container<
       account_object,
       indexed_by<
          ordered_unique<tag<by_id>, member<account_object, account_object::id_type, &account_object::id>>,
-         ordered_unique<tag<by_name>, member<account_object, account_name, &account_object::name>>
+         ordered_unique<tag<by_name>, member<account_object, account_name, &account_object::name>>,
+         ordered_unique<tag<by_creator>, member<account_object, account_name, &account_object::creator>>
       >
    >;
 
@@ -104,7 +107,7 @@ CHAINBASE_SET_INDEX_TYPE(eosio::chain::account_metadata_object, eosio::chain::ac
 CHAINBASE_SET_INDEX_TYPE(eosio::chain::account_ram_correction_object, eosio::chain::account_ram_correction_index)
 
 
-FC_REFLECT(eosio::chain::account_object, (name)(creation_date)(abi))
+FC_REFLECT(eosio::chain::account_object, (name)(creator)(creation_date)(abi))
 FC_REFLECT(eosio::chain::account_metadata_object, (name)(recv_sequence)(auth_sequence)(code_sequence)(abi_sequence)
                                                   (code_hash)(last_code_update)(flags)(vm_type)(vm_version))
 FC_REFLECT(eosio::chain::account_ram_correction_object, (name)(ram_correction))
