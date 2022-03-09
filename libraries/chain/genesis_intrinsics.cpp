@@ -130,6 +130,7 @@ const std::vector<const char*> genesis_intrinsics = {
    "check_permission_authorization",
    "get_permission_last_used",
    "get_account_creation_time",
+   "get_account_creator",
    "current_time",
    "publication_time",
    "abort",

@@ -148,6 +148,7 @@ constexpr auto intrinsic_table = boost::hana::make_tuple(
    "env.check_permission_authorization"_s,
    "env.get_permission_last_used"_s,
    "env.get_account_creation_time"_s,
+   "env.get_account_creator"_s,
    "env.current_time"_s,
    "env.publication_time"_s,
    "env.is_feature_activated"_s,
