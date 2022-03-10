@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-VERS=`sw_vers -productVersion | awk '/10\.13\..*/{print $0}'`
-if [[ -z "$VERS" ]];
+VERS_10_13=`sw_vers -productVersion | awk '/10\.13\..*/{print $0}'`
+VERS_10_14=`sw_vers -productVersion | awk '/10\.14\..*/{print $0}'`
+VERS_12=`sw_vers -productVersion | awk '/12\.14\..*/{print $0}'`
+if [[ -n "$VERS_10_13" ]];
 then
-   VERS=`sw_vers -productVersion | awk '/10\.14.*/{print $0}'`
-   if [[ -z "$VERS" ]];
-   then
-      echo "Error, unsupported OS X version"
-      exit -1
-   fi
-   MAC_VERSION="mojave"
-else
    MAC_VERSION="high_sierra"
+elif [[ -n "$VERS_10_14" ]];
+then
+   MAC_VERSION="mojave"
+elif [[ -n "$VERS_12" ]];
+then
+   MAC_VERSION="monterey"
+else
+   echo "Error, unsupported OS X version"
+   exit -1
 fi
 
 NAME="${PROJECT}-${VERSION}.${MAC_VERSION}.bottle"
