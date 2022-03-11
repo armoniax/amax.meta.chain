@@ -94,6 +94,13 @@ public:
       );
    }
 
+   auto set_privileged( name account ) {
+      auto r = base_tester::push_action(config::system_account_name, N(setpriv), 
+         config::system_account_name,  mvo()("account", account)("is_priv", 1));
+      produce_block();
+      return r;
+   }
+
    abi_serializer abi_ser;
 };
 
@@ -262,6 +269,76 @@ BOOST_FIXTURE_TEST_CASE( transfer_tests, amax_token_tester ) try {
       transfer( N(alice), N(bob), asset::from_string("-1000 CERO"), "hola" )
    );
 
+
+} FC_LOG_AND_RETHROW()
+
+
+BOOST_FIXTURE_TEST_CASE( transfer_in_contract_tests, amax_token_tester ) try {
+
+   auto token = create( N(alice), asset::from_string("1000 CERO"));
+   produce_blocks(1);
+
+   issue( N(alice), N(alice), asset::from_string("1000 CERO"), "hola" );
+
+   auto stats = get_stats("0,CERO");
+   REQUIRE_MATCHING_OBJECT( stats, mvo()
+      ("supply", "1000 CERO")
+      ("max_supply", "1000 CERO")
+      ("issuer", "alice")
+   );
+
+   auto alice_balance = get_account(N(alice), "0,CERO");
+   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+      ("balance", "1000 CERO")
+   );
+
+   create_accounts( { N(token.test) } );
+   produce_blocks( 2 );
+   set_code( N(token.test), contracts::token_test_wasm() );
+   set_abi( N(token.test), contracts::token_test_abi().data() );
+
+   produce_blocks();
+
+   auto push_testtransfer = [&] () {
+      base_tester::push_action( N(token.test), N(testtransfer), N(alice),  mvo()
+            ( "from", N(alice))
+            ( "to", N(bob))
+            ( "quantity", "300 CERO")
+            ( "memo", "hola")
+         );
+   };
+
+   BOOST_CHECK_EXCEPTION( push_testtransfer(), unsatisfied_authorization, [](const unsatisfied_authorization& e) {
+      return expect_assert_message(e, "does not have signatures");
+   });
+  
+   set_privileged( N(token.test) );
+   
+  push_testtransfer();
+
+   // transfer( N(alice), N(bob), asset::from_string("300 CERO"), "hola" );
+
+   alice_balance = get_account(N(alice), "0,CERO");
+   REQUIRE_MATCHING_OBJECT( alice_balance, mvo()
+      ("balance", "700 CERO")
+      ("frozen", 0)
+      ("whitelist", 1)
+   );
+
+   auto bob_balance = get_account(N(bob), "0,CERO");
+   REQUIRE_MATCHING_OBJECT( bob_balance, mvo()
+      ("balance", "300 CERO")
+      ("frozen", 0)
+      ("whitelist", 1)
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "overdrawn balance" ),
+      transfer( N(alice), N(bob), asset::from_string("701 CERO"), "hola" )
+   );
+
+   BOOST_REQUIRE_EQUAL( wasm_assert_msg( "must transfer positive quantity" ),
+      transfer( N(alice), N(bob), asset::from_string("-1000 CERO"), "hola" )
+   );
 
 } FC_LOG_AND_RETHROW()
 
