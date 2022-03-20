@@ -53,22 +53,6 @@
                     "type": "block_timestamp_type"
                 },
                 {
-                    "name": "last_pervote_bucket_fill",
-                    "type": "time_point"
-                },
-                {
-                    "name": "pervote_bucket",
-                    "type": "int64"
-                },
-                {
-                    "name": "perblock_bucket",
-                    "type": "int64"
-                },
-                {
-                    "name": "total_unpaid_blocks",
-                    "type": "uint32"
-                },
-                {
                     "name": "total_activated_stake",
                     "type": "int64"
                 },
@@ -87,13 +71,7 @@
                 {
                     "name": "last_name_close",
                     "type": "block_timestamp_type"
-                }
-            ]
-        },
-        {
-            "name": "amax_global_state2",
-            "base": "",
-            "fields": [
+                },
                 {
                     "name": "new_ram_per_block",
                     "type": "uint16"
@@ -103,48 +81,16 @@
                     "type": "block_timestamp_type"
                 },
                 {
-                    "name": "last_block_num",
-                    "type": "block_timestamp_type"
+                    "name": "inflation_start_time",
+                    "type": "time_point"
                 },
                 {
-                    "name": "total_producer_votepay_share",
-                    "type": "float64"
+                    "name": "initial_inflation_per_block",
+                    "type": "asset"
                 },
                 {
                     "name": "revision",
                     "type": "uint8"
-                }
-            ]
-        },
-        {
-            "name": "amax_global_state3",
-            "base": "",
-            "fields": [
-                {
-                    "name": "last_vpay_state_update",
-                    "type": "time_point"
-                },
-                {
-                    "name": "total_vpay_share_change_rate",
-                    "type": "float64"
-                }
-            ]
-        },
-        {
-            "name": "amax_global_state4",
-            "base": "",
-            "fields": [
-                {
-                    "name": "continuous_rate",
-                    "type": "float64"
-                },
-                {
-                    "name": "inflation_pay_factor",
-                    "type": "int64"
-                },
-                {
-                    "name": "votepay_factor",
-                    "type": "int64"
                 }
             ]
         },
@@ -1075,38 +1021,20 @@
                     "type": "string"
                 },
                 {
-                    "name": "unpaid_blocks",
-                    "type": "uint32"
-                },
-                {
-                    "name": "last_claim_time",
-                    "type": "time_point"
-                },
-                {
                     "name": "location",
                     "type": "uint16"
                 },
                 {
-                    "name": "producer_authority",
-                    "type": "block_signing_authority$"
-                }
-            ]
-        },
-        {
-            "name": "producer_info2",
-            "base": "",
-            "fields": [
-                {
-                    "name": "owner",
-                    "type": "name"
-                },
-                {
-                    "name": "votepay_share",
-                    "type": "float64"
-                },
-                {
-                    "name": "last_votepay_share_update",
+                    "name": "last_claimed_time",
                     "type": "time_point"
+                },
+                {
+                    "name": "unclaimed_rewards",
+                    "type": "asset"
+                },
+                {
+                    "name": "producer_authority",
+                    "type": "block_signing_authority"
                 }
             ]
         },
@@ -1635,16 +1563,12 @@
             "base": "",
             "fields": [
                 {
-                    "name": "annual_rate",
-                    "type": "int64"
+                    "name": "inflation_start_time",
+                    "type": "time_point"
                 },
                 {
-                    "name": "inflation_pay_factor",
-                    "type": "int64"
-                },
-                {
-                    "name": "votepay_factor",
-                    "type": "int64"
+                    "name": "initial_inflation_per_block",
+                    "type": "asset"
                 }
             ]
         },
@@ -2155,7 +2079,7 @@
         {
             "name": "setinflation",
             "type": "setinflation",
-            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set Inflation Parameters\nsummary: 'Set inflation parameters'\nicon: http://127.0.0.1/ricardian_assets/amax.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\n{{$action.account}} sets the inflation parameters as follows:\n\n* Annual inflation rate (in units of a hundredth of a percent): {{annual_rate}}\n* Fraction of inflation used to reward block producers: 10000/{{inflation_pay_factor}}\n* Fraction of block producer rewards to be distributed proportional to blocks produced: 10000/{{votepay_factor}}"
+            "ricardian_contract": "---\nspec_version: \"0.2.0\"\ntitle: Set Inflation Parameters\nsummary: 'Set inflation parameters'\nicon: http://127.0.0.1/ricardian_assets/amax.contracts/icons/admin.png#9bf1cec664863bd6aaac0f814b235f8799fb02c850e9aa5da34e8a004bd6518e\n---\n\n{{$action.account}} sets the inflation parameters as follows:\n\n* Inflation start time: {{inflation_start_time}}\n* Initial inflation per block: {{initial_inflation_per_block}}"
         },
         {
             "name": "setparams",
@@ -2265,27 +2189,6 @@
             "key_types": []
         },
         {
-            "name": "global2",
-            "type": "amax_global_state2",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "global3",
-            "type": "amax_global_state3",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "global4",
-            "type": "amax_global_state4",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
             "name": "namebids",
             "type": "name_bid",
             "index_type": "i64",
@@ -2316,13 +2219,6 @@
         {
             "name": "producers",
             "type": "producer_info",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "producers2",
-            "type": "producer_info2",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
