@@ -322,8 +322,10 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
         // Spend some time so the producer pay pool is filled by the inflation rate
         produce_min_num_of_blocks_to_spend_time_wo_inactive_prod(fc::seconds(30 * 24 * 3600)); // 30 days
         // Since the total activated stake is larger than 150,000,000, pool should be filled reward should be bigger than zero
-        claim_rewards(N(runnerup1));
-        BOOST_TEST(get_balance(N(runnerup1)).get_amount() > 0);
+        // But claimrewards is not supported now 
+        BOOST_REQUIRE_THROW(claim_rewards(N(runnerup1)), eosio_assert_message_exception);
+      //   claim_rewards(N(runnerup1));
+      //   BOOST_TEST(get_balance(N(runnerup1)).get_amount() > 0);
 
         const auto first_june_2018 = fc::seconds(1527811200); // 2018-06-01
         const auto first_june_2028 = fc::seconds(1843430400); // 2028-06-01
@@ -332,13 +334,13 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
 
         // This should thrown an error, since block one can only unstake all his stake after 10 years
 
-        BOOST_REQUIRE_THROW(undelegate_bandwidth(N(b1), N(b1), core_from_string("49999500.0000"), core_from_string("49999500.0000")), eosio_assert_message_exception);
+      //   BOOST_REQUIRE_THROW(undelegate_bandwidth(N(b1), N(b1), core_from_string("49999500.0000"), core_from_string("49999500.0000")), eosio_assert_message_exception);
 
         // Skip 10 years
-        produce_block(first_june_2028 - control->head_block_time().time_since_epoch());
+      //   produce_block(first_june_2028 - control->head_block_time().time_since_epoch());
 
         // Block one should be able to unstake all his stake now
-        undelegate_bandwidth(N(b1), N(b1), core_from_string("49999500.0000"), core_from_string("49999500.0000"));
+      //   undelegate_bandwidth(N(b1), N(b1), core_from_string("49999500.0000"), core_from_string("49999500.0000"));
 
         return;
         produce_blocks(7000); /// produce blocks until virutal bandwidth can acomadate a small user
