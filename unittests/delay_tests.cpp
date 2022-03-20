@@ -2294,9 +2294,16 @@ BOOST_AUTO_TEST_CASE( max_transaction_delay_execute ) { try {
            ("maximum_supply", "9000000.0000 CUR" )
    );
    chain.push_action(N(amax.token), name("issue"), N(amax.token), fc::mutable_variant_object()
-           ("to",       "tester")
+           ("to",       "amax.token")
            ("quantity", "100.0000 CUR")
            ("memo", "for stuff")
+   );
+
+   chain.push_action(N(amax.token), name("transfer"), N(amax.token), fc::mutable_variant_object()
+                           ("from", "amax.token")
+                           ("to", "tester")
+                           ("quantity", "100.0000 CUR")
+                           ("memo", "" )
    );
 
    //create a permission level with delay 30 days and associate it with token transfer
