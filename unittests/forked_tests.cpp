@@ -139,7 +139,9 @@ BOOST_AUTO_TEST_CASE( forking ) try {
 
    wdump((fc::json::to_pretty_string(res)));
    wlog("set producer schedule to [dan,sam,pam]");
-   c.produce_blocks(30);
+   // c.produce_blocks(30);
+   // run until the producers are installed and its the start of "dan's" round
+   BOOST_REQUIRE( produce_until_transition( c, N(pam), N(dan) ) );
 
    auto r2 = c.create_accounts( {N(amax.token)} );
    wdump((fc::json::to_pretty_string(r2)));
@@ -166,6 +168,8 @@ BOOST_AUTO_TEST_CASE( forking ) try {
               ("memo", "")
       );
 
+   // run until the producers are installed and its the start of "dan's" round
+   BOOST_REQUIRE( produce_until_transition( c, N(pam), N(dan) ) );
 
    tester c2(setup_policy::none);
    wlog( "push c1 blocks to c2" );
@@ -173,7 +177,7 @@ BOOST_AUTO_TEST_CASE( forking ) try {
    wlog( "end push c1 blocks to c2" );
 
    wlog( "c1 blocks:" );
-   c.produce_blocks(3);
+   c.produce_blocks(config::producer_repetitions - 1);
    signed_block_ptr b;
    b = c.produce_block();
    account_name expected_producer = N(dan);
@@ -182,7 +186,7 @@ BOOST_AUTO_TEST_CASE( forking ) try {
    b = c.produce_block();
    expected_producer = N(sam);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
-   c.produce_blocks(10);
+   c.produce_blocks(config::producer_repetitions - 2); 
    c.create_accounts( {N(cam)} );
    c.set_producers( {N(dan),N(sam),N(pam),N(cam)} );
    wlog("set producer schedule to [dan,sam,pam,cam]");
@@ -200,18 +204,19 @@ BOOST_AUTO_TEST_CASE( forking ) try {
    auto fork_block_num = c.control->head_block_num();
 
    wlog( "c2 blocks:" );
-   c2.produce_blocks(12); // pam produces 12 blocks
-   b = c2.produce_block( fc::milliseconds(config::block_interval_ms * 13) ); // sam skips over dan's blocks
+   c2.produce_blocks(config::producer_repetitions); // pam produces producer_repetitions blocks
+   // sam skips over dan's blocks
+   b = c2.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions + 1)) ); 
    expected_producer = N(sam);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
-   c2.produce_blocks(11 + 12);
+   c2.produce_blocks(config::producer_repetitions * 2 - 1);
 
 
    wlog( "c1 blocks:" );
-   b = c.produce_block( fc::milliseconds(config::block_interval_ms * 13) ); // dan skips over pam's blocks
+   b = c.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions + 1)) ); // dan skips over pam's blocks
    expected_producer = N(dan);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
-   c.produce_blocks(11);
+   c.produce_blocks((config::producer_repetitions - 1));
 
    // dan on chain 1 now gets all of the blocks from chain 2 which should cause fork switch
    wlog( "push c2 blocks to c1" );
@@ -223,7 +228,7 @@ BOOST_AUTO_TEST_CASE( forking ) try {
    wlog( "end push c2 blocks to c1" );
 
    wlog( "c1 blocks:" );
-   c.produce_blocks(24);
+   c.produce_blocks(config::producer_repetitions * 2);
 
    b = c.produce_block(); // Switching active schedule to version 2 happens in this block.
    expected_producer = N(pam);
@@ -232,7 +237,7 @@ BOOST_AUTO_TEST_CASE( forking ) try {
    b = c.produce_block();
    expected_producer = N(cam);
 //   BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
-   c.produce_blocks(10);
+   c.produce_blocks( config::producer_repetitions - 2 );
 
    wlog( "push c1 blocks to c2" );
    push_blocks(c, c2);
@@ -243,18 +248,25 @@ BOOST_AUTO_TEST_CASE( forking ) try {
    fork_block_num = c.control->head_block_num();
    wlog( "cam and dan go off on their own fork on c1 while sam and pam go off on their own fork on c2" );
    wlog( "c1 blocks:" );
-   c.produce_blocks(12); // dan produces 12 blocks
-   c.produce_block( fc::milliseconds(config::block_interval_ms * 25) ); // cam skips over sam and pam's blocks
-   c.produce_blocks(23); // cam finishes the remaining 11 blocks then dan produces his 12 blocks
+   c.produce_blocks(config::producer_repetitions); // dan produces producer_repetitions blocks
+   // cam skips over sam and pam's blocks
+   c.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions * 2 + 1)) ); 
+   // cam finishes the remaining producer_repetitions-1 blocks then dan produces his producer_repetitions blocks
+   c.produce_blocks( config::producer_repetitions * 2 - 1 ); 
    wlog( "c2 blocks:" );
-   c2.produce_block( fc::milliseconds(config::block_interval_ms * 25) ); // pam skips over dan and sam's blocks
-   c2.produce_blocks(11); // pam finishes the remaining 11 blocks
-   c2.produce_block( fc::milliseconds(config::block_interval_ms * 25) ); // sam skips over cam and dan's blocks
-   c2.produce_blocks(11); // sam finishes the remaining 11 blocks
+   // pam skips over dan and sam's blocks
+   c2.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions * 2 + 1)) ); 
+   // pam finishes the remaining producer_repetitions-1 blocks
+   c2.produce_blocks( config::producer_repetitions - 1 ); 
+   // sam skips over cam and dan's blocks
+   c2.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions * 2 + 1)) ); 
+   // sam finishes the remaining 11 blocks
+   c2.produce_blocks( config::producer_repetitions - 1 ); 
 
    wlog( "now cam and dan rejoin sam and pam on c2" );
-   c2.produce_block( fc::milliseconds(config::block_interval_ms * 13) ); // cam skips over pam's blocks (this block triggers a block on this branch to become irreversible)
-   c2.produce_blocks(11); // cam produces the remaining 11 blocks
+   // cam skips over pam's blocks (this block triggers a block on this branch to become irreversible)
+   c2.produce_block( fc::milliseconds(config::block_interval_ms * config::producer_repetitions + 1) ); 
+   c2.produce_blocks( config::producer_repetitions - 1 ); // cam produces the remaining 11 blocks
    b = c2.produce_block(); // dan produces a block
 
    // a node on chain 1 now gets all but the last block from chain 2 which should cause a fork switch
