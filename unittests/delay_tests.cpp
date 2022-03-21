@@ -17,6 +17,11 @@ using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::testing;
 
+inline static int64_t get_blocks_from_sec(int64_t sec, int64_t offset = 0) {
+    int64_t blocks = sec * 1000 / config::block_interval_ms + offset;
+    BOOST_ASSERT(blocks >= 0);
+    return blocks;
+}
 
 BOOST_AUTO_TEST_SUITE(delay_tests)
 
@@ -42,7 +47,7 @@ BOOST_FIXTURE_TEST_CASE( delay_create_account, validating_tester) { try {
 
    auto trace = push_transaction( trx );
 
-   produce_blocks(8);
+   produce_blocks( get_blocks_from_sec(3, 2) );
 
 } FC_LOG_AND_RETHROW() }
 
@@ -70,7 +75,7 @@ BOOST_FIXTURE_TEST_CASE( delay_error_create_account, validating_tester) { try {
    ilog( fc::json::to_pretty_string(trx) );
    push_transaction( trx );
 
-   produce_blocks(3 * 1000 / config::block_interval_ms);
+   produce_blocks( get_blocks_from_sec(3) );
 
    auto scheduled_trxs = get_scheduled_transactions();
    BOOST_REQUIRE_EQUAL(scheduled_trxs.size(), 1u);
@@ -97,7 +102,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -105,7 +110,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -236,7 +241,7 @@ BOOST_AUTO_TEST_CASE(delete_auth_test) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -244,7 +249,7 @@ BOOST_AUTO_TEST_CASE(delete_auth_test) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    transaction_trace_ptr trace;
 
@@ -373,7 +378,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_parent_permission_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -381,7 +386,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_parent_permission_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -480,7 +485,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_parent_permission_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("1.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(15 * config::block_interval_ms / 1000 - 2);
+   chain.produce_blocks( get_blocks_from_sec(15, -2) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("99.0000 CUR"), liquid_balance);
@@ -511,7 +516,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_walk_parent_permissions_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -519,7 +524,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_walk_parent_permissions_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -624,7 +629,7 @@ BOOST_AUTO_TEST_CASE( link_delay_direct_walk_parent_permissions_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("1.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(38);
+   chain.produce_blocks( get_blocks_from_sec(20, -2) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("99.0000 CUR"), liquid_balance);
@@ -655,7 +660,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -663,7 +668,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -706,7 +711,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -729,7 +734,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
            ("permission", "first")
@@ -748,14 +753,14 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -815,7 +820,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("11.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(15);
+   chain.produce_blocks( get_blocks_from_sec(10, - 5) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("89.0000 CUR"), liquid_balance);
@@ -846,7 +851,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_with_delay_heirarchy_test ) {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -854,7 +859,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_with_delay_heirarchy_test ) {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -903,7 +908,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_with_delay_heirarchy_test ) {
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -926,7 +931,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_with_delay_heirarchy_test ) {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
            ("permission", "first")
@@ -947,14 +952,14 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_with_delay_heirarchy_test ) {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1011,7 +1016,7 @@ BOOST_AUTO_TEST_CASE( link_delay_permission_change_with_delay_heirarchy_test ) {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("11.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(14);
+   chain.produce_blocks( get_blocks_from_sec(10, -6) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("89.0000 CUR"), liquid_balance);
@@ -1043,7 +1048,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -1051,7 +1056,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -1100,7 +1105,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1135,7 +1140,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_test ) { try {
       fc_exception_message_starts_with("transaction declares authority")
    );
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    chain.push_action( config::system_account_name, linkauth::get_name(),
                       vector<permission_level>{{tester_account, N(first)}},
                       fc::mutable_variant_object()
@@ -1157,14 +1162,14 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1219,7 +1224,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("11.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("89.0000 CUR"), liquid_balance);
@@ -1245,7 +1250,7 @@ BOOST_AUTO_TEST_CASE( link_delay_unlink_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -1253,7 +1258,7 @@ BOOST_AUTO_TEST_CASE( link_delay_unlink_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -1294,7 +1299,7 @@ BOOST_AUTO_TEST_CASE( link_delay_unlink_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1329,7 +1334,7 @@ BOOST_AUTO_TEST_CASE( link_delay_unlink_test ) { try {
       fc_exception_message_starts_with("transaction declares authority")
    );
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    chain.push_action(config::system_account_name, unlinkauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
            ("code", amax_token)
@@ -1348,14 +1353,14 @@ BOOST_AUTO_TEST_CASE( link_delay_unlink_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1409,7 +1414,7 @@ BOOST_AUTO_TEST_CASE( link_delay_unlink_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("11.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(15);
+   chain.produce_blocks( get_blocks_from_sec(10, -5) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("89.0000 CUR"), liquid_balance);
@@ -1434,7 +1439,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_heirarchy_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -1442,7 +1447,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_heirarchy_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -1497,7 +1502,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_heirarchy_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1519,7 +1524,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_heirarchy_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    chain.push_action(config::system_account_name, linkauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
            ("code", amax_token)
@@ -1539,14 +1544,14 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_heirarchy_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1600,7 +1605,7 @@ BOOST_AUTO_TEST_CASE( link_delay_link_change_heirarchy_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("11.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("89.0000 CUR"), liquid_balance);
@@ -1625,7 +1630,7 @@ BOOST_AUTO_TEST_CASE( mindelay_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -1633,7 +1638,7 @@ BOOST_AUTO_TEST_CASE( mindelay_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(N(amax.token), N(create), N(amax.token), mutable_variant_object()
            ("issuer", amax_token)
@@ -1726,7 +1731,7 @@ BOOST_AUTO_TEST_CASE( mindelay_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("1.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(18);
+   chain.produce_blocks( get_blocks_from_sec(10, -2) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("99.0000 CUR"), liquid_balance);
@@ -1757,7 +1762,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(amax.token));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.set_code(N(amax.token), contracts::amax_token_wasm());
    chain.set_abi(N(amax.token), contracts::amax_token_abi().data());
@@ -1765,7 +1770,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test ) { try {
    chain.produce_blocks();
    chain.create_account(N(tester));
    chain.create_account(N(tester2));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
@@ -1807,7 +1812,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1850,7 +1855,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test ) { try {
       fc_exception_message_starts_with("transaction declares authority")
    );
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
            ("account", "tester")
            ("permission", "first")
@@ -1872,14 +1877,14 @@ BOOST_AUTO_TEST_CASE( canceldelay_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(16);
+   chain.produce_blocks( get_blocks_from_sec(10, -4) );
 
    liquid_balance = get_currency_balance(chain, N(tester));
    BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("0.0000 CUR"), liquid_balance);
 
-   // this transaction will be delayed 20 blocks
+   // this transaction will be delayed 10 sec
    trace = chain.push_action(N(amax.token), name("transfer"), N(tester), fc::mutable_variant_object()
        ("from", "tester")
        ("to", "tester2")
@@ -1964,7 +1969,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test ) { try {
    liquid_balance = get_currency_balance(chain, N(tester2));
    BOOST_REQUIRE_EQUAL(asset::from_string("10.0000 CUR"), liquid_balance);
 
-   chain.produce_blocks(15);
+   chain.produce_blocks( get_blocks_from_sec(10, -5) );
 
    gen_size = chain.control->db().get_index<generated_transaction_multi_index,by_trx_id>().size();
    BOOST_CHECK_EQUAL(1, gen_size);
@@ -2053,7 +2058,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test2 ) { try {
    ilog("attempting first delayed transfer");
 
    {
-      // this transaction will be delayed 10 blocks
+      // this transaction will be delayed 5 sec
       trace = chain.push_action(N(amax.token), name("transfer"), vector<permission_level>{{N(tester), N(first)}}, fc::mutable_variant_object()
           ("from", "tester")
           ("to", "tester2")
@@ -2117,7 +2122,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test2 ) { try {
       auto citr = cidx.find( trx_id );
       BOOST_REQUIRE_EQUAL( (citr == cidx.end()), true );
 
-      chain.produce_blocks(10);
+      chain.produce_blocks( get_blocks_from_sec(5) );
 
       liquid_balance = get_currency_balance(chain, N(tester));
       BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
@@ -2135,12 +2140,12 @@ BOOST_AUTO_TEST_CASE( canceldelay_test2 ) { try {
            30, 5
    );
 
-   chain.produce_blocks(11);
+   chain.produce_blocks( get_blocks_from_sec(10, 1) );
 
 
    ilog("attempting second delayed transfer");
    {
-      // this transaction will be delayed 10 blocks
+      // this transaction will be delayed 5 sec
       trace = chain.push_action(N(amax.token), name("transfer"), vector<permission_level>{{N(tester), N(second)}}, fc::mutable_variant_object()
           ("from", "tester")
           ("to", "tester2")
@@ -2181,7 +2186,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test2 ) { try {
       auto citr = cidx.find( trx_id );
       BOOST_REQUIRE_EQUAL( (citr == cidx.end()), true );
 
-      chain.produce_blocks(10);
+      chain.produce_blocks( get_blocks_from_sec(5) );
 
       liquid_balance = get_currency_balance(chain, N(tester));
       BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
@@ -2192,7 +2197,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test2 ) { try {
    ilog("attempting third delayed transfer");
 
    {
-      // this transaction will be delayed 10 blocks
+      // this transaction will be delayed 5 sec
       trace = chain.push_action(N(amax.token), name("transfer"), vector<permission_level>{{N(tester), config::owner_name}}, fc::mutable_variant_object()
           ("from", "tester")
           ("to", "tester2")
@@ -2243,7 +2248,7 @@ BOOST_AUTO_TEST_CASE( canceldelay_test2 ) { try {
       auto citr = cidx.find( trx_id );
       BOOST_REQUIRE_EQUAL( (citr == cidx.end()), true );
 
-      chain.produce_blocks(10);
+      chain.produce_blocks( get_blocks_from_sec(5) );
 
       liquid_balance = get_currency_balance(chain, N(tester));
       BOOST_REQUIRE_EQUAL(asset::from_string("100.0000 CUR"), liquid_balance);
@@ -2261,7 +2266,7 @@ BOOST_AUTO_TEST_CASE( max_transaction_delay_create ) { try {
 
    chain.produce_blocks();
    chain.create_account(N(tester));
-   chain.produce_blocks(10);
+   chain.produce_blocks( get_blocks_from_sec(5) );
 
    BOOST_REQUIRE_EXCEPTION(
       chain.push_action(config::system_account_name, updateauth::get_name(), tester_account, fc::mutable_variant_object()
@@ -2346,7 +2351,7 @@ BOOST_AUTO_TEST_CASE( max_transaction_delay_execute ) { try {
    BOOST_REQUIRE_EQUAL(0, trace->action_traces.size());
 
    //check that the delayed transaction executed after after 60 sec
-   chain.produce_blocks(120);
+   chain.produce_blocks( get_blocks_from_sec(60) );
    gen_size = chain.control->db().get_index<generated_transaction_multi_index,by_trx_id>().size();
    BOOST_CHECK_EQUAL(0, gen_size);
 
