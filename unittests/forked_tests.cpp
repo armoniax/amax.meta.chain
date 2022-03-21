@@ -53,19 +53,20 @@ BOOST_AUTO_TEST_CASE( fork_with_bad_block ) try {
 
    // produce 6 blocks on bios
    for (int i = 0; i < 6; i ++) {
-      bios.produce_block();
+      bios.produce_block(); 
       BOOST_REQUIRE_EQUAL( bios.control->head_block_state()->header.producer.to_string(), "a" );
    }
 
    vector<fork_tracker> forks(7);
    // enough to skip A's blocks
-   auto offset = fc::milliseconds(config::block_interval_ms * 13);
+   auto offset = fc::milliseconds(config::block_interval_ms * (config::producer_repetitions + 1));
 
    // skip a's blocks on remote
    // create 7 forks of 7 blocks so this fork is longer where the ith block is corrupted
    for (size_t i = 0; i < 7; i ++) {
-      auto b = remote.produce_block(offset);
-      BOOST_REQUIRE_EQUAL( b->producer.to_string(), "b" );
+      auto b = remote.produce_block(offset);    
+      // BOOST_REQUIRE_EQUAL( b->producer.to_string(), "b" );
+      name cur_producer =  b->producer;
 
       for (size_t j = 0; j < 7; j ++) {
          auto& fork = forks.at(j);
@@ -84,7 +85,7 @@ BOOST_AUTO_TEST_CASE( fork_with_bad_block ) try {
             // re-sign the block
             auto header_bmroot = digest_type::hash( std::make_pair( copy_b->digest(), fork.block_merkle.get_root() ) );
             auto sig_digest = digest_type::hash( std::make_pair(header_bmroot, remote.control->head_block_state()->pending_schedule.schedule_hash) );
-            copy_b->producer_signature = remote.get_private_key(N(b), "active").sign(sig_digest);
+            copy_b->producer_signature = remote.get_private_key(cur_producer, "active").sign(sig_digest);
 
             // add this new block to our corrupted block merkle
             fork.block_merkle.append(copy_b->id());
@@ -103,7 +104,7 @@ BOOST_AUTO_TEST_CASE( fork_with_bad_block ) try {
          const auto& fork = forks.at(i);
          // push the fork to the original node
          for (size_t fidx = 0; fidx < fork.blocks.size() - 1; fidx++) {
-            const auto& b = fork.blocks.at(fidx);
+            const auto& b = fork.blocks.at(fidx);         
             // push the block only if its not known already
             if (!bios.control->fetch_block_by_id(b->id())) {
                bios.push_block(b);
