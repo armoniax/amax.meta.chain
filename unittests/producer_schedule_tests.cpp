@@ -304,7 +304,15 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
    produce_block(); // Starts new block which promotes the pending schedule to active
    BOOST_CHECK_EQUAL( control->active_producers().version, 1u );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch1, control->active_producers() ) );
-   produce_blocks(6);
+
+   BOOST_REQUIRE( produce_until_transition( *this, N(alice), N(bob) ) ); 
+   wdump(
+      (control->last_irreversible_block_num())
+      (control->head_block_num())
+      (control->head_block_producer())
+      (control->pending_block_producer())
+      ((control->head_block_header().timestamp.next().slot) % config::producer_repetitions)
+   );  
 
    res = set_producers( {N(alice),N(bob)} );
    vector<producer_authority> sch2 = {
@@ -314,13 +322,15 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
    wlog("set producer schedule to [alice,bob]");
    BOOST_REQUIRE_EQUAL( true, control->proposed_producers().valid() );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch2, *control->proposed_producers() ) );
+   
+   produce_blocks(config::producer_repetitions * 4);
 
-   produce_blocks(48);
    BOOST_REQUIRE_EQUAL( control->head_block_producer(), N(bob) );
    BOOST_REQUIRE_EQUAL( control->pending_block_producer(), N(carol) );
+      wdump( (control->pending_producers()) );
    BOOST_CHECK_EQUAL( control->pending_producers().version, 2u );
 
-   produce_blocks(47);
+   produce_blocks(config::producer_repetitions * 4 - 1);
    BOOST_CHECK_EQUAL( control->active_producers().version, 1u );
    produce_blocks(1);
 
@@ -328,9 +338,15 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
    BOOST_REQUIRE_EQUAL( control->pending_block_producer(), N(alice) );
    BOOST_CHECK_EQUAL( control->active_producers().version, 2u );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch2, control->active_producers() ) );
-
-   produce_blocks(2);
-   BOOST_CHECK_EQUAL( control->head_block_producer(), N(bob) );
+   wdump(
+      (control->last_irreversible_block_num())
+      (control->head_block_num())
+      (control->head_block_producer())
+      (control->pending_block_producer())
+      ((control->head_block_header().timestamp.next().slot) % config::producer_repetitions)
+   ); 
+   // produce_blocks(2);
+   // BOOST_CHECK_EQUAL( control->head_block_producer(), N(bob) );
 
    BOOST_REQUIRE_EQUAL( validate(), true );
 } FC_LOG_AND_RETHROW()
@@ -513,7 +529,7 @@ BOOST_AUTO_TEST_CASE( producer_watermark_test ) try {
    BOOST_REQUIRE_EQUAL( c.control->active_producers().version, 3u );
 
    produce_until_transition( c, N(alice), N(bob) );
-   c.produce_blocks(11);
+   c.produce_blocks(config::producer_repetitions - 1);
    BOOST_CHECK_EQUAL( c.control->pending_block_producer(), N(bob) );
    c.finish_block();
 
