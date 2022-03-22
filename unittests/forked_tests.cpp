@@ -483,7 +483,7 @@ BOOST_AUTO_TEST_CASE( irreversible_mode ) try {
    BOOST_REQUIRE_EQUAL( other.control->head_block_producer().to_string(), "producer2" );
    auto fork_first_block_id = other.control->head_block_id();
    wlog( "{w}", ("w", fork_first_block_id));
-   
+
    // finish producer2's round
    BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), config::producer_repetitions - 1) ); 
    BOOST_REQUIRE_EQUAL( other.control->pending_block_producer().to_string(), "producer1" );
@@ -603,15 +603,30 @@ BOOST_AUTO_TEST_CASE( reopen_forkdb ) try {
 } FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
+
+   auto nextproducer = [](tester &c, int skip_interval) ->account_name {
+      auto head_time = c.control->head_block_time();
+      auto next_time = head_time + fc::milliseconds(config::block_interval_ms * skip_interval);
+      return c.control->head_block_state()->get_scheduled_producer(next_time).producer_name;
+   };
+
    tester c;
-   while (c.control->head_block_num() < 3) {
-      c.produce_block();
-   }
+   // while (c.control->head_block_num() < 1) {
+   //    c.produce_block();
+   // }
    auto r = c.create_accounts( {N(dan),N(sam),N(pam)} );
    c.produce_block();
    auto res = c.set_producers( {N(dan),N(sam),N(pam)} );
    wlog("set producer schedule to [dan,sam,pam]");
-   c.produce_blocks(40);
+   wdump(
+      (c.control->last_irreversible_block_num())
+      (c.control->head_block_num())
+      (c.control->head_block_producer())
+      (nextproducer(c, 1))
+      ((c.control->head_block_header().timestamp.slot + 1) % config::block_interval_ms)
+   );
+   // run until the producers are installed and its the start of "dan's" round
+   BOOST_REQUIRE( produce_until_transition( c, N(pam), N(dan) ) );  
 
    tester c2(setup_policy::none);
    wlog( "push c1 blocks to c2" );
@@ -619,7 +634,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
 
    wlog( "c1 blocks:" );
    signed_block_ptr cb;
-   c.produce_blocks(3);
+   c.produce_blocks( config::producer_repetitions - 1 ); // produce pam's remaining blocks
    signed_block_ptr b;
    cb = b = c.produce_block();
    account_name expected_producer = N(dan);
@@ -628,7 +643,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
    b = c.produce_block();
    expected_producer = N(sam);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
-   c.produce_blocks(10);
+   c.produce_blocks(config::producer_repetitions - 2);
    c.create_accounts( {N(cam)} );
    c.set_producers( {N(dan),N(sam),N(pam),N(cam)} );
    wlog("set producer schedule to [dan,sam,pam,cam]");
@@ -647,19 +662,20 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
 
    signed_block_ptr c2b;
    wlog( "c2 blocks:" );
-   c2.produce_blocks(12); // pam produces 12 blocks
-   b = c2b = c2.produce_block( fc::milliseconds(config::block_interval_ms * 13) ); // sam skips over dan's blocks
+   c2.produce_blocks(config::producer_repetitions); // pam produces 12 blocks
+   // sam skips over dan's blocks
+   b = c2b = c2.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions + 1)) ); 
    expected_producer = N(sam);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
    // save blocks for verification of forking later
    std::vector<signed_block_ptr> c2blocks;
-   for( size_t i = 0; i < 11 + 12; ++i ) {
+   for( size_t i = 0; i < config::producer_repetitions * 2 - 1; ++i ) {
       c2blocks.emplace_back( c2.produce_block() );
    }
 
-
    wlog( "c1 blocks:" );
-   b = c.produce_block( fc::milliseconds(config::block_interval_ms * 13) ); // dan skips over pam's blocks
+   // dan skips over pam's blocks
+   b = c.produce_block( fc::milliseconds(config::block_interval_ms * (config::producer_repetitions + 1)) ); 
    expected_producer = N(dan);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
    // create accounts on c1 which will be forked out
@@ -677,7 +693,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
                                       .owner    = owner_auth,
                                       .active   = active_auth,
                                 });
-      trx.expiration = c.control->head_block_time() + fc::seconds( 60 );
+      trx.expiration = c.control->head_block_time() + fc::seconds( config::producer_repetitions * 5 );
       trx.set_reference_block( cb->id() );
       trx.sign( get_private_key( config::system_account_name, "active" ), c.control->get_chain_id()  );
       trace1 = c.push_transaction( trx );
@@ -694,7 +710,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
                                       .owner    = owner_auth,
                                       .active   = active_auth,
                                 });
-      trx.expiration = c.control->head_block_time() + fc::seconds( 60 );
+      trx.expiration = c.control->head_block_time() + fc::seconds( config::producer_repetitions * 5 );
       trx.set_reference_block( cb->id() );
       trx.sign( get_private_key( config::system_account_name, "active" ), c.control->get_chain_id()  );
       trace2 = c.push_transaction( trx );
@@ -710,7 +726,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
                                       .owner    = owner_auth,
                                       .active   = active_auth,
                                 });
-      trx.expiration = c.control->head_block_time() + fc::seconds( 60 );
+      trx.expiration = c.control->head_block_time() + fc::seconds( config::producer_repetitions * 5 );
       trx.set_reference_block( cb->id() );
       trx.sign( get_private_key( config::system_account_name, "active" ), c.control->get_chain_id()  );
       trace3 = c.push_transaction( trx );
@@ -726,14 +742,14 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
                                       .owner    = owner_auth,
                                       .active   = active_auth,
                                 });
-      trx.expiration = c.control->head_block_time() + fc::seconds( 60 );
+      trx.expiration = c.control->head_block_time() + fc::seconds( config::producer_repetitions * 5 );
       trx.set_reference_block( b->id() ); // tapos to dan's block should be rejected on fork switch
       trx.sign( get_private_key( config::system_account_name, "active" ), c.control->get_chain_id()  );
       trace4 = c.push_transaction( trx );
       BOOST_CHECK( trace4->receipt->status == transaction_receipt_header::executed );
    }
    c.produce_block();
-   c.produce_blocks(9);
+   c.produce_blocks(config::producer_repetitions - 3);
 
    // test forked blocks signal accepted_block in order, required by trace_api_plugin
    std::vector<signed_block_ptr> accepted_blocks;
@@ -757,7 +773,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
       for( i = 0; itr != accepted_blocks.end(); ++i, ++itr ) {
          BOOST_CHECK( c2blocks.at(i) == *itr );
       }
-      BOOST_CHECK( i == 11 + 12 );
+      BOOST_CHECK( i == config::producer_repetitions * 2 - 1 );
    }
    // verify transaction on fork is reported by push_block in order
    BOOST_REQUIRE_EQUAL( 4, c.get_unapplied_transaction_queue().size() );
