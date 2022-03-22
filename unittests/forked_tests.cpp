@@ -604,12 +604,6 @@ BOOST_AUTO_TEST_CASE( reopen_forkdb ) try {
 
 BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
 
-   auto nextproducer = [](tester &c, int skip_interval) ->account_name {
-      auto head_time = c.control->head_block_time();
-      auto next_time = head_time + fc::milliseconds(config::block_interval_ms * skip_interval);
-      return c.control->head_block_state()->get_scheduled_producer(next_time).producer_name;
-   };
-
    tester c;
    // while (c.control->head_block_num() < 1) {
    //    c.produce_block();
@@ -622,8 +616,8 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
       (c.control->last_irreversible_block_num())
       (c.control->head_block_num())
       (c.control->head_block_producer())
-      (nextproducer(c, 1))
-      ((c.control->head_block_header().timestamp.slot + 1) % config::block_interval_ms)
+      (c.control->pending_block_producer())
+      ((c.control->head_block_header().timestamp.slot + 1) % config::producer_repetitions)
    );
    // run until the producers are installed and its the start of "dan's" round
    BOOST_REQUIRE( produce_until_transition( c, N(pam), N(dan) ) );  
@@ -643,7 +637,7 @@ BOOST_AUTO_TEST_CASE( push_block_returns_forked_transactions ) try {
    b = c.produce_block();
    expected_producer = N(sam);
    BOOST_REQUIRE_EQUAL( b->producer.to_string(), expected_producer.to_string() );
-   c.produce_blocks(config::producer_repetitions - 2);
+   c.produce_blocks(config::producer_repetitions);
    c.create_accounts( {N(cam)} );
    c.set_producers( {N(dan),N(sam),N(pam),N(cam)} );
    wlog("set producer schedule to [dan,sam,pam,cam]");

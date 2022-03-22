@@ -226,8 +226,13 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_promotion_test, TESTER ) try {
    produce_block();
    produce_block(); // Starts new block which promotes the pending schedule to active
    BOOST_CHECK_EQUAL( control->active_producers().version, 1u );
-   BOOST_CHECK_EQUAL( true, compare_schedules( sch1, control->active_producers() ) );
-   produce_blocks(6);
+   BOOST_CHECK_EQUAL( true, compare_schedules( sch1, control->active_producers() ) );   
+   // produce_blocks(6);
+   while (control->head_block_header().timestamp.next().slot % (config::producer_repetitions * 3) !=
+          config::producer_repetitions)
+   {
+       produce_block();
+   }
 
    res = set_producers( {N(alice),N(bob),N(carol)} );
    vector<producer_authority> sch2 = {
@@ -240,15 +245,22 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_promotion_test, TESTER ) try {
    BOOST_CHECK_EQUAL( true, compare_schedules( sch2, *control->proposed_producers() ) );
 
    produce_block();
-   produce_blocks(23); // Alice produces the last block of her first round.
+   wdump(
+      (control->last_irreversible_block_num())
+      (control->head_block_num())
+      (control->head_block_producer())
+      (control->pending_block_producer())
+      ((control->head_block_header().timestamp.next().slot) % config::producer_repetitions)
+   );   
+   produce_blocks(config::producer_repetitions * 2 - 1); // Alice produces the last block of her first round.
                     // Bob's first block (which advances LIB to Alice's last block) is started but not finalized.
    BOOST_REQUIRE_EQUAL( control->head_block_producer(), N(alice) );
    BOOST_REQUIRE_EQUAL( control->pending_block_producer(), N(bob) );
    BOOST_CHECK_EQUAL( control->pending_producers().version, 2u );
 
-   produce_blocks(12); // Bob produces his first 11 blocks
+   produce_blocks(config::producer_repetitions); // Bob produces his first config::producer_repetitions-1 blocks
    BOOST_CHECK_EQUAL( control->active_producers().version, 1u );
-   produce_blocks(12); // Bob produces his 12th block.
+   produce_blocks(config::producer_repetitions); // Bob produces his last block.
                     // Alice's first block of the second round is started but not finalized (which advances LIB to Bob's last block).
    BOOST_REQUIRE_EQUAL( control->head_block_producer(), N(alice) );
    BOOST_REQUIRE_EQUAL( control->pending_block_producer(), N(bob) );
