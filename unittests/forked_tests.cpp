@@ -294,21 +294,35 @@ BOOST_AUTO_TEST_CASE( forking ) try {
  */
 BOOST_AUTO_TEST_CASE( prune_remove_branch ) try {
    tester c;
-   while (c.control->head_block_num() < 11) {
+   while (c.control->head_block_num() < config::producer_repetitions - 1) {
       c.produce_block();
    }
+   wdump(
+      (c.control->last_irreversible_block_num())
+      (c.control->head_block_num())
+      (c.control->head_block_header().timestamp.slot)
+      (c.control->head_block_producer())
+   );
    auto r = c.create_accounts( {N(dan),N(sam),N(pam),N(scott)} );
    auto res = c.set_producers( {N(dan),N(sam),N(pam),N(scott)} );
-   wlog("set producer schedule to [dan,sam,pam,scott]");
-   c.produce_blocks(50);
+   // wlog("set producer schedule to [dan,sam,pam,scott]");
+   c.produce_blocks( config::producer_repetitions * 4 + 2 );
+
+   auto expected_block_num = c.control->head_block_num();
+   wdump(
+      (c.control->last_irreversible_block_num())
+      (c.control->head_block_num())
+      (c.control->head_block_header().timestamp.slot)
+      (c.control->head_block_producer())
+   );
 
    tester c2(setup_policy::none);
    wlog( "push c1 blocks to c2" );
    push_blocks(c, c2);
 
    // fork happen after block 61
-   BOOST_REQUIRE_EQUAL(61u, c.control->head_block_num());
-   BOOST_REQUIRE_EQUAL(61u, c2.control->head_block_num());
+   // BOOST_REQUIRE_EQUAL(expected_block_num, c.control->head_block_num());
+   BOOST_REQUIRE_EQUAL(expected_block_num, c2.control->head_block_num());
 
    uint32_t fork_num = c.control->head_block_num();
 
@@ -321,7 +335,7 @@ BOOST_AUTO_TEST_CASE( prune_remove_branch ) try {
    // fork c: 2 producers: dan, sam
    // fork c2: 1 producer: scott
    int skip1 = 1, skip2 = 1;
-   for (int i = 0; i < 50; ++i) {
+   for (int i = 0; i < config::producer_repetitions * 4; ++i) {
       account_name next1 = nextproducer(c, skip1);
       if (next1 == N(dan) || next1 == N(sam)) {
          c.produce_block(fc::milliseconds(config::block_interval_ms * skip1)); skip1 = 1;
@@ -333,9 +347,12 @@ BOOST_AUTO_TEST_CASE( prune_remove_branch ) try {
       }
       else ++skip2;
    }
-
-   BOOST_REQUIRE_EQUAL(87u, c.control->head_block_num());
-   BOOST_REQUIRE_EQUAL(73u, c2.control->head_block_num());
+   wdump((c.control->last_irreversible_block_num())(c.control->head_block_num())(c.control->head_block_producer()));
+   wdump((c2.control->last_irreversible_block_num())(c2.control->head_block_num())(c.control->head_block_producer()));
+   auto c_expected_block_num = expected_block_num + config::producer_repetitions * 2;
+   auto c2_expected_block_num = expected_block_num + config::producer_repetitions;
+   BOOST_REQUIRE_EQUAL(c_expected_block_num, c.control->head_block_num());
+   BOOST_REQUIRE_EQUAL(c2_expected_block_num, c2.control->head_block_num());
 
    // push fork from c2 => c
    size_t p = fork_num;
@@ -345,7 +362,7 @@ BOOST_AUTO_TEST_CASE( prune_remove_branch ) try {
       c.push_block(fb);
    }
 
-   BOOST_REQUIRE_EQUAL(73u, c.control->head_block_num());
+   BOOST_REQUIRE_EQUAL(c2_expected_block_num, c.control->head_block_num());
 
 } FC_LOG_AND_RETHROW()
 
