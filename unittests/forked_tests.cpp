@@ -446,14 +446,14 @@ BOOST_AUTO_TEST_CASE( irreversible_mode ) try {
    main.produce_block();
    main.set_producers( {N(producer1), N(producer2)} );
    main.produce_block();
-   BOOST_REQUIRE( produce_until_transition( main, N(producer1), N(producer2), 26) );
+   BOOST_REQUIRE( produce_until_transition( main, N(producer1), N(producer2), config::producer_repetitions * 5 / 2) );
 
    main.create_accounts( {N(alice)} );
    main.produce_block();
    auto hbn1 = main.control->head_block_num();
    auto lib1 = main.control->last_irreversible_block_num();
 
-   BOOST_REQUIRE( produce_until_transition( main, N(producer2), N(producer1), 11) );
+   BOOST_REQUIRE( produce_until_transition( main, N(producer2), N(producer1), config::producer_repetitions - 1) );
 
    auto hbn2 = main.control->head_block_num();
    auto lib2 = main.control->last_irreversible_block_num();
@@ -465,8 +465,8 @@ BOOST_AUTO_TEST_CASE( irreversible_mode ) try {
    push_blocks( main, other );
    BOOST_CHECK_EQUAL( other.control->head_block_num(), hbn2 );
 
-   BOOST_REQUIRE( produce_until_transition( main, N(producer1), N(producer2), 12) );
-   BOOST_REQUIRE( produce_until_transition( main, N(producer2), N(producer1), 12) );
+   BOOST_REQUIRE( produce_until_transition( main, N(producer1), N(producer2), config::producer_repetitions) );
+   BOOST_REQUIRE( produce_until_transition( main, N(producer2), N(producer1), config::producer_repetitions) );
 
    auto hbn3 = main.control->head_block_num();
    auto lib3 = main.control->last_irreversible_block_num();
@@ -478,20 +478,25 @@ BOOST_AUTO_TEST_CASE( irreversible_mode ) try {
    // other forks away from main after hbn2
    BOOST_REQUIRE_EQUAL( other.control->head_block_producer().to_string(), "producer2" );
 
-   other.produce_block( fc::milliseconds( 13 * config::block_interval_ms ) ); // skip over producer1's round
+   // skip over producer1's round
+   other.produce_block( fc::milliseconds( (config::producer_repetitions + 1) * config::block_interval_ms ) ); 
    BOOST_REQUIRE_EQUAL( other.control->head_block_producer().to_string(), "producer2" );
    auto fork_first_block_id = other.control->head_block_id();
    wlog( "{w}", ("w", fork_first_block_id));
-
-   BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), 11) ); // finish producer2's round
+   
+   // finish producer2's round
+   BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), config::producer_repetitions - 1) ); 
    BOOST_REQUIRE_EQUAL( other.control->pending_block_producer().to_string(), "producer1" );
 
    // Repeat two more times to ensure other has a longer chain than main
-   other.produce_block( fc::milliseconds( 13 * config::block_interval_ms ) ); // skip over producer1's round
-   BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), 11) ); // finish producer2's round
-
-   other.produce_block( fc::milliseconds( 13 * config::block_interval_ms ) ); // skip over producer1's round
-   BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), 11) ); // finish producer2's round
+   // skip over producer1's round
+   other.produce_block( fc::milliseconds( (config::producer_repetitions + 1) * config::block_interval_ms ) ); 
+   // finish producer2's round
+   BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), config::producer_repetitions - 1) ); 
+   // skip over producer1's round
+   other.produce_block( fc::milliseconds( (config::producer_repetitions + 1) * config::block_interval_ms ) ); 
+   // finish producer2's round
+   BOOST_REQUIRE( produce_until_transition( other, N(producer2), N(producer1), config::producer_repetitions - 1) ); 
 
    auto hbn4 = other.control->head_block_num();
    auto lib4 = other.control->last_irreversible_block_num();
