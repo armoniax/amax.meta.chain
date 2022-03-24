@@ -125,7 +125,7 @@ struct abi_def {
 abi_def eosio_contract_abi(const abi_def& amax_system_abi);
 vector<type_def> common_type_defs();
 
-extern unsigned char eosio_abi_bin[2132];
+extern unsigned char eosio_abi_bin[2211];
 
 } } /// namespace eosio::chain
 

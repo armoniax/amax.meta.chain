@@ -20,6 +20,7 @@
 
 #include <deep_nested.abi.hpp>
 #include <large_nested.abi.hpp>
+#include <amax_initial.abi.hpp>
 
 using namespace eosio;
 using namespace chain;
@@ -794,6 +795,23 @@ BOOST_AUTO_TEST_CASE(abi_cycle)
    abi_serializer abis;
    BOOST_CHECK_EXCEPTION( abis.set_abi(abi, abi_serializer::create_yield_function( max_serialization_time )), abi_circular_def_exception, is_assert_exception );
 
+} FC_LOG_AND_RETHROW() }
+
+BOOST_AUTO_TEST_CASE(amax_abi_test)
+{ try {
+
+   auto amax_abi = eosio_contract_abi(abi_def());
+   // wdump(( fc::json::to_pretty_string(amax_abi) ));
+
+   auto expected_var = fc::json::from_string(amax_initial_abi);
+
+   auto expected_bytes = fc::raw::pack( fc::json::from_string(amax_initial_abi).as<abi_def>() );
+
+   auto amax_bytes = fc::raw::pack(amax_abi);
+   wdump( (fc::to_hex(amax_bytes)) );
+   BOOST_REQUIRE_EQUAL(fc::to_hex(amax_bytes), fc::to_hex(expected_bytes));
+   BOOST_REQUIRE_EQUAL(fc::to_hex((const char*)eosio_abi_bin, sizeof(eosio_abi_bin)), fc::to_hex(expected_bytes));
+   
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_CASE(linkauth_test)
