@@ -17,15 +17,12 @@ unlockTimeout = 999999999
 fastUnstakeSystem = './fast.refund/amax.system/amax.system.wasm'
 
 systemAccounts = [
-    'amax.bpay',
     'amax.msig',
     'amax.names',
     'amax.ram',
     'amax.ramfee',
-    'amax.saving',
     'amax.stake',
     'amax.token',
-    'amax.vpay',
     'amax.rex',
 ]
 
@@ -195,13 +192,13 @@ def vote(b, e):
         prods = ' '.join(map(lambda x: accounts[x]['name'], prods))
         retry(args.amcli + 'system voteproducer prods ' + voter + ' ' + prods)
 
-def claimRewards():
-    table = getJsonOutput(args.amcli + 'get table amax amax producers -l 100')
-    times = []
-    for row in table['rows']:
-        if row['unpaid_blocks'] and not row['last_claim_time']:
-            times.append(getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])['processed']['elapsed'])
-    print('Elapsed time for claimrewards:', times)
+# def claimRewards():
+#     table = getJsonOutput(args.amcli + 'get table amax amax producers -l 100')
+#     times = []
+#     for row in table['rows']:
+#         if row['unpaid_blocks'] and not row['last_claim_time']:
+#             times.append(getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])['processed']['elapsed'])
+#     print('Elapsed time for claimrewards:', times)
 
 def proxyVotes(b, e):
     vote(firstProducer, firstProducer + 1)
@@ -268,16 +265,42 @@ def msigReplaceSystem():
     msigExecReplaceSystem(accounts[0]['name'], 'fast.unstake')
 
 def produceNewAccounts():
-    with open('newusers', 'w') as f:
-        for i in range(120_000, 200_000):
+    with open('accounts.json', 'w') as f:
+        producerCount = 30
+
+        f.write('{\n')
+        print("generating producers! count:", producerCount)
+        f.write('    "producers": [\n')
+        separator = ""
+        for i in range(0, producerCount):
+            x = getOutput(args.amcli + 'create key --to-console')
+            r = re.match('Private key: *([^ \n]*)\nPublic key: *([^ \n]*)', x, re.DOTALL | re.MULTILINE)
+            name = ''
+            n = i
+            for j in range(0, 4):
+                name = chr(ord('a') + n % 26 ) + name
+                n = int(n/26)
+            name = "producer" + name
+            print(i, name)
+            f.write('%s        {"name":"%s", "pvt":"%s", "pub":"%s"}' % (separator, name, r[1], r[2]))
+            separator = ",\n"
+        f.write('\n    ],\n')
+
+        producerCount = 30
+        print("generating users! count:", producerCount)
+        f.write('    "users": [\n')
+        separator = ""
+        for i in range(120_000, 120_000 + producerCount):
             x = getOutput(args.amcli + 'create key --to-console')
             r = re.match('Private key: *([^ \n]*)\nPublic key: *([^ \n]*)', x, re.DOTALL | re.MULTILINE)
             name = 'user'
             for j in range(7, -1, -1):
                 name += chr(ord('a') + ((i >> (j * 4)) & 15))
             print(i, name)
-            f.write('        {"name":"%s", "pvt":"%s", "pub":"%s"},\n' % (name, r[1], r[2]))
-
+            f.write('%s        {"name":"%s", "pvt":"%s", "pub":"%s"}' % (separator, name, r[1], r[2]))
+            separator = ",\n"
+        f.write('\n    ]\n')
+        f.write('}\n')
 def stepKillAll():
     run('killall amkey amnod || true')
     sleep(1.5)
@@ -296,52 +319,40 @@ def stepCreateTokens():
     run(args.amcli + 'push action amax.token issue \'["amax", "%s", "memo"]\' -p amax' % intToCurrency(totalAllocation))
     sleep(1)
 def stepSetSystemContract():
-    # All of the protocol upgrade features introduced in v1.8 first require a special protocol 
-    # feature (codename PREACTIVATE_FEATURE) to be activated and for an updated version of the system 
-    # contract that makes use of the functionality introduced by that feature to be deployed. 
 
-    # activate PREACTIVATE_FEATURE before installing amax.system
-    retry('curl -X POST http://127.0.0.1:%d' % args.http_port + 
-        '/v1/producer/schedule_protocol_feature_activations ' +
-        '-d \'{"protocol_features_to_activate": ["0ec7e080177b2c02b278d5088611686b49d739925a92d9bfcacd7fc6b74053bd"]}\'')
-    sleep(3)
-
-    # install amax.system the older version first
-    retry(args.amcli + 'set contract amax ' + args.old_contracts_dir + '/amax.system/')
-    sleep(3)
-
-    # activate remaining features
+    # activate features
     # GET_SENDER
-    retry(args.amcli + 'push action amax activate \'["f0af56d2c5a48d60a4a5b5c903edfb7db3a736a94ed589d0b797df33ff9d3e1d"]\' -p amax')
+    retry(args.amcli + ' system activate "f0af56d2c5a48d60a4a5b5c903edfb7db3a736a94ed589d0b797df33ff9d3e1d" -p amax')
     # FORWARD_SETCODE
-    retry(args.amcli + 'push action amax activate \'["2652f5f96006294109b3dd0bbde63693f55324af452b799ee137a81a905eed25"]\' -p amax')
+    retry(args.amcli + ' system activate "2652f5f96006294109b3dd0bbde63693f55324af452b799ee137a81a905eed25" -p amax')
     # ONLY_BILL_FIRST_AUTHORIZER
-    retry(args.amcli + 'push action amax activate \'["8ba52fe7a3956c5cd3a656a3174b931d3bb2abb45578befc59f283ecd816a405"]\' -p amax')
+    retry(args.amcli + ' system activate "8ba52fe7a3956c5cd3a656a3174b931d3bb2abb45578befc59f283ecd816a405" -p amax')
     # RESTRICT_ACTION_TO_SELF
-    retry(args.amcli + 'push action amax activate \'["ad9e3d8f650687709fd68f4b90b41f7d825a365b02c23a636cef88ac2ac00c43"]\' -p amax@active')
+    retry(args.amcli + ' system activate "ad9e3d8f650687709fd68f4b90b41f7d825a365b02c23a636cef88ac2ac00c43" -p amax@active')
     # DISALLOW_EMPTY_PRODUCER_SCHEDULE
-    retry(args.amcli + 'push action amax activate \'["68dcaa34c0517d19666e6b33add67351d8c5f69e999ca1e37931bc410a297428"]\' -p amax@active')
+    retry(args.amcli + ' system activate "68dcaa34c0517d19666e6b33add67351d8c5f69e999ca1e37931bc410a297428" -p amax@active')
      # FIX_LINKAUTH_RESTRICTION
-    retry(args.amcli + 'push action amax activate \'["e0fb64b1085cc5538970158d05a009c24e276fb94e1a0bf6a528b48fbc4ff526"]\' -p amax@active')
+    retry(args.amcli + ' system activate "e0fb64b1085cc5538970158d05a009c24e276fb94e1a0bf6a528b48fbc4ff526" -p amax@active')
      # REPLACE_DEFERRED
-    retry(args.amcli + 'push action amax activate \'["ef43112c6543b88db2283a2e077278c315ae2c84719a8b25f25cc88565fbea99"]\' -p amax@active')
+    retry(args.amcli + ' system activate "ef43112c6543b88db2283a2e077278c315ae2c84719a8b25f25cc88565fbea99" -p amax@active')
     # NO_DUPLICATE_DEFERRED_ID
-    retry(args.amcli + 'push action amax activate \'["4a90c00d55454dc5b059055ca213579c6ea856967712a56017487886a4d4cc0f"]\' -p amax@active')
+    retry(args.amcli + ' system activate "4a90c00d55454dc5b059055ca213579c6ea856967712a56017487886a4d4cc0f" -p amax@active')
     # ONLY_LINK_TO_EXISTING_PERMISSION
-    retry(args.amcli + 'push action amax activate \'["1a99a59d87e06e09ec5b028a9cbb7749b4a5ad8819004365d02dc4379a8b7241"]\' -p amax@active')
+    retry(args.amcli + ' system activate "1a99a59d87e06e09ec5b028a9cbb7749b4a5ad8819004365d02dc4379a8b7241" -p amax@active')
     # RAM_RESTRICTIONS
-    retry(args.amcli + 'push action amax activate \'["4e7bf348da00a945489b2a681749eb56f5de00b900014e137ddae39f48f69d67"]\' -p amax@active')
+    retry(args.amcli + ' system activate "4e7bf348da00a945489b2a681749eb56f5de00b900014e137ddae39f48f69d67" -p amax@active')
     # WEBAUTHN_KEY
-    retry(args.amcli + 'push action amax activate \'["4fca8bd82bbd181e714e283f83e1b45d95ca5af40fb89ad3977b653c448f78c2"]\' -p amax@active')
+    retry(args.amcli + ' system activate "4fca8bd82bbd181e714e283f83e1b45d95ca5af40fb89ad3977b653c448f78c2" -p amax@active')
     # WTMSIG_BLOCK_SIGNATURES
-    retry(args.amcli + 'push action amax activate \'["299dcb6af692324b899b39f16d5a530a33062804e41f09dc97e9f156b4476707"]\' -p amax@active')
+    retry(args.amcli + ' system activate "299dcb6af692324b899b39f16d5a530a33062804e41f09dc97e9f156b4476707" -p amax@active')
     sleep(1)
-
-    run(args.amcli + 'push action amax setpriv' + jsonArg(['amax.msig', 1]) + '-p amax@active')
 
     # install amax.system latest version
     retry(args.amcli + 'set contract amax ' + args.contracts_dir + '/amax.system/')
     sleep(3)
+
+    run(args.amcli + 'push action amax setpriv' + jsonArg(['amax.msig', 1]) + '-p amax@active')
+    sleep(1)
 
 def stepInitSystemContract():
     run(args.amcli + 'push action amax init' + jsonArg(['0', '4,' + args.symbol]) + '-p amax@active')
@@ -389,21 +400,21 @@ commands = [
     ('p', 'reg-prod',           stepRegProducers,           True,    "Register producers"),
     ('P', 'start-prod',         stepStartProducers,         True,    "Start producers"),
     ('v', 'vote',               stepVote,                   True,    "Vote for producers"),
-    ('R', 'claim',              claimRewards,               True,    "Claim rewards"),
+    # ('R', 'claim',              claimRewards,               True,    "Claim rewards"),
     ('x', 'proxy',              stepProxyVotes,             True,    "Proxy votes"),
     ('q', 'resign',             stepResign,                 True,    "Resign amax"),
     ('m', 'msg-replace',        msigReplaceSystem,          False,   "Replace system contract using msig"),
     ('X', 'xfer',               stepTransfer,               False,   "Random transfer tokens (infinite loop)"),
     ('l', 'log',                stepLog,                    True,    "Show tail of node's log"),
+    ('N', 'new-account',        produceNewAccounts,         False,    "Produce new accounts"),
 ]
 
-parser.add_argument('--public-key', metavar='', help="AMAX Public Key", default='AM8Znrtgwt8TfpmbVpTKvA2oB8Nqey625CLN8bCN3TEbgx86Dsvr', dest="public_key")
-parser.add_argument('--private-Key', metavar='', help="AMAX Private Key", default='5K463ynhZoCDDa4RDcr63cUwWLTnKqmdcoTKTHBjqoKfv4u5V7p', dest="private_key")
+parser.add_argument('--public-key', metavar='', help="AMAX Public Key", default='AM6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV', dest="public_key")
+parser.add_argument('--private-Key', metavar='', help="AMAX Private Key", default='5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3', dest="private_key")
 parser.add_argument('--amcli', metavar='', help="Amcli command", default='../../build/programs/amcli/amcli --wallet-url http://127.0.0.1:6666 ')
 parser.add_argument('--amnod', metavar='', help="Path to amnod binary", default='../../build/programs/amnod/amnod')
 parser.add_argument('--amkey', metavar='', help="Path to amkey binary", default='../../build/programs/amkey/amkey')
-parser.add_argument('--contracts-dir', metavar='', help="Path to latest contracts directory", default='../../build/contracts/')
-parser.add_argument('--old-contracts-dir', metavar='', help="Path to 1.8.x contracts directory", default='../../build/contracts/')
+parser.add_argument('--contracts-dir', metavar='', help="Path to latest contracts directory", default='../../build/unittests/contracts/')
 parser.add_argument('--nodes-dir', metavar='', help="Path to nodes directory", default='./nodes/')
 parser.add_argument('--genesis', metavar='', help="Path to genesis.json", default="./genesis.json")
 parser.add_argument('--wallet-dir', metavar='', help="Path to wallet directory", default='./wallet/')

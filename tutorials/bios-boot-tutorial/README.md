@@ -67,7 +67,7 @@ The command line to launch the script, make sure you replace `AMAX_OLD_CONTRACTS
 $ cd ~
 $ git clone https://github.com/armoniax/amax.chain.git
 $ cd ./amax.chain/tutorials/bios-boot-tutorial/
-$ python3 bios-boot-tutorial.py --amcli="amcli --wallet-url http://127.0.0.1:6666 " --amnod=amnod --amkey=amkey --contracts-dir="AMAX_CONTRACTS_DIRECTORY" --old-contracts-dir="AMAX_OLD_CONTRACTS_DIRECTORY" -w -a
+$ python3 bios-boot-tutorial.py --amcli="amcli --wallet-url http://127.0.0.1:6666 " --amnod=amnod --amkey=amkey --contracts-dir="AMAX_CONTRACTS_DIRECTORY" -w -a
 ```
 
 6. At this point, when the script has finished running without error, you have a functional AMAX based blockchain running locally with an latest version of `amax.system` contract, 31 block producers out of which 21 active, `amax` account resigned, 200k+ accounts with staked tokens, and votes allocated to each block producer. Enjoy exploring your freshly booted blockchain.
