@@ -28,4 +28,4 @@ else
     exit 3
 fi
 
-nodeos --full-version
+amnod --full-version

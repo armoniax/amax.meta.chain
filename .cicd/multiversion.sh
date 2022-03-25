@@ -38,7 +38,7 @@ elif [[ "$DEBUG" == 'true' ]]; then
 fi
 # multiversion
 cd "$GIT_ROOT/eos_multiversion_builder"
-echo 'Downloading other versions of nodeos...'
+echo 'Downloading other versions of amnod...'
 DOWNLOAD_COMMAND="python2.7 '$GIT_ROOT/.cicd/helpers/multi_eos_docker.py'"
 echo "$ $DOWNLOAD_COMMAND"
 eval $DOWNLOAD_COMMAND

@@ -27,7 +27,7 @@ SKIP_MAC='true|false'            # conserve finite macOS Anka agents by excludin
 TEST='name'                      # PCRE expression defining the tests to run, preceded by '^' and followed by '$'
 TIMEOUT='ℕ'                      # set timeout in minutes for all Buildkite steps
 ```
-The `TEST` variable is parsed as [pearl-compatible regular expression](https://www.debuggex.com/cheatsheet/regex/pcre) where the expression in `TEST` is preceded by `^` and followed by `$`. To specify one test, set `TEST` equal to the test name (e.g. `TEST='read_only_query'`). Specify two tests as `TEST='(nodeos_short_fork_take_over_lr_test|read_only_query)'`. Or, perhaps, you want all of the `restart_scenarios` tests. Then, you could define `TEST='restart-scenario-test-.*'` and Buildkite will generate `ROUND_SIZE` steps each round for each operating system for all three restart scenarios tests.
+The `TEST` variable is parsed as [pearl-compatible regular expression](https://www.debuggex.com/cheatsheet/regex/pcre) where the expression in `TEST` is preceded by `^` and followed by `$`. To specify one test, set `TEST` equal to the test name (e.g. `TEST='read_only_query'`). Specify two tests as `TEST='(amnod_short_fork_take_over_lr_test|read_only_query)'`. Or, perhaps, you want all of the `restart_scenarios` tests. Then, you could define `TEST='restart-scenario-test-.*'` and Buildkite will generate `ROUND_SIZE` steps each round for each operating system for all three restart scenarios tests.
 
 ### Runs
 The number of total test runs will be:
