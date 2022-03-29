@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# amax-tn_roll is used to have all of the instances of the AMA daemon on a host brought down
+# amax-tn_roll is used to have all of the instances of the AMAX daemon on a host brought down
 # so that the underlying executable image file (the "text file") can be replaced. Then
 # all instances are restarted.
 # usage: amax-tn_roll.sh [arglist]

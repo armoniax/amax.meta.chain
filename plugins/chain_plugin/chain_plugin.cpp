@@ -1668,7 +1668,7 @@ uint64_t convert_to_type(const string& str, const string& desc) {
       return s.to_uint64_t();
    } catch( ... ) { }
 
-   if (str.find(',') != string::npos) { // fix #6274 only match formats like 4,AMA
+   if (str.find(',') != string::npos) { // fix #6274 only match formats like 4,AM
       try {
          auto symb = eosio::chain::symbol::from_string(str);
          return symb.value();

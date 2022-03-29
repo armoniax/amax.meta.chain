@@ -346,7 +346,7 @@ try:
         abiActionName=account["abi"]["actions"][0]["name"]
         abiType=account["abi"]["actions"][0]["type"]
         if abiName != "account" or abiActionName != "close" or abiType != "close":
-            errorExit("FAILURE - get AMA account failed", raw=True)
+            errorExit("FAILURE - get AMAX account failed", raw=True)
 
     Print("push create action to currency1111 contract")
     contract="currency1111"
