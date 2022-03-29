@@ -210,12 +210,12 @@ void chain_plugin::set_program_options(options_description& cli, options_descrip
    wasm_runtime_desc += "\"wabt\" : The WebAssembly Binary Toolkit.\n";
    delim = ", ";
 
-#ifdef EOSIO_EOS_VM_JIT_RUNTIME_ENABLED
+#ifdef AMAX_EOS_VM_JIT_RUNTIME_ENABLED
    wasm_runtime_opt += delim + " \"eos-vm-jit\"";
    wasm_runtime_desc += "\"eos-vm-jit\" : A WebAssembly runtime that compiles WebAssembly code to native x86 code prior to execution.\n";
 #endif
 
-#ifdef EOSIO_EOS_VM_RUNTIME_ENABLED
+#ifdef AMAX_EOS_VM_RUNTIME_ENABLED
    wasm_runtime_opt += delim + "\"eos-vm\"";
    wasm_runtime_desc += "\"eos-vm\" : A WebAssembly interpreter.\n";
 #endif

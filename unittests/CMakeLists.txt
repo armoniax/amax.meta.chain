@@ -56,7 +56,7 @@ foreach(TEST_SUITE ${UNIT_TESTS}) # create an independent target for each test s
   if (NOT "" STREQUAL "${SUITE_NAME}") # ignore empty lines
     execute_process(COMMAND bash -c "echo ${SUITE_NAME} | sed -e 's/s$//' | sed -e 's/_test$//'" OUTPUT_VARIABLE TRIMMED_SUITE_NAME OUTPUT_STRIP_TRAILING_WHITESPACE) # trim "_test" or "_tests" from the end of ${SUITE_NAME}
     # to run unit_test with all log from blockchain displayed, put "--verbose" after "--", i.e. "unit_test -- --verbose"
-    foreach(RUNTIME ${EOSIO_WASM_RUNTIMES})
+    foreach(RUNTIME ${AMAX_WASM_RUNTIMES})
       add_test(NAME ${TRIMMED_SUITE_NAME}_unit_test_${RUNTIME} COMMAND unit_test --run_test=${SUITE_NAME} --report_level=detailed --color_output --catch_system_errors=no -- --${RUNTIME})
       # build list of tests to run during coverage testing
       if(ctest_tests)
@@ -70,7 +70,7 @@ set(ctest_tests "'${ctest_tests}' -j8") # surround test list string in apostroph
 
 # The following tests are known to take the longest, bump up their cost (priority) so that they'll run first
 # even on fresh first time test runs before ctest auto-detects costs
-foreach(RUNTIME ${EOSIO_WASM_RUNTIMES})
+foreach(RUNTIME ${AMAX_WASM_RUNTIMES})
    set_tests_properties(api_unit_test_${RUNTIME} PROPERTIES COST 5000)
    set_tests_properties(wasm_unit_test_${RUNTIME} PROPERTIES COST 4000)
    set_tests_properties(delay_unit_test_${RUNTIME} PROPERTIES COST 3000)

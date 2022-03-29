@@ -17,7 +17,7 @@ else()
    endif()
 endif()
 
-if("eos-vm-oc" IN_LIST EOSIO_WASM_RUNTIMES)
+if("eos-vm-oc" IN_LIST AMAX_WASM_RUNTIMES)
    set(CHAIN_EOSVMOC_SOURCES webassembly/eos-vm-oc/code_cache.cpp
                              webassembly/eos-vm-oc/executor.cpp
                              webassembly/eos-vm-oc/memory.cpp
@@ -44,7 +44,7 @@ if("eos-vm-oc" IN_LIST EOSIO_WASM_RUNTIMES)
    option(EOSVMOC_ENABLE_DEVELOPER_OPTIONS "enable developer options for EOS VM OC" OFF)
 endif()
 
-if("eos-vm" IN_LIST EOSIO_WASM_RUNTIMES OR "eos-vm-jit" IN_LIST EOSIO_WASM_RUNTIMES)
+if("eos-vm" IN_LIST AMAX_WASM_RUNTIMES OR "eos-vm-jit" IN_LIST AMAX_WASM_RUNTIMES)
    set(CHAIN_EOSVM_SOURCES "webassembly/eos-vm.cpp")
    set(CHAIN_EOSVM_LIBRARIES eos-vm)
 endif()
@@ -116,14 +116,14 @@ target_include_directories( eosio_chain
                                    "${CMAKE_BINARY_DIR}/libraries/wabt"
                             )
 
-if("eos-vm-oc" IN_LIST EOSIO_WASM_RUNTIMES)
+if("eos-vm-oc" IN_LIST AMAX_WASM_RUNTIMES)
    target_link_libraries(eosio_chain "-Wl,-wrap=main")
 endif()
 
-foreach(RUNTIME ${EOSIO_WASM_RUNTIMES})
+foreach(RUNTIME ${AMAX_WASM_RUNTIMES})
    string(TOUPPER "${RUNTIME}" RUNTIMEUC)
    string(REPLACE "-" "_" RUNTIMEUC ${RUNTIMEUC})
-   target_compile_definitions(eosio_chain PUBLIC "EOSIO_${RUNTIMEUC}_RUNTIME_ENABLED")
+   target_compile_definitions(eosio_chain PUBLIC "AMAX_${RUNTIMEUC}_RUNTIME_ENABLED")
 endforeach()
 
 if(EOSVMOC_ENABLE_DEVELOPER_OPTIONS)

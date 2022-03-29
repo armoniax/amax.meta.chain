@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(EOSIO_EOS_VM_RUNTIME_ENABLED) || defined(EOSIO_EOS_VM_JIT_RUNTIME_ENABLED)
+#if defined(AMAX_EOS_VM_RUNTIME_ENABLED) || defined(AMAX_EOS_VM_JIT_RUNTIME_ENABLED)
 
 #include <eosio/chain/webassembly/common.hpp>
 #include <eosio/chain/webassembly/runtime_interface.hpp>

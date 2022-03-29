@@ -86,8 +86,8 @@ find_library(GMP_LIBRARIES NAMES libgmp.a gmp.lib gmp libgmp-10 mpir
     DOC "Path to the GMP library"
 )
 
-set(EOSIO_WASM_RUNTIMES @EOSIO_WASM_RUNTIMES@)
-if("eos-vm-oc" IN_LIST EOSIO_WASM_RUNTIMES)
+set(AMAX_WASM_RUNTIMES @AMAX_WASM_RUNTIMES@)
+if("eos-vm-oc" IN_LIST AMAX_WASM_RUNTIMES)
    set(WRAP_MAIN "-Wl,-wrap=main")
 endif()
 
