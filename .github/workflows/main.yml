@@ -307,7 +307,7 @@ jobs:
 
 
   ubuntu-1804-build:
-    if: github.event.pull_request.base.repo.id != github.event.pull_request.head.repo.id
+  #  if: github.event.pull_request.base.repo.id != github.event.pull_request.head.repo.id
     name: Ubuntu 18.04 | Build
     runs-on: ubuntu-latest
     steps:
