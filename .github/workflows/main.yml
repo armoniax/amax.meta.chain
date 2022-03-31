@@ -331,6 +331,11 @@ jobs:
         with:
           name: ubuntu-1804-build
           path: build.tar.gz
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: ubuntu-1804-build
+          path: build.tar.gz
   ubuntu-1804-parallel-test:
     name: Ubuntu 18.04 | Parallel Test
     runs-on: ubuntu-latest
