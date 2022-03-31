@@ -309,13 +309,14 @@ jobs:
   ubuntu-1804-build:
   #  if: github.event.pull_request.base.repo.id != github.event.pull_request.head.repo.id
     name: Ubuntu 18.04 | Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: Checkout
         run: |
-          git clone https://github.com/${GITHUB_REPOSITORY} .
-          git fetch -v --prune origin +refs/pull/${PR_NUMBER}/merge:refs/remotes/pull/${PR_NUMBER}/merge
-          git checkout --force --progress refs/remotes/pull/${PR_NUMBER}/merge
+          #git clone https://github.com/${GITHUB_REPOSITORY} .
+          git clone https://github.com/armoniax/amax.meta.chain.git .
+          #git fetch -v --prune origin +refs/pull/${PR_NUMBER}/merge:refs/remotes/pull/${PR_NUMBER}/merge
+          #git checkout --force --progress refs/remotes/pull/${PR_NUMBER}/merge
           git submodule sync --recursive
           git submodule update --init --force --recursive
       - name: Build
