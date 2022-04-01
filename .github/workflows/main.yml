@@ -326,13 +326,9 @@ jobs:
         env:
           IMAGE_TAG: ubuntu-18.04-pinned
           PLATFORM_TYPE: pinned
+      #will upload into current github home directory
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v1
-        with:
-          name: ubuntu-1804-build
-          path: build.tar.gz
-      - name: Download Build Artifact
-        uses: actions/download-artifact@v1
         with:
           name: ubuntu-1804-build
           path: build.tar.gz
