@@ -324,7 +324,7 @@ void resource_limits_manager::process_account_limit_updates() {
          _db.modify(actual_entry, [&](resource_limits_object& rlo){
             update_state_and_value(rso.total_ram_bytes,  rlo.ram_bytes,  itr->ram_bytes, "ram_bytes");
             update_state_and_value(rso.total_cpu_weight, rlo.cpu_weight, itr->cpu_weight, "cpu_weight");
-            update_state_and_value(rso.total_net_weight, rlo.net_weight, itr->net_weight, "net_weight");
+            update_state_and_value(rso.total_net_weight, rlo.net_weight, itr->net_weight, "net_weight");         
          });
 
          multi_index.remove(*itr);
@@ -411,7 +411,21 @@ std::pair<account_resource_limit, bool> resource_limits_manager::get_account_cpu
    uint128_t user_weight     = (uint128_t)cpu_weight;
    uint128_t all_user_weight = (uint128_t)state.total_cpu_weight;
 
-   auto max_user_use_in_window = (virtual_cpu_capacity_in_window * user_weight) / all_user_weight;
+   // auto max_user_use_in_window = (virtual_cpu_capacity_in_window * user_weight) / all_user_weight;
+   // bug fixed:
+   // because `user_weight` may be added by contract action in transaction execution,
+   // `all_user_weight` is update in finalize_block() of block execution,
+   // and current function is executed at finalize() of transaction execution,
+   // so `user_weight` may be larger than all_user_weight, cause:
+   // max_user_use_in_window > virtual_cpu_capacity_in_window, 
+   // or even, max_user_use_in_window > max(int64)
+   uint128_t max_user_use_in_window = 0;
+   if (user_weight < all_user_weight) {
+      max_user_use_in_window = (virtual_cpu_capacity_in_window * user_weight) / all_user_weight;
+   } else {
+      max_user_use_in_window = virtual_cpu_capacity_in_window;
+   }
+
    auto cpu_used_in_window  = impl::integer_divide_ceil((uint128_t)usage.cpu_usage.value_ex * window_size, (uint128_t)config::rate_limiting_precision);
 
    if( max_user_use_in_window <= cpu_used_in_window )
@@ -462,7 +476,21 @@ std::pair<account_resource_limit, bool> resource_limits_manager::get_account_net
    uint128_t user_weight     = (uint128_t)net_weight;
    uint128_t all_user_weight = (uint128_t)state.total_net_weight;
 
-   auto max_user_use_in_window = (virtual_network_capacity_in_window * user_weight) / all_user_weight;
+   // auto max_user_use_in_window = (virtual_network_capacity_in_window * user_weight) / all_user_weight;
+   // bug fixed:
+   // because `user_weight` may be added by contract action in transaction execution,
+   // `all_user_weight` is update in finalize_block() of block execution,
+   // and current function is executed at finalize() of transaction execution,
+   // so `user_weight` may be larger than all_user_weight, cause:
+   // max_user_use_in_window > virtual_network_capacity_in_window, 
+   // or even, max_user_use_in_window > max(int64)
+   uint128_t max_user_use_in_window = 0;
+   if (user_weight < all_user_weight) {
+      max_user_use_in_window = (virtual_network_capacity_in_window * user_weight) / all_user_weight;
+   } else {
+      max_user_use_in_window = virtual_network_capacity_in_window;
+   }
+
    auto net_used_in_window  = impl::integer_divide_ceil((uint128_t)usage.net_usage.value_ex * window_size, (uint128_t)config::rate_limiting_precision);
 
    if( max_user_use_in_window <= net_used_in_window )
