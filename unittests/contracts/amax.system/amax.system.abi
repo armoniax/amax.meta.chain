@@ -37,6 +37,10 @@
             "base": "blockchain_parameters",
             "fields": [
                 {
+                    "name": "core_symbol",
+                    "type": "symbol"
+                },
+                {
                     "name": "max_ram_size",
                     "type": "uint64"
                 },
@@ -87,6 +91,10 @@
                 {
                     "name": "initial_inflation_per_block",
                     "type": "asset"
+                },
+                {
+                    "name": "reward_dispatcher",
+                    "type": "name"
                 },
                 {
                     "name": "revision",
