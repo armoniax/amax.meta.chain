@@ -8,6 +8,7 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#include <eosio/vm/signals.hpp>
 
 #include <fstream>
 
@@ -244,6 +245,17 @@ namespace eosio { namespace testing {
             } else {
                expected_chain_id = genesis_state().compute_chain_id();
             }
+         }
+      }
+
+      if (cfg.wasm_runtime == chain::wasm_interface::vm_type::eos_vm) {
+         eosio::vm::setup_signal_handler();
+         struct sigaction vm_signal_handler = {};   
+         sigaction(SIGBUS, NULL, &vm_signal_handler);
+         if (vm_signal_handler.sa_sigaction != &eosio::vm::signal_handler) {
+            // if multi test cases are run, the signal handler of eos-vm will be overwrite by boost test by second case,
+            // so it must be setup again here.
+            eosio::vm::setup_signal_handler_impl();
          }
       }
 
