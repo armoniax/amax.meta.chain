@@ -19,7 +19,12 @@ CONTRACT test_ram_limit : public contract {
 
       ACTION setentry( name payer, uint64_t from, uint64_t to, uint64_t size ) {
          const auto self = get_self();
-         eosio::print("test_ram_limit::setentry ", eosio::name{self}, "\n");
+         eosio::print("test_ram_limit::setentry ", eosio::name{self},
+            ", payer=", payer,
+            ", from=", from,
+            ", to=", to,
+            ", size=", size,
+            "\n");
          test_table table( self, self.value );
          for ( int key = from; key <=to; ++key ) {
             auto itr = table.find(key);

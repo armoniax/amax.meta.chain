@@ -23,44 +23,46 @@ using namespace fc;
 
 using mvo = fc::mutable_variant_object;
 
+static const eosio::chain::asset min_activated_stake = core_from_string("50000000.00000000");
+
 struct genesis_account {
    account_name aname;
    uint64_t     initial_balance;
 };
 
 std::vector<genesis_account> test_genesis( {
-  {N(b1),       100'000'000'0000ll},
-  {N(whale4),    40'000'000'0000ll},
-  {N(whale3),    30'000'000'0000ll},
-  {N(whale2),    20'000'000'0000ll},
-  {N(proda),      1'000'000'0000ll},
-  {N(prodb),      1'000'000'0000ll},
-  {N(prodc),      1'000'000'0000ll},
-  {N(prodd),      1'000'000'0000ll},
-  {N(prode),      1'000'000'0000ll},
-  {N(prodf),      1'000'000'0000ll},
-  {N(prodg),      1'000'000'0000ll},
-  {N(prodh),      1'000'000'0000ll},
-  {N(prodi),      1'000'000'0000ll},
-  {N(prodj),      1'000'000'0000ll},
-  {N(prodk),      1'000'000'0000ll},
-  {N(prodl),      1'000'000'0000ll},
-  {N(prodm),      1'000'000'0000ll},
-  {N(prodn),      1'000'000'0000ll},
-  {N(prodo),      1'000'000'0000ll},
-  {N(prodp),      1'000'000'0000ll},
-  {N(prodq),      1'000'000'0000ll},
-  {N(prodr),      1'000'000'0000ll},
-  {N(prods),      1'000'000'0000ll},
-  {N(prodt),      1'000'000'0000ll},
-  {N(produ),      1'000'000'0000ll},
-  {N(runnerup1),  1'000'000'0000ll},
-  {N(runnerup2),  1'000'000'0000ll},
-  {N(runnerup3),  1'000'000'0000ll},
-  {N(minow1),           100'0000ll},
-  {N(minow2),             1'0000ll},
-  {N(minow3),             1'0000ll},
-  {N(masses),   800'000'000'0000ll}
+  {N(whale1),   30'000'000'0000'0000ll},
+  {N(whale4),   20'000'000'0000'0000ll},
+  {N(whale3),   10'000'000'0000'0000ll},
+  {N(whale2),   10'000'000'0000'0000ll},
+  {N(proda),       100'000'0000'0000ll},
+  {N(prodb),       100'000'0000'0000ll},
+  {N(prodc),       100'000'0000'0000ll},
+  {N(prodd),       100'000'0000'0000ll},
+  {N(prode),       100'000'0000'0000ll},
+  {N(prodf),       100'000'0000'0000ll},
+  {N(prodg),       100'000'0000'0000ll},
+  {N(prodh),       100'000'0000'0000ll},
+  {N(prodi),       100'000'0000'0000ll},
+  {N(prodj),       100'000'0000'0000ll},
+  {N(prodk),       100'000'0000'0000ll},
+  {N(prodl),       100'000'0000'0000ll},
+  {N(prodm),       100'000'0000'0000ll},
+  {N(prodn),       100'000'0000'0000ll},
+  {N(prodo),       100'000'0000'0000ll},
+  {N(prodp),       100'000'0000'0000ll},
+  {N(prodq),       100'000'0000'0000ll},
+  {N(prodr),       100'000'0000'0000ll},
+  {N(prods),       100'000'0000'0000ll},
+  {N(prodt),       100'000'0000'0000ll},
+  {N(produ),       100'000'0000'0000ll},
+  {N(runnerup1),   100'000'0000'0000ll},
+  {N(runnerup2),   100'000'0000'0000ll},
+  {N(runnerup3),   100'000'0000'0000ll},
+  {N(minow1),        1'000'0000'0000ll},
+  {N(minow2),           10'0000'0000ll},
+  {N(minow3),           10'0000'0000ll},
+  {N(masses),      800'000'0000'0000ll}
 });
 
 class bootseq_tester : public TESTER {
@@ -216,8 +218,8 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
 
 
         // Create SYS tokens in amax.token, set its manager as amax
-        auto max_supply = core_from_string("10000000000.0000"); /// 1x larger than 1B initial tokens
-        auto initial_supply = core_from_string("1000000000.0000"); /// 1x larger than 1B initial tokens
+        auto max_supply = core_from_string("1000000000.00000000"); /// 1x larger than 1B initial tokens
+        auto initial_supply = core_from_string("100000000.00000000"); /// 1x larger than 1B initial tokens
         create_currency(N(amax.token), config::system_account_name, max_supply);
         // Issue the genesis supply of 1 billion SYS tokens to amax.system
         issue(N(amax.token), config::system_account_name, config::system_account_name, initial_supply);
@@ -235,11 +237,11 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
         // Buy ram and stake cpu and net for each genesis accounts
         for( const auto& a : test_genesis ) {
            auto ib = a.initial_balance;
-           auto ram = 1000;
-           auto net = (ib - ram) / 2;
-           auto cpu = ib - net - ram;
+           auto ram = core_from_string("1.00000000");
+           auto net = (ib - ram.get_amount()) / 2;
+           auto cpu = ib - net - ram.get_amount();
 
-           auto r = buyram(config::system_account_name, a.aname, asset(ram));
+           auto r = buyram(config::system_account_name, a.aname, ram);
            BOOST_REQUIRE( !r->except_ptr );
 
            r = delegate_bandwidth(N(amax.stake), a.aname, asset(net), asset(cpu));
@@ -267,7 +269,7 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
                                 ("producers", producers)
                      );
         };
-        votepro( N(b1), { N(proda), N(prodb), N(prodc), N(prodd), N(prode), N(prodf), N(prodg),
+        votepro( N(whale1), { N(proda), N(prodb), N(prodc), N(prodd), N(prode), N(prodf), N(prodg),
                            N(prodh), N(prodi), N(prodj), N(prodk), N(prodl), N(prodm), N(prodn),
                            N(prodo), N(prodp), N(prodq), N(prodr), N(prods), N(prodt), N(produ)} );
         votepro( N(whale2), {N(runnerup1), N(runnerup2), N(runnerup3)} );
@@ -276,7 +278,7 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
         // Total Stakes = b1 + whale2 + whale3 stake = (100,000,000 - 1,000) + (20,000,000 - 1,000) + (30,000,000 - 1,000)
         vector<char> data = get_row_by_account( config::system_account_name, config::system_account_name, N(global), N(global) );
 
-        BOOST_TEST(get_global_state()["total_activated_stake"].as<int64_t>() == 1499999997000);
+        BOOST_TEST(get_global_state()["total_activated_stake"].as<int64_t>() == 49'999'997'0000'0000ll);
 
         // No producers will be set, since the total activated stake is less than 150,000,000
         produce_blocks_for_n_rounds(2); // 2 rounds since new producer schedule is set when the first block of next round is irreversible
@@ -291,7 +293,7 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
 
         // This will increase the total vote stake by (40,000,000 - 1,000)
         votepro( N(whale4), {N(prodq), N(prodr), N(prods), N(prodt), N(produ)} );
-        BOOST_TEST(get_global_state()["total_activated_stake"].as<int64_t>() == 1899999996000);
+        BOOST_TEST(get_global_state()["total_activated_stake"].as<int64_t>() == 69'999'996'0000'0000);
 
         // Since the total vote stake is more than 150,000,000, the new producer set will be set
         produce_blocks_for_n_rounds(2); // 2 rounds since new producer schedule is set when the first block of next round is irreversible
@@ -334,19 +336,18 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
 
         // This should thrown an error, since block one can only unstake all his stake after 10 years
 
-      //   BOOST_REQUIRE_THROW(undelegate_bandwidth(N(b1), N(b1), core_from_string("49999500.0000"), core_from_string("49999500.0000")), eosio_assert_message_exception);
+      //   BOOST_REQUIRE_THROW(undelegate_bandwidth(N(whale1), N(whale1), core_from_string("49999500.00000000"), core_from_string("49999500.00000000")), eosio_assert_message_exception);
 
         // Skip 10 years
       //   produce_block(first_june_2028 - control->head_block_time().time_since_epoch());
 
         // Block one should be able to unstake all his stake now
-      //   undelegate_bandwidth(N(b1), N(b1), core_from_string("49999500.0000"), core_from_string("49999500.0000"));
+      //   undelegate_bandwidth(N(whale1), N(whale1), core_from_string("49999500.00000000"), core_from_string("49999500.00000000"));
 
         return;
         produce_blocks(7000); /// produce blocks until virutal bandwidth can acomadate a small user
         wlog("minow" );
         votepro( N(minow1), {N(p1), N(p2)} );
-
 
 // TODO: Complete this test
     } FC_LOG_AND_RETHROW()

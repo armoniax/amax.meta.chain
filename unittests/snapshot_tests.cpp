@@ -469,18 +469,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_pending_schedule_snapshot, SNAPSHOT_SUITE, sn
    BOOST_REQUIRE_EQUAL(genesis->compute_chain_id(), chain.control->get_chain_id());
    const auto& gpo = chain.control->get_global_properties();
    BOOST_REQUIRE_EQUAL(gpo.chain_id, chain.control->get_chain_id());
+   auto block_num = chain.control->head_block_num();
    auto block = chain.produce_block();
-   BOOST_REQUIRE_EQUAL(block->block_num(), 3); // ensure that test setup stays consistent with original snapshot setup
+   block_num++;
+   BOOST_REQUIRE_EQUAL(block->block_num(), block_num); // ensure that test setup stays consistent with original snapshot setup
    chain.create_account(N(snapshot));
    block = chain.produce_block();
-   BOOST_REQUIRE_EQUAL(block->block_num(), 4);
+   block_num++;
+   BOOST_REQUIRE_EQUAL(block->block_num(), block_num);
 
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule.version, 0);
    BOOST_REQUIRE_EQUAL(gpo.proposed_schedule.producers.size(), 0);
 
    auto res = chain.set_producers_legacy( {N(snapshot)} );
    block = chain.produce_block();
-   BOOST_REQUIRE_EQUAL(block->block_num(), 5);
+   block_num++;
+   BOOST_REQUIRE_EQUAL(block->block_num(), block_num);
    chain.control->abort_block();
    ///< End deterministic code to generate blockchain for comparison
 

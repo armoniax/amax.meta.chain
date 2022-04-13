@@ -36,7 +36,7 @@ public:
       produce_blocks( 2 );
 
       create_accounts({ N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake),
-               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names) });
+               N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names), N(amax.rex) });
 
       produce_blocks( 100 );
 
@@ -50,9 +50,9 @@ public:
          token_abi_ser.set_abi(abi, abi_serializer::create_yield_function( abi_serializer_max_time ));
       }
 
-      create_currency( N(amax.token), config::system_account_name, core_from_string("10000000000.0000") );
-      issue(config::system_account_name,      core_from_string("1000000000.0000"));
-      BOOST_REQUIRE_EQUAL( core_from_string("1000000000.0000"), get_balance( name("amax") ) );
+      create_currency( N(amax.token), config::system_account_name, core_from_string("1000000000.00000000") );
+      issue(config::system_account_name,      core_from_string("100000000.00000000"));
+      BOOST_REQUIRE_EQUAL( core_from_string("100000000.00000000"), get_balance( name("amax") ) );
 
       set_code( config::system_account_name, contracts::amax_system_wasm() );
       set_abi( config::system_account_name, contracts::amax_system_abi().data() );
@@ -71,11 +71,11 @@ public:
 
       produce_blocks();
 
-      create_account_with_resources( N(alice1111111), config::system_account_name, core_from_string("1.0000"), false );
-      create_account_with_resources( N(bob111111111), config::system_account_name, core_from_string("0.4500"), false );
-      create_account_with_resources( N(carol1111111), config::system_account_name, core_from_string("1.0000"), false );
+      create_account_with_resources( N(alice1111111), config::system_account_name, core_from_string("1.00000000"), false );
+      create_account_with_resources( N(bob111111111), config::system_account_name, core_from_string("0.45000000"), false );
+      create_account_with_resources( N(carol1111111), config::system_account_name, core_from_string("1.00000000"), false );
 
-      BOOST_REQUIRE_EQUAL( core_from_string("1000000000.0000"),
+      BOOST_REQUIRE_EQUAL( core_from_string("100000000.00000000"),
             get_balance(name("amax")) + get_balance(name("amax.ramfee")) + get_balance(name("amax.stake")) + get_balance(name("amax.ram")) );
    }
 
@@ -120,8 +120,8 @@ public:
                                             mvo()
                                             ("from", creator)
                                             ("receiver", a)
-                                            ("stake_net_quantity", core_from_string("10.0000") )
-                                            ("stake_cpu_quantity", core_from_string("10.0000") )
+                                            ("stake_net_quantity", core_from_string("10.00000000") )
+                                            ("stake_cpu_quantity", core_from_string("10.00000000") )
                                             ("transfer", 0 )
                                           )
                                 );
@@ -132,7 +132,7 @@ public:
    }
 
    transaction_trace_ptr create_account_with_resources( account_name a, account_name creator, asset ramfunds, bool multisig,
-                                                        asset net = core_from_string("10.0000"), asset cpu = core_from_string("10.0000") ) {
+                                                        asset net = core_from_string("10.00000000"), asset cpu = core_from_string("10.00000000") ) {
       signed_transaction trx;
       set_transaction_headers(trx);
 
@@ -178,9 +178,9 @@ public:
       account_name creator(config::system_account_name);
       signed_transaction trx;
       set_transaction_headers(trx);
-      asset cpu = core_from_string("80.0000");
-      asset net = core_from_string("80.0000");
-      asset ram = core_from_string("1.0000");
+      asset cpu = core_from_string("80.00000000");
+      asset net = core_from_string("80.00000000");
+      asset ram = core_from_string("1.00000000");
 
       for (const auto& a: accounts) {
          authority owner_auth( get_public_key( a, "owner" ) );
@@ -412,7 +412,7 @@ public:
       abi_serializer msig_abi_ser;
       {
          create_account_with_resources( N(amax.msig), config::system_account_name );
-         BOOST_REQUIRE_EQUAL( success(), buyram( name("amax"), name("amax.msig"), core_from_string("5000.0000") ) );
+         BOOST_REQUIRE_EQUAL( success(), buyram( name("amax"), name("amax.msig"), core_from_string("5000.00000000") ) );
          produce_block();
 
          auto trace = base_tester::push_action(config::system_account_name, N(setpriv),
@@ -435,8 +435,8 @@ public:
 
    vector<name> active_and_vote_producers() {
       //stake more than 15% of total AMAX supply to activate chain
-      transfer( name("amax"), name("alice1111111"), core_from_string("650000000.0000"), name("amax") );
-      BOOST_REQUIRE_EQUAL( success(), stake( name("alice1111111"), name("alice1111111"), core_from_string("300000000.0000"), core_from_string("300000000.0000") ) );
+      transfer( name("amax"), name("alice1111111"), core_from_string("650000000.00000000"), name("amax") );
+      BOOST_REQUIRE_EQUAL( success(), stake( name("alice1111111"), name("alice1111111"), core_from_string("300000000.00000000"), core_from_string("300000000.00000000") ) );
 
       // create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
       std::vector<account_name> producer_names;
@@ -468,9 +468,9 @@ public:
 
       //vote for producers
       {
-         transfer( config::system_account_name, name("alice1111111"), core_from_string("100000000.0000"), config::system_account_name );
-         BOOST_REQUIRE_EQUAL(success(), stake( name("alice1111111"), core_from_string("30000000.0000"), core_from_string("30000000.0000") ) );
-         BOOST_REQUIRE_EQUAL(success(), buyram( name("alice1111111"), name("alice1111111"), core_from_string("30000000.0000") ) );
+         transfer( config::system_account_name, name("alice1111111"), core_from_string("100000000.00000000"), config::system_account_name );
+         BOOST_REQUIRE_EQUAL(success(), stake( name("alice1111111"), core_from_string("30000000.00000000"), core_from_string("30000000.00000000") ) );
+         BOOST_REQUIRE_EQUAL(success(), buyram( name("alice1111111"), name("alice1111111"), core_from_string("30000000.00000000") ) );
          BOOST_REQUIRE_EQUAL(success(), push_action(N(alice1111111), N(voteproducer), mvo()
                                                     ("voter",  "alice1111111")
                                                     ("proxy", name(0).to_string())
@@ -499,8 +499,8 @@ public:
                                                mvo()
                                                ("from", name{config::system_account_name})
                                                ("receiver", "producer1111")
-                                               ("stake_net_quantity", core_from_string("150000000.0000") )
-                                               ("stake_cpu_quantity", core_from_string("0.0000") )
+                                               ("stake_net_quantity", core_from_string("150000000.00000000") )
+                                               ("stake_cpu_quantity", core_from_string("0.00000000") )
                                                ("transfer", 1 )
                                              )
                                  );
@@ -517,8 +517,8 @@ public:
                                                mvo()
                                                ("from", "producer1111")
                                                ("receiver", "producer1111")
-                                               ("unstake_net_quantity", core_from_string("150000000.0000") )
-                                               ("unstake_cpu_quantity", core_from_string("0.0000") )
+                                               ("unstake_net_quantity", core_from_string("150000000.00000000") )
+                                               ("unstake_cpu_quantity", core_from_string("0.00000000") )
                                              )
                                  );
 

@@ -5,6 +5,10 @@ using namespace eosio;
 extern "C" {
    void apply( uint64_t receiver, uint64_t first_receiver, uint64_t action ) {
       check( receiver == first_receiver, "rejecting all notifications" );
+      print("reject_all contract apply(", "receiver=", name(receiver), 
+         ", first_receiver=", name(first_receiver),
+         ", action=", name(action),
+         "\n");
 
       // reject all actions with only the following exceptions:
       //   * do not reject an eosio::setcode that sets code on the amax account unless the rejectall account exists;

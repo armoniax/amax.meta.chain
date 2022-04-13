@@ -152,19 +152,19 @@ BOOST_AUTO_TEST_CASE( forking ) try {
 
    auto cr = c.push_action( N(amax.token), N(create), N(amax.token), mutable_variant_object()
               ("issuer",       "amax" )
-              ("maximum_supply", core_from_string("10000000.0000"))
+              ("maximum_supply", core_from_string("10000000.00000000"))
       );
 
    cr = c.push_action( N(amax.token), N(issue), config::system_account_name, mutable_variant_object()
               ("to",       "amax" )
-              ("quantity", core_from_string("100.0000"))
+              ("quantity", core_from_string("100.00000000"))
               ("memo", "")
       );
 
    cr = c.push_action( N(amax.token), N(transfer), config::system_account_name, mutable_variant_object()
               ("from",     "amax")
               ("to",       "dan" )
-              ("quantity", core_from_string("100.0000"))
+              ("quantity", core_from_string("100.00000000"))
               ("memo", "")
       );
 
