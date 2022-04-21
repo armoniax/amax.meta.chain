@@ -289,7 +289,8 @@ public:
    };
 
    fc::variant get_block(const get_block_params& params) const;
-
+   
+   fc::variants get_last_blocks(const get_block_params& params) const;
    struct get_block_header_state_params {
       string block_num_or_id;
    };

@@ -2147,7 +2147,34 @@ fc::variant read_only::get_block(const read_only::get_block_params& params) cons
            ("block_num",block->block_num())
            ("ref_block_prefix", ref_block_prefix);
 }
-
+fc::variants read_only::get_last_blocks(const get_block_params& params) const{
+   signed_block_ptr block;
+   optional<uint64_t> block_num;
+   uint64_t head_num = my->chain->head_block_num();
+   uint64_t first_num = my->chain->head_block_num();
+   fc::variants vas;
+   if(!params.block_num_or_id.empty()){
+     try {
+      block_num = fc::to_uint64(params.block_num_or_id);
+     } catch( ... ) {}
+     first_num = head_num - *block_num + 1;
+   }
+   fc::variant pretty_output;
+   uint32_t ref_block_prefix;
+   for(uint64_t i = first_num; i<= head_num; i++){
+     block = db.fetch_block_by_number(i); 
+     EOS_ASSERT( block, unknown_block_exception, "Could not find block: ${block}", ("block", params.block_num_or_id));
+     abi_serializer::to_variant(*block, pretty_output, make_resolver(this, abi_serializer::create_yield_function( abi_serializer_max_time )),
+                              abi_serializer::create_yield_function( abi_serializer_max_time ));
+     ref_block_prefix = block->id()._hash[1];
+     auto mvo = fc::mutable_variant_object(pretty_output.get_object())
+           ("id", block->id())
+           ("block_num",block->block_num())
+           ("ref_block_prefix", ref_block_prefix);
+     vas.emplace_back(mvo); 
+   }
+   return vas;
+}
 fc::variant read_only::get_block_header_state(const get_block_header_state_params& params) const {
    block_state_ptr b;
    optional<uint64_t> block_num;
