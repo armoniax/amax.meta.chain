@@ -2147,15 +2147,16 @@ fc::variant read_only::get_block(const read_only::get_block_params& params) cons
            ("block_num",block->block_num())
            ("ref_block_prefix", ref_block_prefix);
 }
-fc::variants read_only::get_last_blocks(const get_block_params& params) const{
+fc::variants read_only::get_last_blocks(const get_last_blocks_params& params) const{
    signed_block_ptr block;
    optional<uint64_t> block_num;
-   uint64_t head_num = my->chain->head_block_num();
-   uint64_t first_num = my->chain->head_block_num();
+   auto plugin = app().find_plugin<chain_plugin>();
+   uint64_t head_num = plugin->chain().head_block_num();
+   uint64_t first_num = plugin->chain().head_block_num();
    fc::variants vas;
-   if(!params.block_num_or_id.empty()){
+   if(!params.block_count.empty()){
      try {
-      block_num = fc::to_uint64(params.block_num_or_id);
+      block_num = fc::to_uint64(params.block_count);
      } catch( ... ) {}
      first_num = head_num - *block_num + 1;
    }
@@ -2163,7 +2164,7 @@ fc::variants read_only::get_last_blocks(const get_block_params& params) const{
    uint32_t ref_block_prefix;
    for(uint64_t i = first_num; i<= head_num; i++){
      block = db.fetch_block_by_number(i); 
-     EOS_ASSERT( block, unknown_block_exception, "Could not find block: ${block}", ("block", params.block_num_or_id));
+     EOS_ASSERT( block, unknown_block_exception, "Could not find block: ${block}", ("block", params.block_count));
      abi_serializer::to_variant(*block, pretty_output, make_resolver(this, abi_serializer::create_yield_function( abi_serializer_max_time )),
                               abi_serializer::create_yield_function( abi_serializer_max_time ));
      ref_block_prefix = block->id()._hash[1];
@@ -2171,6 +2172,7 @@ fc::variants read_only::get_last_blocks(const get_block_params& params) const{
            ("id", block->id())
            ("block_num",block->block_num())
            ("ref_block_prefix", ref_block_prefix);
+     //append all necessary block into variants
      vas.emplace_back(mvo); 
    }
    return vas;
