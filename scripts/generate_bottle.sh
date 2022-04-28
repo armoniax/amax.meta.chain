@@ -3,7 +3,7 @@ set -eo pipefail
 
 VERS_10_13=`sw_vers -productVersion | awk '/10\.13\..*/{print $0}'`
 VERS_10_14=`sw_vers -productVersion | awk '/10\.14\..*/{print $0}'`
-VERS_12=`sw_vers -productVersion | awk '/12\.14\..*/{print $0}'`
+VERS_12=`sw_vers -productVersion | awk '/12\..*/{print $0}'`
 if [[ -n "$VERS_10_13" ]];
 then
    MAC_VERSION="high_sierra"
@@ -36,10 +36,10 @@ export SSUBPREFIX
 
 hash=`openssl dgst -sha256 ${NAME}.tar.gz | awk 'NF>1{print $NF}'`
 
-echo "class Eosio < Formula
+echo "class Amax < Formula
    # typed: false
    # frozen_string_literal: true
-   
+
    homepage \"${URL}\"
    revision 0
    url \"https://github.com/armoniax/amachain/archive/v${VERSION}.tar.gz\"
@@ -51,7 +51,7 @@ echo "class Eosio < Formula
    depends_on \"gettext\"
    depends_on \"openssl@1.1\"
    depends_on \"libusb\"
-   depends_on macos: :mojave
+   depends_on macos: :monterey
    depends_on arch: :intel
 
    bottle do
