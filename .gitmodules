@@ -15,7 +15,7 @@
 	url = https://github.com/EOSIO/wabt
 [submodule "libraries/yubihsm"]
 	path = libraries/yubihsm
-	url = https://github.com/Yubico/yubihsm-shell
+	url = https://github.com/armoniax/yubihsm-shell
 [submodule "libraries/eos-vm"]
 	path = libraries/eos-vm
 	url = https://github.com/eosio/eos-vm
