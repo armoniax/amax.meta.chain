@@ -8,7 +8,9 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#ifdef AMAX_EOS_VM_RUNTIME_ENABLED
 #include <eosio/vm/signals.hpp>
+#endif//AMAX_EOS_VM_RUNTIME_ENABLED
 
 #include <fstream>
 
@@ -205,7 +207,7 @@ namespace eosio { namespace testing {
             set_before_producer_authority_bios_contract();
             break;
          }
-         case setup_policy::full: {           
+         case setup_policy::full: {
             set_before_producer_authority_bios_contract();
             preactivate_all_builtin_protocol_features();
             produce_block();
@@ -248,9 +250,10 @@ namespace eosio { namespace testing {
          }
       }
 
+#ifdef AMAX_EOS_VM_RUNTIME_ENABLED
       if (cfg.wasm_runtime == chain::wasm_interface::vm_type::eos_vm) {
          eosio::vm::setup_signal_handler();
-         struct sigaction vm_signal_handler = {};   
+         struct sigaction vm_signal_handler = {};
          sigaction(SIGBUS, NULL, &vm_signal_handler);
          if (vm_signal_handler.sa_sigaction != &eosio::vm::signal_handler) {
             // if multi test cases are run, the signal handler of eos-vm will be overwrite by boost test by second case,
@@ -258,7 +261,7 @@ namespace eosio { namespace testing {
             eosio::vm::setup_signal_handler_impl();
          }
       }
-
+#endif//AMAX_EOS_VM_RUNTIME_ENABLED
       control.reset( new controller(cfg, std::move(pfs), *expected_chain_id) );
       control->add_indices();
       lambda();
@@ -1123,13 +1126,13 @@ namespace eosio { namespace testing {
 
       set_transaction_headers( trx, expiration, delay_sec );
       trx.sign( get_private_key( config::system_account_name, "active" ), control->get_chain_id() );
-      
-      push_transaction( trx );          
+
+      push_transaction( trx );
    }
 
    void base_tester::preactivate_protocol_features(const vector<digest_type> &feature_digests) {
       for( const auto& feature_digest: feature_digests ) {
-         preactivate_protocol_feature(feature_digest);                   
+         preactivate_protocol_feature(feature_digest);
       }
    }
 
