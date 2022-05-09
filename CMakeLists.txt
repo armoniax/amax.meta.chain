@@ -68,7 +68,12 @@ endif()
 # WASM runtimes to enable. Each runtime in this list will have:
 #  * definition AMAX_<RUNTIME>_RUNTIME_ENABLED defined in public libchain interface
 #  * ctest entries with --runtime
-list(APPEND AMAX_WASM_RUNTIMES wabt eos-vm)   #always enable wabt, eos-vm; it works everywhere and parts of amax still assume it's always available
+list(APPEND AMAX_WASM_RUNTIMES wabt)
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64" AND APPLE)
+   message(STATUS "eos-vm can not be compiled on Apple M1 Prosessor, CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR}")
+else()
+   list(APPEND AMAX_WASM_RUNTIMES eos-vm)   #always enable wabt, eos-vm; it works everywhere and parts of amax still assume it's always available
+endif()
 if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32)
    if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux" AND "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
       list(APPEND AMAX_WASM_RUNTIMES eos-vm-oc)
