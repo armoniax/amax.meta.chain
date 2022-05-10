@@ -1,11 +1,11 @@
-cmake,/usr/local/bin/cmake
-graphviz,/usr/local/opt/graphviz
-libtool,/usr/local/bin/glibtool
-automake,/usr/local/bin/automake
-wget,/usr/local/bin/wget
-gmp,/usr/local/opt/gmp/include/gmpxx.h
-pkgconfig,/usr/local/bin/pkg-config
-python,/usr/local/opt/python3
-doxygen,/usr/local/bin/doxygen
-libusb,/usr/local/lib/libusb-1.0.0.dylib
-openssl@1.1,/usr/local/opt/openssl@1.1/lib/libssl.a
+cmake,$( brew --prefix )/bin/cmake
+graphviz,$( brew --prefix )/opt/graphviz
+libtool,$( brew --prefix )/bin/glibtool
+automake,$( brew --prefix )/bin/automake
+wget,$( brew --prefix )/bin/wget
+gmp,$( brew --prefix )/opt/gmp/include/gmpxx.h
+pkgconfig,$( brew --prefix )/bin/pkg-config
+python,$( brew --prefix )/opt/python3
+doxygen,$( brew --prefix )/bin/doxygen
+libusb,$( brew --prefix )/lib/libusb-1.0.0.dylib
+openssl@1.1,$( brew --prefix )/opt/openssl@1.1/lib/libssl.a

@@ -264,6 +264,7 @@ function ensure-brew-packages() {
     OLDIFS="$IFS"; IFS=$','
     # || [[ -n "$nmae" ]]; needed to see last line of deps file (https://stackoverflow.com/questions/12916352/shell-script-read-missing-last-line)
     while read -r name path || [[ -n "$name" ]]; do
+        path=$( eval echo $path )
         if [[ -f $path ]] || [[ -d $path ]]; then
             echo " - ${name} ${COLOR_GREEN}ok${COLOR_NC}"
             continue
