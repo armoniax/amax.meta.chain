@@ -162,13 +162,13 @@ namespace eosio {
                            const auto& owner_pubkey = nc.owner.keys.at(0).key;
                            auto owner_range = pub_key_idx.equal_range( owner_pubkey );
                            EOS_ASSERT(owner_range.first == owner_range.second, key_exist_exception,
-                              "owner public key ${key} has been used by other account", ("key", owner_pubkey));
+                              "owner public key ${key} has been used by another account", ("key", owner_pubkey));
                         }
                         if (!nc.owner.keys.empty()) {
                            const auto& active_pubkey = nc.active.keys.at(0).key;
                            auto active_range = pub_key_idx.equal_range( active_pubkey );
                            EOS_ASSERT(active_range.first == active_range.second, key_exist_exception,
-                              "active public key ${key} has been used by other account", ("key", active_pubkey));
+                              "active public key ${key} has been used by another account", ("key", active_pubkey));
                         }
                      }
                   }
