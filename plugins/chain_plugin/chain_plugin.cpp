@@ -2427,9 +2427,12 @@ read_only::get_account_results read_only::get_account( const get_account_params&
    result.head_block_num  = db.head_block_num();
    result.head_block_time = db.head_block_time();
 
+   const account_object *accnt_itr = d.find<account_object, by_name>(result.account_name);
+   EOS_ASSERT(accnt_itr != nullptr, chain::account_query_exception, "Account '${account}' does not exist", ("account", result.account_name) );
+   const auto& accnt_obj = *accnt_itr;
+
    rm.get_account_limits( result.account_name, result.ram_quota, result.net_weight, result.cpu_weight );
 
-   const auto& accnt_obj = db.get_account( result.account_name );
    const auto& accnt_metadata_obj = db.db().get<account_metadata_object,by_name>( result.account_name );
 
    result.creator          = accnt_obj.creator;
@@ -2446,7 +2449,7 @@ read_only::get_account_results read_only::get_account( const get_account_params&
       account_resource_limit subjective_cpu_bill_limit;
       subjective_cpu_bill_limit.used = producer_plug->get_subjective_bill( result.account_name, fc::time_point::now() );
       result.subjective_cpu_bill_limit = subjective_cpu_bill_limit;
-   } 
+   }
 
    const auto& permissions = d.get_index<permission_index,by_owner>();
    auto perm = permissions.lower_bound( boost::make_tuple( params.account_name ) );
