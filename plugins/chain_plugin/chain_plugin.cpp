@@ -2428,7 +2428,7 @@ read_only::get_account_results read_only::get_account( const get_account_params&
    result.head_block_time = db.head_block_time();
 
    const account_object *accnt_itr = d.find<account_object, by_name>(result.account_name);
-   EOS_ASSERT(accnt_itr != nullptr, chain::account_query_exception, "Account '${account}' does not exist", ("account", result.account_name) );
+   EOS_ASSERT(accnt_itr != nullptr, chain::account_query_exception, "account '${account}' does not exist", ("account", result.account_name) );
    const auto& accnt_obj = *accnt_itr;
 
    rm.get_account_limits( result.account_name, result.ram_quota, result.net_weight, result.cpu_weight );
