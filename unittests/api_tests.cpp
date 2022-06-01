@@ -880,7 +880,7 @@ BOOST_FIXTURE_TEST_CASE(checktime_pass_tests, TESTER) { try {
 } FC_LOG_AND_RETHROW() }
 
 template<class T>
-void call_test(TESTER& test, T ac, uint32_t billed_cpu_time_us , uint32_t max_cpu_usage_ms = 200, std::vector<char> payload = {} ) {
+void call_test(TESTER& test, T ac, uint32_t billed_cpu_time_us , uint32_t max_cpu_usage_ms = 400, std::vector<char> payload = {} ) {
    signed_transaction trx;
 
    auto pl = vector<permission_level>{{N(testapi), config::active_name}};
@@ -915,11 +915,11 @@ BOOST_AUTO_TEST_CASE(checktime_fail_tests) { try {
 #warning TODO call the contract before testing to cache it, and validate that it was cached
 
    BOOST_CHECK_EXCEPTION( call_test( t, test_api_action<TEST_METHOD("test_checktime", "checktime_failure")>{},
-                                     5000, 200, fc::raw::pack(10000000000000000000ULL) ),
+                                     5000, 400, fc::raw::pack(10000000000000000000ULL) ),
                           deadline_exception, is_deadline_exception );
 
    BOOST_CHECK_EXCEPTION( call_test( t, test_api_action<TEST_METHOD("test_checktime", "checktime_failure")>{},
-                                     0, 200, fc::raw::pack(10000000000000000000ULL) ),
+                                     0, 400, fc::raw::pack(10000000000000000000ULL) ),
                           tx_cpu_usage_exceeded, is_tx_cpu_usage_exceeded );
 
    uint32_t time_left_in_block_us = config::default_max_block_cpu_usage - config::default_min_transaction_cpu_usage;
@@ -930,7 +930,7 @@ BOOST_AUTO_TEST_CASE(checktime_fail_tests) { try {
       time_left_in_block_us -= increment;
    }
    BOOST_CHECK_EXCEPTION( call_test( t, test_api_action<TEST_METHOD("test_checktime", "checktime_failure")>{},
-                                    0, 200, fc::raw::pack(10000000000000000000ULL) ),
+                                    0, 400, fc::raw::pack(10000000000000000000ULL) ),
                           block_cpu_usage_exceeded, is_block_cpu_usage_exceeded );
 
    BOOST_REQUIRE_EQUAL( t.validate(), true );
@@ -1233,7 +1233,7 @@ BOOST_AUTO_TEST_CASE(deferred_inline_action_subjective_limit_failure) { try {
    } );
    CALL_TEST_FUNCTION(chain, "test_transaction", "send_deferred_transaction_4k_action", {} );
    BOOST_CHECK(!trace);
-   BOOST_CHECK_EXCEPTION(chain.produce_block( fc::seconds(2) ), fc::exception, 
+   BOOST_CHECK_EXCEPTION(chain.produce_block( fc::seconds(2) ), fc::exception,
                          [](const fc::exception& e) {
                             return expect_assert_message(e, "inline action too big for nonprivileged account");
                          }
@@ -1476,12 +1476,12 @@ BOOST_FIXTURE_TEST_CASE(deferred_transaction_tests, TESTER) { try {
       push_action(config::system_account_name, N(setpriv), config::system_account_name,  mutable_variant_object()
                                                           ("account", "testapi")
                                                           ("is_priv", 1));
-      
+
         // Verify testapi is privileged
       const auto& testapi_acc = get<account_metadata_object, by_name>(N(testapi));
       produce_block();
       BOOST_TEST(testapi_acc.is_privileged() == true);
-                                                 
+
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_tx_with_dtt_action", fc::raw::pack(dtt_act1));
       CALL_TEST_FUNCTION(*this, "test_transaction", "send_deferred_tx_with_dtt_action", fc::raw::pack(dtt_act2));
    }
@@ -1914,7 +1914,7 @@ BOOST_FIXTURE_TEST_CASE(crypto_tests, TESTER) { try {
       auto hash_data = eosio::fixed_bytes<32>();
       std::copy(hash.data(), hash.data() + hash.data_size(), (char*)hash_data.data());
       auto pk     = fc::raw::pack( pub_key );
-      auto sigs   = fc::raw::pack( sig );    
+      auto sigs   = fc::raw::pack( sig );
       vector<char> payload(8192);
       datastream<char*> payload_ds(payload.data(), payload.size());
       fc::raw::pack(payload_ds,  hash_data, (uint32_t)pk.size(), (uint32_t)sigs.size() );
