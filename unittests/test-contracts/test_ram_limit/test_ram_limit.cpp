@@ -74,6 +74,17 @@ CONTRACT test_ram_limit : public contract {
          }
       }
 
+      ACTION itrentry( uint64_t from, uint64_t count ) {
+         const auto self = get_self();
+         eosio::print("test_ram_limit::itrentry ", eosio::name{self}, ":");
+         test_table table( self, self.value );
+         auto itr = table.find(from);
+         for ( size_t i = 0; i < count; ++i ) {
+            check( itr != table.end(), "no more entry in test_table entry! from=" + std::to_string(from) + " get_count=" + std::to_string(i) );
+            itr++;
+         }
+      }
+
    private:
       TABLE test {
          uint64_t            key;
@@ -88,4 +99,4 @@ CONTRACT test_ram_limit : public contract {
 
 #pragma clang diagnostic pop
 
-EOSIO_DISPATCH( test_ram_limit, (setentry)(rmentry)(printentry)(getentry) )
+EOSIO_DISPATCH( test_ram_limit, (setentry)(rmentry)(printentry)(getentry)(itrentry) )

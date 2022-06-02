@@ -18,6 +18,20 @@
             ]
         },
         {
+            "name": "itrentry",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "uint64"
+                },
+                {
+                    "name": "count",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "printentry",
             "base": "",
             "fields": [
@@ -86,6 +100,11 @@
         {
             "name": "getentry",
             "type": "getentry",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "itrentry",
+            "type": "itrentry",
             "ricardian_contract": ""
         },
         {

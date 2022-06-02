@@ -423,6 +423,7 @@ BOOST_FIXTURE_TEST_CASE(large_table_test, amax_system::amax_system_tester) { try
    auto pos = 1;
    test_add_data(pos, 10);    pos += 10;
    test_add_data(pos, 100);   pos += 100;
+   test_add_data(pos, 500);   pos += 500;
    test_add_data(pos, 1000);  pos += 1000;
 
    auto test_get_data = [&]( size_t start, size_t count ) {
@@ -439,8 +440,25 @@ BOOST_FIXTURE_TEST_CASE(large_table_test, amax_system::amax_system_tester) { try
    };
    test_get_data(1, 10);
    test_get_data(1, 100);
+   test_get_data(1, 500);
    test_get_data(1, 1000);
 
+   auto test_itr_data = [&]( size_t start, size_t count ) {
+      auto last_time = fc::time_point::now();
+      auto trx = tester->push_action( N(testram11111), N(itrentry), N(testram11111), mvo()
+                           ("from", start)
+                           ("count", count));
+      produce_blocks(1);
+      auto now = fc::time_point::now();
+      auto spent = now - last_time;
+      //wdump( (count) (spent) (trx->elapsed) (trx)) ;
+      wdump( ("itrentry") (count) (spent)(spent.count() / count) (trx->elapsed) (trx->elapsed.count()/count) );
+
+   };
+   test_itr_data(1, 10);
+   test_itr_data(1, 100);
+   test_itr_data(1, 500);
+   test_itr_data(1, 1000);
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()
