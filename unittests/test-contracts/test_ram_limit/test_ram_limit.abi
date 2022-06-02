@@ -1,7 +1,22 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Fri Dec  7 11:56:43 2018",
+    "____comment": "This file was generated with amax-abigen. DO NOT EDIT ",
     "version": "amax::abi/1.1",
+    "types": [],
     "structs": [
+        {
+            "name": "getentry",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "uint64"
+                },
+                {
+                    "name": "to",
+                    "type": "uint64"
+                }
+            ]
+        },
         {
             "name": "printentry",
             "base": "",
@@ -67,8 +82,12 @@
             ]
         }
     ],
-    "types": [],
     "actions": [
+        {
+            "name": "getentry",
+            "type": "getentry",
+            "ricardian_contract": ""
+        },
         {
             "name": "printentry",
             "type": "printentry",
@@ -95,6 +114,5 @@
         }
     ],
     "ricardian_clauses": [],
-    "variants": [],
-    "abi_extensions": []
+    "variants": []
 }

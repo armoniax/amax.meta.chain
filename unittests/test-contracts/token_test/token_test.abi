@@ -4,62 +4,32 @@
     "types": [],
     "structs": [
         {
-            "name": "assertsender",
+            "name": "testtransfer",
             "base": "",
             "fields": [
                 {
-                    "name": "expected_sender",
+                    "name": "from",
                     "type": "name"
-                }
-            ]
-        },
-        {
-            "name": "notify",
-            "base": "",
-            "fields": [
+                },
                 {
                     "name": "to",
                     "type": "name"
                 },
                 {
-                    "name": "expected_sender",
-                    "type": "name"
+                    "name": "quantity",
+                    "type": "asset"
                 },
                 {
-                    "name": "send_inline",
-                    "type": "bool"
-                }
-            ]
-        },
-        {
-            "name": "sendinline",
-            "base": "",
-            "fields": [
-                {
-                    "name": "to",
-                    "type": "name"
-                },
-                {
-                    "name": "expected_sender",
-                    "type": "name"
+                    "name": "memo",
+                    "type": "string"
                 }
             ]
         }
     ],
     "actions": [
         {
-            "name": "assertsender",
-            "type": "assertsender",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "notify",
-            "type": "notify",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "sendinline",
-            "type": "sendinline",
+            "name": "testtransfer",
+            "type": "testtransfer",
             "ricardian_contract": ""
         }
     ],
