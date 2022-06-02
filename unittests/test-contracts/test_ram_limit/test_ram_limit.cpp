@@ -14,7 +14,7 @@ using namespace eosio;
 CONTRACT test_ram_limit : public contract {
    public:
    using contract::contract;
-   
+
       const uint32_t FIVE_MINUTES = 5*60;
 
       ACTION setentry( name payer, uint64_t from, uint64_t to, uint64_t size ) {
@@ -64,6 +64,16 @@ CONTRACT test_ram_limit : public contract {
          }
       }
 
+      ACTION getentry( uint64_t from, uint64_t to ) {
+         const auto self = get_self();
+         eosio::print("test_ram_limit::getentry ", eosio::name{self}, ":");
+         test_table table( self, self.value );
+         for ( int key = from; key <= to; ++key ) {
+            auto itr = table.find(key);
+            check( itr != table.end(), "could not find test_table entry" );
+         }
+      }
+
    private:
       TABLE test {
          uint64_t            key;
@@ -78,4 +88,4 @@ CONTRACT test_ram_limit : public contract {
 
 #pragma clang diagnostic pop
 
-EOSIO_DISPATCH( test_ram_limit, (setentry)(rmentry)(printentry) )
+EOSIO_DISPATCH( test_ram_limit, (setentry)(rmentry)(printentry)(getentry) )

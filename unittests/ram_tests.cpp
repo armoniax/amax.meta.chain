@@ -385,4 +385,62 @@ BOOST_FIXTURE_TEST_CASE(ram_tests, amax_system::amax_system_tester) { try {
 
 } FC_LOG_AND_RETHROW() }
 
+
+/*************************************************************************************
+ * ram_tests test case
+ *************************************************************************************/
+BOOST_FIXTURE_TEST_CASE(large_table_test, amax_system::amax_system_tester) { try {
+
+
+   buyrambytes(config::system_account_name, config::system_account_name, 100'000'000);
+   produce_blocks(10);
+   create_account_with_resources( N(testram11111), config::system_account_name, core_from_string("100000.00000000"), false,
+      core_from_string("1000.00000000"), core_from_string("1000.00000000") );
+   produce_blocks();
+
+   set_code( N(testram11111), contracts::test_ram_limit_wasm() );
+   set_abi( N(testram11111), contracts::test_ram_limit_abi().data() );
+
+   produce_blocks(10);
+
+   TESTER* tester = this;
+
+   auto test_add_data = [&]( size_t start, size_t count ) {
+      auto last_time = fc::time_point::now();
+      auto trx = tester->push_action( N(testram11111), N(setentry), N(testram11111), mvo()
+                           ("payer", "testram11111")
+                           ("from", start)
+                           ("to", start + count - 1)
+                           ("size", 100));
+      produce_blocks(1);
+      auto now = fc::time_point::now();
+      auto spent = now - last_time;
+      //wdump( (count) (spent) (trx->elapsed) (trx)) ;
+      wdump( ("setentry") (count) (spent)(spent.count() / count) (trx->elapsed) (trx->elapsed.count()/count) );
+
+   };
+
+   auto pos = 1;
+   test_add_data(pos, 10);    pos += 10;
+   test_add_data(pos, 100);   pos += 100;
+   test_add_data(pos, 1000);  pos += 1000;
+
+   auto test_get_data = [&]( size_t start, size_t count ) {
+      auto last_time = fc::time_point::now();
+      auto trx = tester->push_action( N(testram11111), N(getentry), N(testram11111), mvo()
+                           ("from", start)
+                           ("to", start + count - 1));
+      produce_blocks(1);
+      auto now = fc::time_point::now();
+      auto spent = now - last_time;
+      //wdump( (count) (spent) (trx->elapsed) (trx)) ;
+      wdump( ("getentry") (count) (spent)(spent.count() / count) (trx->elapsed) (trx->elapsed.count()/count) );
+
+   };
+   test_get_data(1, 10);
+   test_get_data(1, 100);
+   test_get_data(1, 1000);
+
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_SUITE_END()
