@@ -21,10 +21,16 @@ namespace eosio { namespace chain {
    >;
 
    using block_header_extension = block_header_extension_types::block_header_extension_t;
-
+   /**
+   *@Module name: chain lib
+   *@Description: block header for main chain and backup chain
+   *@Author: shunshun
+   *@Modify Time: 2022/06/14 18:12
+   */
    struct block_header
    {
       block_timestamp_type             timestamp;
+      //shared by main and backup
       account_name                     producer;
 
       /**
@@ -39,7 +45,10 @@ namespace eosio { namespace chain {
       uint16_t                         confirmed = 1;
 
       block_id_type                    previous;
-
+      //previous_backup block id
+      block_id_type                    previous_backup = fc::sha256();
+      //flag to main block or backup
+      bool                             is_backup = false;
       checksum256_type                 transaction_mroot; /// mroot of cycles_summary
       checksum256_type                 action_mroot; /// mroot of all delivered action receipts
 
@@ -79,7 +88,7 @@ namespace eosio { namespace chain {
 } } /// namespace eosio::chain
 
 FC_REFLECT(eosio::chain::block_header,
-           (timestamp)(producer)(confirmed)(previous)
+           (timestamp)(producer)(confirmed)(previous)(previous_backup)(is_backup)
            (transaction_mroot)(action_mroot)
            (schedule_version)(new_producers)(header_extensions))
 
