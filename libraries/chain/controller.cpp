@@ -139,7 +139,12 @@ struct assembled_block {
 struct completed_block {
    block_state_ptr                   _block_state;
 };
-
+/**
+*@Module name: core controller 
+*@Description: a block from epoch to stronger will experience 3 stages
+*@Author: cryptoseeking
+*@Modify Time: 2022/06/15 10:03
+*/
 using block_stage_type = fc::static_variant<building_block, assembled_block, completed_block>;
 
 struct pending_state {
