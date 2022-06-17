@@ -75,7 +75,6 @@ namespace eosio { namespace chain {
       block_id_type     id() const;
       uint32_t          block_num() const { return num_from_id(previous) + 1; }
       static uint32_t   num_from_id(const block_id_type& id);
-
       flat_multimap<uint16_t, block_header_extension> validate_and_extract_header_extensions()const;
    };
 

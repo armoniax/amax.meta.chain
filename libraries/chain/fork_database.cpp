@@ -290,13 +290,13 @@ namespace eosio
 
          // The new root block should be erased from the fork database index individually rather than with the remove method,
          // because we do not want the blocks branching off of it to be removed from the fork database.
-         
+
          /**
-         *@Module name: forks_db
-         *@Description: this is necessary ,if not do this operation,using remove method or not may lead to all blocks would be removed from fork database
-         *@Author: cryptoseeking
-         *@Modify Time: 2022/06/16 15:28
-         */
+          *@Module name: forks_db
+          *@Description: this is necessary ,if not do this operation,using remove method or not may lead to all blocks would be removed from fork database
+          *@Author: cryptoseeking
+          *@Modify Time: 2022/06/16 15:28
+          */
          my->index.erase(my->index.find(id));
 
          // The other blocks to be removed are removed using the remove method so that orphaned branches do not remain in the fork database.
@@ -365,8 +365,17 @@ namespace eosio
             EOS_THROW(fork_database_exception, "duplicate block added", ("id", n->id));
          }
 
+         /**
+          *@Module name:
+          *@Description: this index sorted by first priority validated, sencond priority greater last irreversiable block num
+          *3rd priority greater block num, 4th priority less hash value. so begin block is validated biggest irreversible block
+          *num biggest block num ,least hash vale block, in other words, it is header.
+          *for backup block here needn't to checkout head
+          *@Author: cryptoseeking
+          *@Modify Time: 2022/06/17 15:59
+          */
          auto candidate = index.get<by_lib_block_num>().begin();
-         if ((*candidate)->is_valid())
+         if ((*candidate)->is_valid() && !(*candidate)->is_backup())
          {
             head = *candidate;
          }
