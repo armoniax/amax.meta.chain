@@ -235,6 +235,7 @@ struct controller_impl {
    block_log                      blog;
    optional<pending_state>        pending;
    block_state_ptr                head;
+   block_state_ptr                backup_head;
    fork_database                  fork_db;
    wasm_interface                 wasmif;
    resource_limits_manager        resource_limits;
@@ -1540,7 +1541,6 @@ struct controller_impl {
       if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
                      ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
-
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
       } else {
          pending.emplace( maybe_session(), *head, when, confirm_block_count, new_protocol_feature_activations );

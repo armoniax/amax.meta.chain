@@ -269,7 +269,12 @@ namespace eosio
          }
          my->head = my->root;
       }
-
+      /**
+      *@Module name: 
+      *@Description: after a backup block upgrading to main block, how to deal with this situation. 
+      *@Author: cryptoseeking
+      *@Modify Time: 2022/06/17 17:24
+      */
       void fork_database::advance_root(const block_id_type &id)
       {
          EOS_ASSERT(my->root, fork_database_exception, "root not yet set");
@@ -400,7 +405,7 @@ namespace eosio
          auto itr = indx.lower_bound(false);
          if (itr != indx.end() && !(*itr)->is_valid())
          {
-            if (first_preferred(**itr, *my->head))
+            if (!(*itr)->is_backup()&&first_preferred(**itr, *my->head))
                return *itr;
          }
 

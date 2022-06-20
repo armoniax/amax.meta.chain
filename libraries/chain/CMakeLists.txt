@@ -57,6 +57,7 @@ add_library( eosio_chain
              block.cpp
              block_header.cpp
              block_header_state.cpp
+             union_state.cpp
              block_state.cpp
              fork_database.cpp
              controller.cpp
