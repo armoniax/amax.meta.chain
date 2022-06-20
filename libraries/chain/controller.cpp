@@ -218,6 +218,10 @@ struct pending_state {
    void push() {
       _db_session.push();
    }
+
+   void discard(){
+      _db_session.undo();
+   }
 };
 
 struct controller_impl {
@@ -424,7 +428,14 @@ struct controller_impl {
 
             emit( self.irreversible_block, *bitr );
 
-            db.commit( (*bitr)->block_num );
+            if(!self.is_backup()){
+               db.commit( (*bitr)->block_num );
+            }else{
+               //when we are in backup mode, we needn't to update state db affected by backup block
+               //this block only need to be persisted into forks db.
+               db.undo();
+            }
+
             root_id = (*bitr)->id;
 
             blog.append( (*bitr)->block );
@@ -668,8 +679,9 @@ struct controller_impl {
       // At this point head != nullptr && fork_db.head() != nullptr && fork_db.root() != nullptr.
       // Furthermore, fork_db.root()->block_num <= lib_num.
       // Also, even though blog.head() may still be nullptr, blog.first_block_num() is guaranteed to be lib_num + 1.
-
-      EOS_ASSERT( db.revision() >= head->block_num, fork_database_exception,
+      
+      //in backup mode, we allow db.revision() < head->block_num.
+      EOS_ASSERT( head->is_backup()||db.revision() >= head->block_num, fork_database_exception,
                   "fork database head (${head}) is inconsistent with state (${db})",
                   ("db",db.revision())("head",head->block_num) );
 
@@ -1537,8 +1549,12 @@ struct controller_impl {
          protocol_features.popped_blocks_to( head_block_num );
          pending.reset();
       });
-
-      if (!self.skip_db_sessions(s)) {
+      if(self.is_backup()){
+         //testing backup mode producer session production!
+         //because session is pseudo completed , so revision != head
+         //and state db won't be affected
+         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
+      }else if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
                      ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
@@ -1776,8 +1792,12 @@ struct controller_impl {
          throw;
       }
 
-      // push the state for pending.
-      pending->push();
+      // push the state for pending except to backup mode.
+      if(!self.is_backup()){
+         pending->push();
+      }else{
+         pending->discard();
+      }
    }
 
    /**
@@ -3142,6 +3162,10 @@ bool controller::is_producing_block()const {
    if( !my->pending ) return false;
 
    return (my->pending->_block_status == block_status::incomplete);
+}
+
+bool controller::is_backup()const{
+   return is_backup_mode;
 }
 
 bool controller::is_ram_billing_in_notify_allowed()const {

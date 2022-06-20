@@ -1496,6 +1496,12 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       return start_block_result::waiting_for_block;
 
    const auto& hbs = chain.head_block_state();
+   /**
+    * @brief todo
+    * should accord to current producer is backup or not
+    * 
+    */
+   chain.set_backup_mode(true);
 
    const fc::time_point now = fc::time_point::now();
    const fc::time_point block_time = calculate_pending_block_time();

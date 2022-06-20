@@ -48,7 +48,8 @@ namespace eosio { namespace chain {
       //previous_backup block id
       block_id_type                    previous_backup = fc::sha256();
       //flag to main block or backup
-      bool                             is_backup = false;
+      //flag true for test backup frame work.
+      bool                             is_backup = true;
       checksum256_type                 transaction_mroot; /// mroot of cycles_summary
       checksum256_type                 action_mroot; /// mroot of all delivered action receipts
 
