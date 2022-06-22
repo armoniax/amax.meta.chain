@@ -549,7 +549,7 @@ namespace eosio
                           { bsp->validated = true; });
 
          auto candidate = my->index.get<by_lib_block_num>().begin();
-         if (first_preferred(**candidate, *my->head))
+         if (first_preferred(**candidate, *my->head) && !(*candidate)->is_backup())
          {
             my->head = *candidate;
          }

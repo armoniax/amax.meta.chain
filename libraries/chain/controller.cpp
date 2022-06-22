@@ -1720,6 +1720,16 @@ struct controller_impl {
          std::move( bb._new_protocol_feature_activations ),
          protocol_features.get_protocol_feature_set()
       ) );
+      
+      /**
+      *@Module name: 
+      *@Description: when controller in backup mode, block should be backup block
+      *@Author: cryptoseeking
+      *@Modify Time: 2022/06/21 14:35
+      */
+      if(self.is_backup()){
+         block_ptr->is_backup = true;
+      }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
 

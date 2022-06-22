@@ -1501,7 +1501,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
     * should accord to current producer is backup or not
     * 
     */
-   chain.set_backup_mode(true);
+   chain.set_backup_mode(false);
 
    const fc::time_point now = fc::time_point::now();
    const fc::time_point block_time = calculate_pending_block_time();
@@ -1519,6 +1519,18 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       const auto& iter = _signature_providers.find(key);
       if(iter != _signature_providers.end()) {
          num_relevant_signatures++;
+      }
+      /**
+      *@Module name: 
+      *@Description: for test 2 producing mode switch
+      *@Author: cryptoseeking
+      *@Modify Time: 2022/06/21 14:13
+      */
+      if(scheduled_producer.producer_name == string_to_name("producerbak")){
+         chain.set_backup_mode(true);
+      }
+      if(scheduled_producer.producer_name == string_to_name("producerman")){
+         chain.set_backup_mode(false);
       }
    });
 
