@@ -115,7 +115,7 @@ def verifyProductionRounds(trans, node, prodsActive, rounds):
         prodsSeen={}
         lastBlockProducer=None
         for j in range(0, prodsSize):
-            # each new set of 12 blocks should have a different blockProducer 
+            # each new set of 12 blocks should have a different blockProducer
             if lastBlockProducer is not None and lastBlockProducer==node.getBlockProducerByNum(blockNum):
                 Utils.cmdError("expected blockNum %s to be produced by any of the valid producers except %s" % (blockNum, lastBlockProducer))
                 Utils.errorExit("Failed because of incorrect block producer order")
@@ -183,7 +183,7 @@ try:
     Print("Stand up cluster")
     if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=totalNodes, totalNodes=totalNodes, totalProducers=totalNodes, useBiosBootFile=False, onlySetProds=True, sharedProducers=1) is False:
         Utils.cmdError("launcher")
-        Utils.errorExit("Failed to stand up ama cluster.")
+        Utils.errorExit("Failed to stand up amax cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
@@ -203,7 +203,7 @@ try:
     prodsActive["defproducerc"] = True
 
     Print("Wait for initial schedule: defproducera(node 0) shrproducera(node 2) defproducerb(node 1) defproducerc(node 2)")
-    
+
     tries=10
     while tries > 0:
         node.infoValid = False

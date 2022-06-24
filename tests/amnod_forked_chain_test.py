@@ -14,7 +14,7 @@ import signal
 
 ###############################################################
 # amnod_forked_chain_test
-# 
+#
 # This test sets up 2 producing nodes and one "bridge" node using test_control_api_plugin.
 #   One producing node has 11 of the elected producers and the other has 10 of the elected producers.
 #   All the producers are named in alphabetical order, so that the 11 producers, in the one production node, are
@@ -173,7 +173,7 @@ try:
                       totalNodes=totalNodes, totalProducers=totalProducers,
                       useBiosBootFile=False, specificExtraAmnodArgs=specificExtraAmnodArgs) is False:
         Utils.cmdError("launcher")
-        Utils.errorExit("Failed to stand up ama cluster.")
+        Utils.errorExit("Failed to stand up amax cluster.")
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
 

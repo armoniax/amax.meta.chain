@@ -55,7 +55,7 @@ try:
         pnodes=4
         if cluster.launch(pnodes=pnodes, totalNodes=pnodes) is False:
             cmdError("launcher")
-            errorExit("Failed to stand up ama cluster.")
+            errorExit("Failed to stand up amax cluster.")
     else:
         walletMgr.killall(allInstances=killAll)
         walletMgr.cleanup()
@@ -65,7 +65,7 @@ try:
         print("Stand up walletd")
         if walletMgr.launch() is False:
             cmdError("%s" % (WalletdName))
-            errorExit("Failed to stand up ama walletd.")
+            errorExit("Failed to stand up mamx walletd.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
@@ -123,7 +123,7 @@ try:
     Print("Validating accounts before user accounts creation")
     cluster.validateAccounts(None)
 
-    # create accounts via amax as otherwise a bid is needed 
+    # create accounts via amax as otherwise a bid is needed
     Print("Create new account %s via %s" % (testeraAccount.name, cluster.amaxAccount.name))
     transId=node.createInitializeAccount(testeraAccount, cluster.amaxAccount, stakedDeposit=0, waitForTransBlock=False, exitOnError=True)
 
@@ -212,17 +212,17 @@ try:
     Print("Bouncing nodes #00 and #01")
     if cluster.bounce("00,01") is False:
         cmdError("launcher bounce")
-        errorExit("Failed to bounce ama node.")
+        errorExit("Failed to bounce mamx node.")
 
     Print("Taking down node #02")
     if cluster.down("02") is False:
         cmdError("launcher down command")
-        errorExit("Failed to take down ama node.")
+        errorExit("Failed to take down mamx node.")
 
     Print("Using bounce option to re-launch node #02")
     if cluster.bounce("02") is False:
         cmdError("launcher bounce")
-        errorExit("Failed to bounce ama node.")
+        errorExit("Failed to bounce mamx node.")
 
     p = re.compile('Assert')
     errFileName="var/lib/node_00/stderr.txt"

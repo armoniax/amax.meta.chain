@@ -74,7 +74,7 @@ try:
     Print("Stand up cluster")
     if cluster.launch(prodCount=prodCount, onlyBios=False, pnodes=pnodes, totalNodes=totalNodes, totalProducers=pnodes*prodCount,
                       useBiosBootFile=False, specificExtraAmnodArgs=specificExtraAmnodArgs, unstartedNodes=catchupCount, loadSystemContract=False) is False:
-        Utils.errorExit("Failed to stand up ama cluster.")
+        Utils.errorExit("Failed to stand up amax cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)

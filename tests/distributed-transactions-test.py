@@ -75,7 +75,7 @@ try:
 
         Print("Stand up cluster")
         if cluster.launch(pnodes=pnodes, totalNodes=total_nodes, topo=topo, delay=delay) is False:
-            errorExit("Failed to stand up ama cluster.")
+            errorExit("Failed to stand up amax cluster.")
 
         Print ("Wait for Cluster stabilization")
         # wait for cluster to start producing blocks

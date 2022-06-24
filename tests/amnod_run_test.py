@@ -70,7 +70,7 @@ try:
         Print("Stand up cluster")
         if cluster.launch(prodCount=prodCount, onlyBios=onlyBios, dontBootstrap=dontBootstrap) is False:
             cmdError("launcher")
-            errorExit("Failed to stand up ama cluster.")
+            errorExit("Failed to stand up amax cluster.")
     else:
         Print("Collecting cluster info.")
         cluster.initializeNodes(defproduceraPrvtKey=defproduceraPrvtKey, defproducerbPrvtKey=defproducerbPrvtKey)

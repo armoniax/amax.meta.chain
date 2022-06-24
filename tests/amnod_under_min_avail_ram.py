@@ -91,7 +91,7 @@ try:
     extraAmnodArgs=" %s %d %s %d  --http-max-response-time-ms 990000 " % (minRAMFlag, minRAMValue, maxRAMFlag, maxRAMValue)
     if cluster.launch(onlyBios=False, pnodes=totalNodes, totalNodes=totalNodes, totalProducers=totalNodes, extraAmnodArgs=extraAmnodArgs, useBiosBootFile=False) is False:
         Utils.cmdError("launcher")
-        errorExit("Failed to stand up ama cluster.")
+        errorExit("Failed to stand up amax cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
@@ -189,7 +189,7 @@ try:
     #spread the actions to all accounts, to use each accounts tps bandwidth
     fromIndexStart=fromIndex+1 if fromIndex+1<namedAccounts.numAccounts else 0
 
-    # min and max are subjective, just assigned to make sure that many small changes in amnod don't 
+    # min and max are subjective, just assigned to make sure that many small changes in amnod don't
     # result in the test not correctly validating behavior
     if count < 5 or count > 20:
         strMsg="little" if count < 20 else "much"
@@ -256,7 +256,7 @@ try:
             count+=1
             fromIndex=fromIndexStart+fromIndexOffset
             if fromIndex>=namedAccounts.numAccounts:
-                fromIndex-=namedAccounts.numAccounts 
+                fromIndex-=namedAccounts.numAccounts
             toIndex=fromIndex+1
             if toIndex==namedAccounts.numAccounts:
                 toIndex=0
@@ -314,7 +314,7 @@ try:
            break
         fromIndex=fromIndexStart+fromIndexOffset
         if fromIndex>=namedAccounts.numAccounts:
-            fromIndex-=namedAccounts.numAccounts 
+            fromIndex-=namedAccounts.numAccounts
         toIndex=fromIndex+1
         if toIndex==namedAccounts.numAccounts:
             toIndex=0

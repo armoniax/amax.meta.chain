@@ -247,7 +247,7 @@ def myTest(transWillEnterBlock):
         delay=0
         Print("Stand up cluster")
         if cluster.launch(pnodes=pnodes, totalNodes=total_nodes, topo=topo, delay=delay) is False:
-            error("Failed to stand up ama cluster.")
+            error("Failed to stand up amax cluster.")
             return False
 
         accounts=testUtils.Cluster.createAccountKeys(1)

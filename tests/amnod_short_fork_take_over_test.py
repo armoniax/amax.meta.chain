@@ -159,7 +159,7 @@ try:
                       totalNodes=totalNodes, totalProducers=totalProducers,
                       useBiosBootFile=False, specificExtraAmnodArgs=specificExtraAmnodArgs, onlySetProds=True) is False:
         Utils.cmdError("launcher")
-        Utils.errorExit("Failed to stand up ama cluster.")
+        Utils.errorExit("Failed to stand up amax cluster.")
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
 

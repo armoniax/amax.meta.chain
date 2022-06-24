@@ -70,7 +70,7 @@ try:
                          dontBootstrap=dontBootstrap, useBiosBootFile=False,
                          pfSetupPolicy=PFSetupPolicy.NONE, extraAmnodArgs=" --plugin eosio::producer_api_plugin  --http-max-response-time-ms 990000 ") is False:
             cmdError("launcher")
-            errorExit("Failed to stand up ama cluster.")
+            errorExit("Failed to stand up amax cluster.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
