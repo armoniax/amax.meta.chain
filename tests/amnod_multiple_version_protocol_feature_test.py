@@ -146,7 +146,7 @@ try:
     setValidityOfActTimeSubjRestriction(newNodes[2], newNodeIds[2], "PREACTIVATE_FEATURE", False)
 
     waitUntilBeginningOfProdTurn(newNodes[0], "defproducera")
-    newNodes[0].activatePreactivateFeature()
+    # newNodes[0].activatePreactivateFeature() # no need now
     assert shouldNodeContainPreactivateFeature(newNodes[0]), "1st node should contain PREACTIVATE FEATURE"
     assert not (shouldNodeContainPreactivateFeature(newNodes[1]) or shouldNodeContainPreactivateFeature(newNodes[2])), \
            "2nd and 3rd node should not contain PREACTIVATE FEATURE"
@@ -168,7 +168,7 @@ try:
 
     waitUntilBeginningOfProdTurn(newNodes[0], "defproducera")
     libBeforePreactivation = newNodes[0].getIrreversibleBlockNum()
-    newNodes[0].activatePreactivateFeature()
+    # newNodes[0].activatePreactivateFeature() # no need now
 
     assert areNodesInSync(newNodes), "New nodes should be in sync"
     assert not areNodesInSync(allNodes), "Nodes should not be in sync after preactivation"

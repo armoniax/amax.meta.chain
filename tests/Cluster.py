@@ -421,9 +421,10 @@ class Cluster(object):
             Utils.Print("ERROR: Cluster doesn't seem to be in sync. Some nodes missing block 1")
             return False
 
-        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-            Utils.Print("Activate Preactivate Feature.")
-            biosNode.activatePreactivateFeature()
+        # no need now
+        # if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
+        #     Utils.Print("Activate Preactivate Feature.")
+        #     biosNode.activatePreactivateFeature()
 
         if dontBootstrap:
             Utils.Print("Skipping bootstrap.")
