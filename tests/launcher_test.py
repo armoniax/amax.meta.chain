@@ -65,7 +65,7 @@ try:
         print("Stand up walletd")
         if walletMgr.launch() is False:
             cmdError("%s" % (WalletdName))
-            errorExit("Failed to stand up mamx walletd.")
+            errorExit("Failed to stand up amax walletd.")
 
     Print("Validating system accounts after bootstrap")
     cluster.validateAccounts(None)
@@ -212,17 +212,17 @@ try:
     Print("Bouncing nodes #00 and #01")
     if cluster.bounce("00,01") is False:
         cmdError("launcher bounce")
-        errorExit("Failed to bounce mamx node.")
+        errorExit("Failed to bounce amax node.")
 
     Print("Taking down node #02")
     if cluster.down("02") is False:
         cmdError("launcher down command")
-        errorExit("Failed to take down mamx node.")
+        errorExit("Failed to take down amax node.")
 
     Print("Using bounce option to re-launch node #02")
     if cluster.bounce("02") is False:
         cmdError("launcher bounce")
-        errorExit("Failed to bounce mamx node.")
+        errorExit("Failed to bounce amax node.")
 
     p = re.compile('Assert')
     errFileName="var/lib/node_00/stderr.txt"

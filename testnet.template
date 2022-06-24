@@ -15,7 +15,7 @@ fi
 bioscontractpath=$BIOS_CONTRACT_PATH
 if [ -z "$bioscontractpath" ]; then
     # this is defaulted to the version of bios that only requires the preactivate_feature
-    # newer versions may require 
+    # newer versions may require
     bioscontractpath="unittests/contracts/old_versions/v1.7.0-develop-preactivate_feature/amax.bios"
 fi
 
@@ -90,12 +90,11 @@ wcmd create --to-console -n ignition
 ###INSERT prodkeys
 echo "Activated Features Check:" >> $logfile
 curl http://$bioshost:$biosport/v1/chain/get_activated_protocol_features >> $logfile
-ecmd set contract amax $bioscontractpath amax.bios.wasm amax.bios.abi
 
 # Preactivate all digests
 for digest in $FEATURE_DIGESTS;
 do
-ecmd push action amax activate "{\"feature_digest\":\"$digest\"}" -p amax
+ecmd system activate $digest -p amax
 done
 
 # Create required system accounts
@@ -104,16 +103,15 @@ pubsyskey=`grep "^Public key:" $logfile | tail -1 | sed "s/^Public key://"`
 prisyskey=`grep "^Private key:" $logfile | tail -1 | sed "s/^Private key://"`
 echo amax.* keys: $prisyskey $pubsyskey >> $logfile
 wcmd import -n ignition --private-key $prisyskey
-ecmd create account amax amax.bpay $pubsyskey $pubsyskey
 ecmd create account amax amax.msig $pubsyskey $pubsyskey
 ecmd create account amax amax.names $pubsyskey $pubsyskey
 ecmd create account amax amax.ram $pubsyskey $pubsyskey
 ecmd create account amax amax.ramfee $pubsyskey $pubsyskey
-ecmd create account amax amax.saving $pubsyskey $pubsyskey
 ecmd create account amax amax.stake $pubsyskey $pubsyskey
 ecmd create account amax amax.token $pubsyskey $pubsyskey
-ecmd create account amax amax.vpay $pubsyskey $pubsyskey
 ecmd create account amax amax.wrap $pubsyskey $pubsyskey
+ecmd create account amax amax.rex $pubsyskey $pubsyskey
+
 
 ecmd set contract amax.token unittests/contracts/amax.token amax.token.wasm amax.token.abi
 ecmd set contract amax.msig unittests/contracts/amax.msig amax.msig.wasm amax.msig.abi

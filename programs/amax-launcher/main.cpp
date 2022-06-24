@@ -908,7 +908,7 @@ launcher_def::bind_nodes () {
               for (unsigned j = 0; j < shared_producers; ++j) {
                  const auto prodname = producer_names::producer_name(j, true);
                  node.producers.push_back(prodname);
-                 producer_set.schedule.push_back({prodname,pubkey});                 
+                 producer_set.schedule.push_back({prodname,pubkey});
               }
            }
            node.dont_start = i >= to_not_start_node;
@@ -1776,7 +1776,7 @@ launcher_def::bounce (const string& node_numbers) {
       const eosd_def& node = node_pair.second;
       const string node_num = node.get_node_num();
       cout << "Bouncing " << node.name << endl;
-      string cmd = "./scripts/mamx-tn_bounce.sh " + eosd_extra_args;
+      string cmd = "./scripts/amax-tn_bounce.sh " + eosd_extra_args;
       if (node_num != "bios" && !specific_amnod_args.empty()) {
          const auto node_num_i = boost::lexical_cast<uint16_t,string>(node_num);
          if (specific_amnod_args.count(node_num_i)) {
@@ -1962,7 +1962,7 @@ int main (int argc, char *argv[]) {
     ("output,o",bpo::value<bfs::path>(&top.output),"save a copy of the generated topology in this file")
     ("kill,k", bpo::value<string>(&kill_arg),"The launcher retrieves the previously started process ids and issues a kill to each.")
     ("down", bpo::value<string>(&down_nodes),"comma-separated list of node numbers that will be taken down using the amax-tn_down.sh script")
-    ("bounce", bpo::value<string>(&bounce_nodes),"comma-separated list of node numbers that will be restarted using the mamx-tn_bounce.sh script")
+    ("bounce", bpo::value<string>(&bounce_nodes),"comma-separated list of node numbers that will be restarted using the amax-tn_bounce.sh script")
     ("roll", bpo::value<string>(&roll_nodes),"comma-separated list of host names where the nodes should be rolled to a new version using the amax-tn_roll.sh script")
     ("version,v", "print version information")
     ("help,h","print this list")
