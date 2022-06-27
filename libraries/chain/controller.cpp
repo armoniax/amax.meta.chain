@@ -239,6 +239,7 @@ struct controller_impl {
    block_log                      blog;
    optional<pending_state>        pending;
    block_state_ptr                head;
+   block_state_ptr                prebackup_head;
    block_state_ptr                backup_head;
    fork_database                  fork_db;
    wasm_interface                 wasmif;
@@ -1729,6 +1730,18 @@ struct controller_impl {
       */
       if(self.is_backup()){
          block_ptr->is_backup = true;
+      }else{
+         if(prebackup_head != nullptr){
+            if(prebackup_head->block_num == head->block_num){
+               block_ptr->previous_backup = prebackup_head->block->id();
+               dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",prebackup_head->block_num)("mnum",head->block_num));
+               EOS_ASSERT(prebackup_head->block_num == head->block_num, block_validate_exception,
+                             "previous backup head is not par with main head at sequence NO.");
+            }
+            if(prebackup_head->block_num == backup_head->block_num-1){
+               prebackup_head = backup_head;
+            }
+         }
       }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
@@ -1780,10 +1793,23 @@ struct controller_impl {
             fork_db.mark_valid( bsp );
             emit( self.accepted_block_header, bsp );
             head = fork_db.head();
-            EOS_ASSERT( bsp == head, fork_database_exception, "committed block did not become the new head in fork database");
+            if(bsp->is_backup()){
+               if(!prebackup_head && backup_head){
+                  prebackup_head = backup_head;
+               }
+               backup_head = bsp;
+               
+               if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
+                  //prebackup_head = backup_head;
+               }
+               dlog("successfully create backup block ${num} id ${id}",("num",bsp->block_num)("id",bsp->block->id()));
+               EOS_ASSERT( bsp->block_num == head->block_num + 1, block_validate_exception, "backup block num error, backup block num should == main head +1");
+            }else{
+               EOS_ASSERT( bsp == head, fork_database_exception, "committed block did not become the new head in fork database");
+            }
          }
 
-         if( !replay_head_time && read_mode != db_read_mode::IRREVERSIBLE ) {
+         if( !replay_head_time && read_mode != db_read_mode::IRREVERSIBLE && !bsp->is_backup()) {
             reversible_blocks.create<reversible_block_object>( [&]( auto& ubo ) {
                ubo.blocknum = bsp->block_num;
                ubo.set_block( bsp->block );
@@ -2801,7 +2827,7 @@ const block_header& controller::head_block_header()const {
    return my->head->header;
 }
 block_state_ptr controller::head_block_state()const {
-   return my->head;
+   return is_backup_mode?my->backup_head:my->head;
 }
 
 uint32_t controller::fork_db_head_block_num()const {

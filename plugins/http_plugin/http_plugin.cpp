@@ -202,11 +202,11 @@ class http_plugin_impl : public std::enable_shared_from_this<http_plugin_impl> {
 
          websocket_server_type    server;
 
-         uint16_t                                    thread_pool_size = 2;
+         uint16_t                                    thread_pool_size = 1;
          optional<eosio::chain::named_thread_pool>   thread_pool;
          std::atomic<size_t>                         bytes_in_flight{0};
          size_t                                      max_bytes_in_flight = 0;
-         fc::microseconds                            max_response_time{30*1000};
+         fc::microseconds                            max_response_time{400*1000};
 
          optional<tcp::endpoint>  https_listen_endpoint;
          string                   https_cert_chain;

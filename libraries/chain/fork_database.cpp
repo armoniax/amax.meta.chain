@@ -27,7 +27,16 @@ namespace eosio
       {
          return bs.is_valid();
       }
-
+      /**
+      *@Module name: 
+      *@Description: 
+      *@Author: cryptoseeking
+      *@Modify Time: 2022/06/23 19:39
+      */
+      inline bool block_state_is_main(const block_state &bs)
+      {
+         return !bs.is_backup();
+      }
       /**
        * History:
        * Version 1: initial version of the new refactored fork database portable format
@@ -46,11 +55,13 @@ namespace eosio
                                            global_fun<const block_state &, bool, &block_state_is_valid>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::dpos_irreversible_blocknum>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::block_num>,
+                                           global_fun<const block_state &, bool, &block_state_is_main>,
                                            member<block_header_state, block_id_type, &block_header_state::id>>,
                              composite_key_compare<
                                  std::greater<bool>,
                                  std::greater<uint32_t>,
                                  std::greater<uint32_t>,
+                                 std::greater<bool>,
                                  sha256_less>>>>
           fork_multi_index_type;
 
@@ -155,10 +166,17 @@ namespace eosio
                }
                else
                {
-                  // header is longest chain, so it should be only and only if loaded from fork_db.dat file
-                  EOS_ASSERT(!first_preferred(**candidate, *my->head), fork_database_exception,
+                  if(!(*candidate)->is_backup()){
+                      // header is longest chain, so it should be only and only if loaded from fork_db.dat file
+                      EOS_ASSERT(!first_preferred(**candidate, *my->head), fork_database_exception,
                              "head not set to best available option available; '${filename}' is likely corrupted",
                              ("filename", fork_db_dat.generic_string()));
+                  }else{
+                      EOS_ASSERT(first_preferred(**candidate, *my->head), fork_database_exception,
+                             "head not set to best available option available; '${filename}' is likely corrupted",
+                             ("filename", fork_db_dat.generic_string()));
+                  }
+                  
                }
             }
             FC_CAPTURE_AND_RETHROW((fork_db_dat))
@@ -365,7 +383,7 @@ namespace eosio
          auto inserted = index.insert(n);
          if (!inserted.second)
          {
-            if (ignore_duplicate)
+            if (ignore_duplicate || n->is_backup())
                return;
             EOS_THROW(fork_database_exception, "duplicate block added", ("id", n->id));
          }
@@ -384,6 +402,13 @@ namespace eosio
          {
             head = *candidate;
          }
+
+         if ((*candidate)->is_valid() && (*candidate)->block_num == n->block_num && !n->is_backup())
+         {
+            head = n;
+            ilog("same height candidate is backup.....");
+         }
+         
       }
 
       void fork_database::add(const block_state_ptr &n, bool ignore_duplicate)
@@ -552,6 +577,11 @@ namespace eosio
          if (first_preferred(**candidate, *my->head) && !(*candidate)->is_backup())
          {
             my->head = *candidate;
+         }
+
+         if (first_preferred(**candidate, *my->head) && (*candidate)->is_backup() && (*candidate)->block_num == my->head->block_num)
+         {
+            ilog("same height backup and main.......");
          }
       }
 

@@ -1526,10 +1526,12 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       *@Author: cryptoseeking
       *@Modify Time: 2022/06/21 14:13
       */
-      if(scheduled_producer.producer_name == string_to_name("producerbak")){
+      if(scheduled_producer.producer_name == string_to_name("producerbak") && num_relevant_signatures > 0){
+         dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup()?"backup":"main")("cmod","backup"));
          chain.set_backup_mode(true);
       }
-      if(scheduled_producer.producer_name == string_to_name("producerman")){
+      if(scheduled_producer.producer_name == string_to_name("producerman") && num_relevant_signatures > 0){
+         dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup()?"backup":"main")("cmod","main"));
          chain.set_backup_mode(false);
       }
    });
@@ -1556,13 +1558,13 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       // determine if our watermark excludes us from producing at this point
       if (current_watermark) {
          const block_timestamp_type block_timestamp{block_time};
-         if (current_watermark->first > hbs->block_num) {
+         if (current_watermark->first > hbs->block_num && !chain.is_backup()) {
             elog("Not producing block because \"${producer}\" signed a block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
                  ("producer", scheduled_producer.producer_name)
                  ("watermark", current_watermark->first)
                  ("head_block_num", hbs->block_num));
             _pending_block_mode = pending_block_mode::speculating;
-         } else if (current_watermark->second >= block_timestamp) {
+         } else if (current_watermark->second >= block_timestamp && !chain.is_backup()) {
             elog("Not producing block because \"${producer}\" signed a block at the next block time or later (${watermark}) than the pending block time (${block_timestamp})",
                  ("producer", scheduled_producer.producer_name)
                  ("watermark", current_watermark->second)

@@ -64,7 +64,8 @@ namespace eosio { namespace chain {
       result.prev_activated_protocol_features                = activated_protocol_features;
 
       result.valid_block_signing_authority                   = proauth.authority;
-      result.producer                                        = proauth.producer_name;
+      result.producer                                        = proauth.producer_name; 
+      ilog("next block producer is: ${bp} .....",("bp",proauth.producer_name));
 
       result.blockroot_merkle = blockroot_merkle;
       result.blockroot_merkle.append( id );
