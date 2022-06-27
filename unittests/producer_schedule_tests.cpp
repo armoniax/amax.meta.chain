@@ -226,7 +226,7 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_promotion_test, TESTER ) try {
    produce_block();
    produce_block(); // Starts new block which promotes the pending schedule to active
    BOOST_CHECK_EQUAL( control->active_producers().version, 1u );
-   BOOST_CHECK_EQUAL( true, compare_schedules( sch1, control->active_producers() ) );   
+   BOOST_CHECK_EQUAL( true, compare_schedules( sch1, control->active_producers() ) );
    // produce_blocks(6);
    while (control->head_block_header().timestamp.next().slot % (config::producer_repetitions * 3) !=
           config::producer_repetitions)
@@ -251,7 +251,7 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_promotion_test, TESTER ) try {
       (control->head_block_producer())
       (control->pending_block_producer())
       ((control->head_block_header().timestamp.next().slot) % config::producer_repetitions)
-   );   
+   );
    produce_blocks(config::producer_repetitions * 2 - 1); // Alice produces the last block of her first round.
                     // Bob's first block (which advances LIB to Alice's last block) is started but not finalized.
    BOOST_REQUIRE_EQUAL( control->head_block_producer(), N(alice) );
@@ -305,14 +305,14 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
    BOOST_CHECK_EQUAL( control->active_producers().version, 1u );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch1, control->active_producers() ) );
 
-   BOOST_REQUIRE( produce_until_transition( *this, N(alice), N(bob) ) ); 
+   BOOST_REQUIRE( produce_until_transition( *this, N(alice), N(bob) ) );
    wdump(
       (control->last_irreversible_block_num())
       (control->head_block_num())
       (control->head_block_producer())
       (control->pending_block_producer())
       ((control->head_block_header().timestamp.next().slot) % config::producer_repetitions)
-   );  
+   );
 
    res = set_producers( {N(alice),N(bob)} );
    vector<producer_authority> sch2 = {
@@ -322,7 +322,7 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
    wlog("set producer schedule to [alice,bob]");
    BOOST_REQUIRE_EQUAL( true, control->proposed_producers().valid() );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch2, *control->proposed_producers() ) );
-   
+
    produce_blocks(config::producer_repetitions * 4);
 
    BOOST_REQUIRE_EQUAL( control->head_block_producer(), N(bob) );
@@ -344,7 +344,7 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
       (control->head_block_producer())
       (control->pending_block_producer())
       ((control->head_block_header().timestamp.next().slot) % config::producer_repetitions)
-   ); 
+   );
    // produce_blocks(2);
    // BOOST_CHECK_EQUAL( control->head_block_producer(), N(bob) );
 
@@ -393,7 +393,8 @@ BOOST_AUTO_TEST_CASE( empty_producer_schedule_has_no_effect ) try {
    BOOST_CHECK_EQUAL( c.control->proposed_producers()->producers.size(), 0u );
    BOOST_CHECK_EQUAL( c.control->proposed_producers()->version, 2u );
 
-   c.produce_blocks(12);
+   c.produce_blocks(config::producer_repetitions);
+   wdump( (c.control->pending_producers().version) );
    BOOST_CHECK_EQUAL( c.control->pending_producers().version, 1u );
 
    // Empty producer schedule does get promoted from proposed to pending
@@ -402,7 +403,7 @@ BOOST_AUTO_TEST_CASE( empty_producer_schedule_has_no_effect ) try {
    BOOST_CHECK_EQUAL( false, c.control->proposed_producers().valid() );
 
    // However it should not get promoted from pending to active
-   c.produce_blocks(24);
+   c.produce_blocks(2 * config::producer_repetitions);
    BOOST_CHECK_EQUAL( c.control->active_producers().version, 1u );
    BOOST_CHECK_EQUAL( c.control->pending_producers().version, 2u );
 
@@ -419,13 +420,13 @@ BOOST_AUTO_TEST_CASE( empty_producer_schedule_has_no_effect ) try {
    BOOST_CHECK_EQUAL( c.control->proposed_producers()->version, 2u );
 
    // Produce enough blocks to promote the proposed schedule to pending, which it can do because the existing pending has zero producers
-   c.produce_blocks(24);
+   c.produce_blocks(2 * config::producer_repetitions);
    BOOST_CHECK_EQUAL( c.control->active_producers().version, 1u );
    BOOST_CHECK_EQUAL( c.control->pending_producers().version, 2u );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch2, c.control->pending_producers() ) );
 
    // Produce enough blocks to promote the pending schedule to active
-   c.produce_blocks(24);
+   c.produce_blocks(2 * config::producer_repetitions);
    BOOST_CHECK_EQUAL( c.control->active_producers().version, 2u );
    BOOST_CHECK_EQUAL( true, compare_schedules( sch2, c.control->active_producers() ) );
 
