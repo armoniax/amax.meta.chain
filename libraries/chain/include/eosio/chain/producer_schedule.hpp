@@ -312,6 +312,58 @@ namespace eosio { namespace chain {
 
    typedef std::shared_ptr<backup_producer_schedule> backup_producer_schedule_ptr;
 
+   template<bool IsBackup>
+   struct producer_change_base {
+      static const bool is_backup = IsBackup;
+   };
+
+
+   template<bool IsBackup>
+   struct producer_change_added: public producer_change_base<IsBackup>, producer_authority {};
+
+   template<bool IsBackup>
+   struct producer_change_deleted: public producer_change_base<IsBackup> {
+      name                    producer_name;
+   };
+
+   template<bool IsBackup>
+   struct producer_change_modified: public producer_change_base<IsBackup>, producer_authority { };
+
+   using main_producer_change_added = producer_change_added<false>;
+   using main_producer_change_deleted = producer_change_deleted<false>;
+   using main_producer_change_modified = producer_change_modified<false>;
+
+   using backup_producer_change_added = producer_change_added<true>;
+   using backup_producer_change_deleted = producer_change_deleted<true>;
+   using backup_producer_change_modified = producer_change_modified<true>;
+
+   using producer_change_record = static_variant<
+      main_producer_change_added,
+      main_producer_change_deleted,
+      main_producer_change_modified,
+      backup_producer_change_added,
+      backup_producer_change_deleted,
+      backup_producer_change_modified
+   >;
+
+   struct producer_change_records {
+      uint32_t  version = 0; ///< sequentially incrementing version number
+      std::vector<producer_change_record> changes;
+   };
+
+   struct producer_change_records_extension : producer_change_records {
+
+      static constexpr uint16_t extension_id() { return 1; }
+      static constexpr bool     enforce_unique() { return true; }
+
+      producer_change_records_extension() = default;
+      producer_change_records_extension(const producer_change_records_extension&) = default;
+      producer_change_records_extension( producer_change_records_extension&& ) = default;
+
+      producer_change_records_extension( const producer_change_records& change_records )
+      :producer_change_records(change_records) {}
+   };
+
    /**
     * Block Header Extension Compatibility
     */
@@ -359,3 +411,12 @@ FC_REFLECT( eosio::chain::shared_block_signing_authority_v0, (threshold)(keys))
 FC_REFLECT( eosio::chain::shared_producer_authority, (producer_name)(authority) )
 FC_REFLECT( eosio::chain::shared_producer_authority_schedule, (version)(producers) )
 
+FC_REFLECT_DERIVED( eosio::chain::main_producer_change_added, (eosio::chain::producer_authority), )
+FC_REFLECT( eosio::chain::main_producer_change_deleted, (producer_name) )
+FC_REFLECT_DERIVED( eosio::chain::main_producer_change_modified, (eosio::chain::producer_authority), )
+FC_REFLECT_DERIVED( eosio::chain::backup_producer_change_added, (eosio::chain::producer_authority), )
+FC_REFLECT( eosio::chain::backup_producer_change_deleted, (producer_name) )
+FC_REFLECT_DERIVED( eosio::chain::backup_producer_change_modified, (eosio::chain::producer_authority), )
+
+FC_REFLECT( eosio::chain::producer_change_records, (version)(changes) )
+FC_REFLECT_DERIVED( eosio::chain::producer_change_records_extension, (eosio::chain::producer_change_records), )
