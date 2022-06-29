@@ -48,6 +48,18 @@ using signer_callback_type = std::function<std::vector<signature_type>(const dig
 struct block_header_state;
 
 namespace detail {
+   struct backup_schedule_index_t {
+      backup_producer_schedule_ptr   schedule;
+
+      const backup_producer_schedule_ptr& get_schedule() {
+
+         return schedule ? schedule : pre_schedule;
+      }
+
+      private:
+         backup_producer_schedule_ptr   pre_schedule; // only in memory, not persisted
+   };
+
    struct block_header_state_common {
       uint32_t                          block_num = 0;
       uint32_t                          dpos_proposed_irreversible_blocknum = 0;
@@ -58,6 +70,7 @@ namespace detail {
       flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
       block_signing_authority           valid_block_signing_authority;
       vector<uint8_t>                   confirm_count;
+      backup_schedule_index_t           active_backup_schedule;
    };
 
    struct schedule_info {
@@ -158,6 +171,10 @@ struct block_header_state : public detail::block_header_state_common {
 using block_header_state_ptr = std::shared_ptr<block_header_state>;
 
 } } /// namespace eosio::chain
+
+FC_REFLECT( eosio::chain::detail::backup_schedule_index_t,
+          (schedule)
+)
 
 FC_REFLECT( eosio::chain::detail::block_header_state_common,
             (block_num)

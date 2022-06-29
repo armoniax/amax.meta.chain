@@ -287,6 +287,31 @@ namespace eosio { namespace chain {
       }
    };
 
+   struct backup_producer_schedule {
+      uint32_t  version = 0; ///< sequentially incrementing version number
+      flat_map<name, block_signing_authority> producers;
+
+      template<typename Op>
+      static void for_each_key( const block_signing_authority& authority, Op&& op ) {
+         authority.visit([&op](const auto &a){
+            a.for_each_key(std::forward<Op>(op));
+         });
+      }
+
+      friend bool operator == ( const backup_producer_schedule& a, const backup_producer_schedule& b ) {
+         if( a.version != b.version ) return false;
+         if ( a.producers.size() != b.producers.size() ) return false;
+         if( !(a.producers == b.producers) ) return false;
+         return true;
+      }
+
+      friend bool operator != ( const backup_producer_schedule& a, const backup_producer_schedule& b ) {
+         return !(a==b);
+      }
+   };
+
+   typedef std::shared_ptr<backup_producer_schedule> backup_producer_schedule_ptr;
+
    /**
     * Block Header Extension Compatibility
     */
@@ -327,6 +352,7 @@ FC_REFLECT( eosio::chain::legacy::producer_schedule_type, (version)(producers) )
 FC_REFLECT( eosio::chain::block_signing_authority_v0, (threshold)(keys))
 FC_REFLECT( eosio::chain::producer_authority, (producer_name)(authority) )
 FC_REFLECT( eosio::chain::producer_authority_schedule, (version)(producers) )
+FC_REFLECT( eosio::chain::backup_producer_schedule, (version)(producers) )
 FC_REFLECT_DERIVED( eosio::chain::producer_schedule_change_extension, (eosio::chain::producer_authority_schedule), )
 
 FC_REFLECT( eosio::chain::shared_block_signing_authority_v0, (threshold)(keys))
