@@ -3991,7 +3991,6 @@ int main( int argc, char** argv ) {
       if (!print_recognized_errors(e, verbose)) {
          // Error is not recognized
          if (!print_help_text(e) || verbose) {
-            verbose = true;
             elog("Failed with error: ${e}", ("e", verbose ? e.to_detail_string() : e.to_string()));
          }
       }

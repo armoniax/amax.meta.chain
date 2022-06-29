@@ -66,7 +66,6 @@ class eos_vm_instantiated_module : public wasm_instantiated_module_interface {
             checktime_watchdog wd(context.trx_context.transaction_timer);
             _runtime->_bkend->timed_run(wd, fn);
          } catch(eosio::vm::timeout_exception&) {
-            ilog("======================");
             context.trx_context.checktime();
          } catch(eosio::vm::wasm_memory_exception& e) {
             FC_THROW_EXCEPTION(wasm_execution_error, "access violation");
