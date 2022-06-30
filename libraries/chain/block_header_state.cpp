@@ -15,6 +15,46 @@ namespace eosio { namespace chain {
       }
    }
 
+   struct emplace_produce_change_ext_visitor {
+
+      emplace_produce_change_ext_visitor(const protocol_feature_set& pfs,
+         const protocol_feature_activation_set_ptr& prev_activated_protocol_features, signed_block_header& header):
+            _pfs(pfs), _prev_activated_protocol_features(prev_activated_protocol_features), _header(header) {}
+
+      void operator()( const std::reference_wrapper<producer_authority_schedule>& changes ) {
+         const producer_authority_schedule& new_producers = changes.get();
+         if ( detail::is_builtin_activated(_prev_activated_protocol_features, _pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
+            // add the header extension to update the block schedule
+            emplace_extension(
+                  _header.header_extensions,
+                  producer_schedule_change_extension::extension_id(),
+                  fc::raw::pack( producer_schedule_change_extension( new_producers ) )
+            );
+         } else {
+            legacy::producer_schedule_type downgraded_producers;
+            downgraded_producers.version = new_producers.version;
+            for (const auto &p : new_producers.producers) {
+               p.authority.visit([&downgraded_producers, &p](const auto& auth){
+                  EOS_ASSERT(auth.keys.size() == 1 && auth.keys.front().weight == auth.threshold, producer_schedule_exception, "multisig block signing present before enabled!");
+                  downgraded_producers.producers.emplace_back(legacy::producer_key{p.producer_name, auth.keys.front().key});
+               });
+            }
+            _header.new_producers = std::move(downgraded_producers);
+         }
+      }
+
+      void operator()( const std::reference_wrapper<producer_change_records>& changes ) {
+
+      }
+
+      void operator()( const std::nullptr_t& changes ) {}
+
+      private:
+         const protocol_feature_set& _pfs;
+         const protocol_feature_activation_set_ptr& _prev_activated_protocol_features;
+         signed_block_header& _header;
+   };
+
    producer_authority block_header_state::get_scheduled_producer( block_timestamp_type t )const {
       auto index = t.slot % (active_schedule.producers.size() * config::producer_repetitions);
       index /= config::producer_repetitions;
@@ -173,7 +213,7 @@ namespace eosio { namespace chain {
    signed_block_header pending_block_header_state::make_block_header(
                                                       const checksum256_type& transaction_mroot,
                                                       const checksum256_type& action_mroot,
-                                                      const optional<producer_authority_schedule>& new_producers,
+                                                      const producer_change_ref& produce_changes,
                                                       vector<digest_type>&& new_protocol_feature_activations,
                                                       const protocol_feature_set& pfs
    )const
@@ -196,26 +236,29 @@ namespace eosio { namespace chain {
          );
       }
 
-      if (new_producers) {
-         if ( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
-            // add the header extension to update the block schedule
-            emplace_extension(
-                  h.header_extensions,
-                  producer_schedule_change_extension::extension_id(),
-                  fc::raw::pack( producer_schedule_change_extension( *new_producers ) )
-            );
-         } else {
-            legacy::producer_schedule_type downgraded_producers;
-            downgraded_producers.version = new_producers->version;
-            for (const auto &p : new_producers->producers) {
-               p.authority.visit([&downgraded_producers, &p](const auto& auth){
-                  EOS_ASSERT(auth.keys.size() == 1 && auth.keys.front().weight == auth.threshold, producer_schedule_exception, "multisig block signing present before enabled!");
-                  downgraded_producers.producers.emplace_back(legacy::producer_key{p.producer_name, auth.keys.front().key});
-               });
-            }
-            h.new_producers = std::move(downgraded_producers);
-         }
-      }
+      emplace_produce_change_ext_visitor produce_change_visitor(pfs, prev_activated_protocol_features, h);
+      produce_changes.visit(produce_change_visitor);
+
+      // if (new_producers) {
+      //    if ( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
+      //       // add the header extension to update the block schedule
+      //       emplace_extension(
+      //             h.header_extensions,
+      //             producer_schedule_change_extension::extension_id(),
+      //             fc::raw::pack( producer_schedule_change_extension( *new_producers ) )
+      //       );
+      //    } else {
+      //       legacy::producer_schedule_type downgraded_producers;
+      //       downgraded_producers.version = new_producers->version;
+      //       for (const auto &p : new_producers->producers) {
+      //          p.authority.visit([&downgraded_producers, &p](const auto& auth){
+      //             EOS_ASSERT(auth.keys.size() == 1 && auth.keys.front().weight == auth.threshold, producer_schedule_exception, "multisig block signing present before enabled!");
+      //             downgraded_producers.producers.emplace_back(legacy::producer_key{p.producer_name, auth.keys.front().key});
+      //          });
+      //       }
+      //       h.new_producers = std::move(downgraded_producers);
+      //    }
+      // }
 
       return h;
    }

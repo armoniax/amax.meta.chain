@@ -17,7 +17,8 @@ namespace eosio { namespace chain {
 
    using block_header_extension_types = detail::block_header_extension_types<
       protocol_feature_activation,
-      producer_schedule_change_extension
+      producer_schedule_change_extension,
+      producer_change_records_extension
    >;
 
    using block_header_extension = block_header_extension_types::block_header_extension_t;

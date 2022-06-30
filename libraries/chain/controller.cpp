@@ -1691,11 +1691,19 @@ struct controller_impl {
 
       auto& bb = pending->_block_stage.get<building_block>();
 
+
+      producer_change_ref ref = nullptr;
+      if (bb._new_pending_producer_schedule) {
+         ref = std::ref(*bb._new_pending_producer_schedule);
+      } else {
+         // TODO: ...
+      }
+
       // Create (unsigned) block:
       auto block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
          bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
          calculate_action_merkle(),
-         bb._new_pending_producer_schedule,
+         ref,
          std::move( bb._new_protocol_feature_activations ),
          protocol_features.get_protocol_feature_set()
       ) );

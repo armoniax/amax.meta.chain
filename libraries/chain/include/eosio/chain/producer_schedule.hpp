@@ -353,7 +353,7 @@ namespace eosio { namespace chain {
 
    struct producer_change_records_extension : producer_change_records {
 
-      static constexpr uint16_t extension_id() { return 1; }
+      static constexpr uint16_t extension_id() { return 2; }
       static constexpr bool     enforce_unique() { return true; }
 
       producer_change_records_extension() = default;
