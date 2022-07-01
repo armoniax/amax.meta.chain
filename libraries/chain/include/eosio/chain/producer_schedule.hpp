@@ -312,38 +312,37 @@ namespace eosio { namespace chain {
 
    typedef std::shared_ptr<backup_producer_schedule> backup_producer_schedule_ptr;
 
-   template<bool IsBackup>
-   struct producer_change_base {
-      static const bool is_backup = IsBackup;
+   enum producer_type {
+      main_producer_type      = 0,
+      backup_producer_type    = 1
    };
 
+   struct producer_change_added: public producer_authority {};
 
-   template<bool IsBackup>
-   struct producer_change_added: public producer_change_base<IsBackup>, producer_authority {};
-
-   template<bool IsBackup>
-   struct producer_change_deleted: public producer_change_base<IsBackup> {
+   struct producer_change_deleted {
       name                    producer_name;
    };
 
-   template<bool IsBackup>
-   struct producer_change_modified: public producer_change_base<IsBackup>, producer_authority { };
+   struct producer_change_modified:  producer_authority {};
 
-   using main_producer_change_added = producer_change_added<false>;
-   using main_producer_change_deleted = producer_change_deleted<false>;
-   using main_producer_change_modified = producer_change_modified<false>;
+   using producer_change_record_detail = static_variant<
+      producer_change_added,
+      producer_change_deleted,
+      producer_change_modified
+   >;
 
-   using backup_producer_change_added = producer_change_added<true>;
-   using backup_producer_change_deleted = producer_change_deleted<true>;
-   using backup_producer_change_modified = producer_change_modified<true>;
+   template<producer_type ProducerType>
+   struct producer_change_record_common {
+      static constexpr producer_type prod_type = ProducerType;
+      producer_change_record_detail detail;
+   };
+
+   using main_producer_change_record_detail = producer_change_record_common<main_producer_type>;
+   using backup_producer_change_record_detail = producer_change_record_common<backup_producer_type>;
 
    using producer_change_record = static_variant<
-      main_producer_change_added,
-      main_producer_change_deleted,
-      main_producer_change_modified,
-      backup_producer_change_added,
-      backup_producer_change_deleted,
-      backup_producer_change_modified
+      main_producer_change_record_detail,
+      backup_producer_change_record_detail
    >;
 
    struct producer_change_records {
@@ -411,12 +410,10 @@ FC_REFLECT( eosio::chain::shared_block_signing_authority_v0, (threshold)(keys))
 FC_REFLECT( eosio::chain::shared_producer_authority, (producer_name)(authority) )
 FC_REFLECT( eosio::chain::shared_producer_authority_schedule, (version)(producers) )
 
-FC_REFLECT_DERIVED( eosio::chain::main_producer_change_added, (eosio::chain::producer_authority), )
-FC_REFLECT( eosio::chain::main_producer_change_deleted, (producer_name) )
-FC_REFLECT_DERIVED( eosio::chain::main_producer_change_modified, (eosio::chain::producer_authority), )
-FC_REFLECT_DERIVED( eosio::chain::backup_producer_change_added, (eosio::chain::producer_authority), )
-FC_REFLECT( eosio::chain::backup_producer_change_deleted, (producer_name) )
-FC_REFLECT_DERIVED( eosio::chain::backup_producer_change_modified, (eosio::chain::producer_authority), )
+FC_REFLECT_DERIVED( eosio::chain::producer_change_added, (eosio::chain::producer_authority), )
+FC_REFLECT( eosio::chain::producer_change_deleted, (producer_name) )
+FC_REFLECT_DERIVED( eosio::chain::producer_change_modified, (eosio::chain::producer_authority), )
+FC_REFLECT_TEMPLATE((eosio::chain::producer_type ProducerType), eosio::chain::producer_change_record_common<ProducerType>, (detail) )
 
 FC_REFLECT( eosio::chain::producer_change_records, (version)(changes) )
 FC_REFLECT_DERIVED( eosio::chain::producer_change_records_extension, (eosio::chain::producer_change_records), )
