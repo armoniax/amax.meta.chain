@@ -53,6 +53,7 @@ namespace eosio
               ordered_unique<tag<by_lib_block_num>,
                              composite_key<block_state,
                                            global_fun<const block_state &, bool, &block_state_is_valid>,
+                                           
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::dpos_irreversible_blocknum>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::block_num>,
                                            global_fun<const block_state &, bool, &block_state_is_main>,
@@ -403,7 +404,7 @@ namespace eosio
             head = *candidate;
          }
 
-         if ((*candidate)->is_valid() && (*candidate)->block_num == n->block_num && !n->is_backup())
+         if ((*candidate)->is_valid() && (*candidate)->block_num <= n->block_num && !n->is_backup())
          {
             head = n;
             ilog("same height candidate is backup.....");
@@ -581,7 +582,7 @@ namespace eosio
 
          if (first_preferred(**candidate, *my->head) && (*candidate)->is_backup() && (*candidate)->block_num == my->head->block_num)
          {
-            ilog("same height backup and main.......");
+            ilog("same height backup and main, backup irreversible num: ${bi},main irreversible num: ${mi}, new block irreversible: ${ni}",("bi",(*candidate)->dpos_irreversible_blocknum)("mi",my->head->dpos_irreversible_blocknum)("ni",(*itr)->dpos_irreversible_blocknum));
          }
       }
 
