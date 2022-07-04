@@ -1418,6 +1418,9 @@ producer_plugin::get_account_ram_corrections( const get_account_ram_corrections_
 optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const account_name& producer_name, const block_timestamp_type& current_block_time) const {
    chain::controller& chain = chain_plug->chain();
    const auto& hbs = chain.head_block_state();
+   if(!hbs){
+      ilog("in special situation, head block state is null ptr.....");
+   }
    const auto& active_schedule = hbs->active_schedule.producers;
 
    // determine if this producer is in the active schedule and if so, where

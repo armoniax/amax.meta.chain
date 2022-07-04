@@ -237,6 +237,7 @@ struct controller_impl {
    chainbase::database            db;
    chainbase::database            reversible_blocks; ///< a special database to persist blocks that have successfully been applied but are still reversible
    block_log                      blog;
+   block_log                      backup_log;
    optional<pending_state>        pending;
    block_state_ptr                head;
    block_state_ptr                prebackup_head;
@@ -317,6 +318,7 @@ struct controller_impl {
         cfg.read_only ? database::read_only : database::read_write,
         cfg.reversible_cache_size, false, cfg.db_map_mode, cfg.db_hugepage_paths ),
     blog( cfg.blocks_dir ),
+    backup_log(cfg.blocks_dir,"backup_blocks"),
     fork_db( cfg.state_dir ),
     wasmif( cfg.wasm_runtime, cfg.eosvmoc_tierup, db, cfg.state_dir, cfg.eosvmoc_config ),
     resource_limits( db ),
@@ -2843,6 +2845,13 @@ account_name  controller::head_block_producer()const {
 const block_header& controller::head_block_header()const {
    return my->head->header;
 }
+/**
+*@Module name: 
+*@Description: currently backup depend on main block, wheather we should depend on 
+*backup self. this mode may throw sigsegv in calculate_pending_block_time().
+*@Author: cryptoseeking
+*@Modify Time: 2022/07/01 16:06
+*/
 block_state_ptr controller::head_block_state()const {
    return is_backup_mode?my->backup_head:my->head;
 }
