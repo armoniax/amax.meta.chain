@@ -64,8 +64,6 @@ namespace eosio { namespace chain {
 
    struct shared_producer_authority {
       shared_producer_authority() = delete;
-      // explicit shared_producer_authority( chainbase::allocator<char> alloc )
-      //    :authority(alloc){}
       shared_producer_authority( const shared_producer_authority& ) = default;
       shared_producer_authority( shared_producer_authority&& ) = default;
       shared_producer_authority& operator= ( shared_producer_authority && ) = default;
@@ -359,11 +357,20 @@ namespace eosio { namespace chain {
    using producer_change_added = producer_change_authority<producer_change_added_type>;
    using producer_change_modified = producer_change_authority<producer_change_modified_type>;
 
+   struct producer_change_deleted;
+   using shared_producer_change_deleted = producer_change_deleted;
+
    struct producer_change_deleted {
       name producer_name;
-   };
 
-   using shared_producer_change_deleted = producer_change_deleted;
+      shared_producer_change_deleted to_shared(chainbase::allocator<char> alloc) const {
+         return *this;
+      }
+
+      static producer_change_deleted from_shared( const shared_producer_change_deleted& src ) {
+         return src;
+      }
+   };
 
    using shared_producer_change_record_detail = static_variant<
       shared_producer_change_added,
@@ -381,7 +388,8 @@ namespace eosio { namespace chain {
    struct shared_producer_change_record_common {
       shared_producer_change_record_common() = delete;
 
-      explicit shared_producer_change_record_common( chainbase::allocator<char> alloc ): detail(alloc) {}
+      explicit shared_producer_change_record_common( shared_producer_change_record_detail &&detail )
+         : detail(std::move(detail)) {}
 
       shared_producer_change_record_common( const shared_producer_change_record_common& ) = default;
       shared_producer_change_record_common( shared_producer_change_record_common&& ) = default;
@@ -417,15 +425,25 @@ namespace eosio { namespace chain {
    struct producer_change_record_common {
       static constexpr producer_type prod_type = ProducerType;
       producer_change_record_detail detail;
+
+      auto to_shared(chainbase::allocator<char> alloc) const {
+         auto shared_detail = detail.visit([&alloc](const auto &c) {
+               return shared_producer_change_record_detail(c.to_shared(alloc));
+         });
+         return shared_producer_change_record_common<ProducerType>(std::move(shared_detail));
+      }
+
+      static auto from_shared( const shared_producer_change_record_common<ProducerType>& src ) {
+         producer_change_record_common<ProducerType> result;
+         result.detail = src.detail.visit([](const auto &c) {
+               return producer_authority::from_shared(c);
+         });
+      }
+
    };
 
    using main_producer_change_record_detail = producer_change_record_common<main_producer_type>;
    using backup_producer_change_record_detail = producer_change_record_common<backup_producer_type>;
-   using producer_change_record = static_variant<
-      main_producer_change_record_detail,
-      backup_producer_change_record_detail
-   >;
-
    using producer_change_record = static_variant<
       main_producer_change_record_detail,
       backup_producer_change_record_detail
@@ -440,9 +458,13 @@ namespace eosio { namespace chain {
          result.version = version;
          result.changes.clear();
          result.changes.reserve( changes.size() );
-         // for( const auto& c : changes ) {
-         //    result.producers.emplace_back(c.to_shared(alloc));
-         // }
+         for( const auto& c : changes ) {
+            result.changes.emplace_back(
+               c.visit([&alloc](const auto &c) {
+                  return shared_producer_change_record(c.to_shared(alloc));
+               })
+            );
+         }
          return result;
       }
 
