@@ -1,0 +1,131 @@
+{
+    "____comment": "This file was generated with amax-abigen. DO NOT EDIT ",
+    "version": "amax::abi/1.1",
+    "types": [
+        {
+            "new_type_name": "block_signing_authority",
+            "type": "variant_block_signing_authority_v0"
+        },
+        {
+            "new_type_name": "producer_change_record",
+            "type": "variant_producer_authority_add_producer_authority_modify_producer_authority_del"
+        }
+    ],
+    "structs": [
+        {
+            "name": "block_signing_authority_v0",
+            "base": "",
+            "fields": [
+                {
+                    "name": "threshold",
+                    "type": "uint32"
+                },
+                {
+                    "name": "keys",
+                    "type": "key_weight[]"
+                }
+            ]
+        },
+        {
+            "name": "change",
+            "base": "",
+            "fields": [
+                {
+                    "name": "changes",
+                    "type": "producer_change_map"
+                }
+            ]
+        },
+        {
+            "name": "key_weight",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "public_key"
+                },
+                {
+                    "name": "weight",
+                    "type": "uint16"
+                }
+            ]
+        },
+        {
+            "name": "pair_name_producer_change_record",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "name"
+                },
+                {
+                    "name": "value",
+                    "type": "producer_change_record"
+                }
+            ]
+        },
+        {
+            "name": "producer_authority_add",
+            "base": "",
+            "fields": [
+                {
+                    "name": "authority",
+                    "type": "block_signing_authority?"
+                }
+            ]
+        },
+        {
+            "name": "producer_authority_del",
+            "base": "",
+            "fields": [
+                {
+                    "name": "authority",
+                    "type": "block_signing_authority?"
+                }
+            ]
+        },
+        {
+            "name": "producer_authority_modify",
+            "base": "",
+            "fields": [
+                {
+                    "name": "authority",
+                    "type": "block_signing_authority?"
+                }
+            ]
+        },
+        {
+            "name": "producer_change_map",
+            "base": "",
+            "fields": [
+                {
+                    "name": "producer_count",
+                    "type": "uint32"
+                },
+                {
+                    "name": "changes",
+                    "type": "pair_name_producer_change_record[]"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "change",
+            "type": "change",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [],
+    "ricardian_clauses": [],
+    "variants": [
+        {
+            "name": "variant_block_signing_authority_v0",
+            "types": ["block_signing_authority_v0"]
+        },
+        {
+            "name": "variant_producer_authority_add_producer_authority_modify_producer_authority_del",
+            "types": ["producer_authority_add","producer_authority_modify","producer_authority_del"]
+        }
+    ]
+}
