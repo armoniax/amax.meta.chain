@@ -2997,6 +2997,69 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
    return version;
 }
 
+
+int64_t controller::set_proposed_producers( const proposed_producer_changes& changes ) {
+   const auto& gpo = get_global_properties();
+   auto hbs = head_block_state();
+   auto proposed_block_num = hbs->block_num + 1;
+   auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
+   // if( producers.size() == 0 && is_builtin_activated( builtin_protocol_feature_t::disallow_empty_producer_schedule ) ) {
+   //    return -1;
+   // }
+
+   if( gpo.proposed_schedule_block_num.valid() ) {
+      return -1; // there is already a proposed schedule set in a previous block, wait for it to become pending
+   }
+
+   if (!gpo.proposed_schedule.producers.empty()) {
+      wlog( "there is already a proposed full schedule set, wait for it to become active.");
+      return -1;
+   }
+
+   const auto& pending_sch = pending_producers();
+   if (!pending_sch.producers.empty()) {
+      wlog( "there is already a pending full schedule set, wait for it to become active.");
+      return -1;
+   }
+
+   const auto& active_sch = active_producers();
+   auto version = active_sch.version + 1;
+
+   // TODO: check changes:
+   // 1. add main: producer is empty (not found or empty) in:
+   //    (a) peding main changes,
+   // || (b) active main schedule
+   // || (c) proposed backup changes
+   // || (d) pending backup changes
+   // || (e) active backup schedule
+
+   // 2. delete | modify main: producer is not empty (found and not empty) in:
+   //    (a) peding main changes,
+   // || (b) active main schedule
+
+   // 3. add backup: producer is empty (not found or empty) in:
+   //    (a) peding backup changes,
+   // || (b) active backup schedule
+   // || (c) proposed main changes
+   // || (d) pending main changes
+   // || (e) active main schedule
+
+   // 4. delete | modify backup: producer is not empty (found and not empty) in:
+   //    (a) peding backup changes,
+   // || (b) active backup schedule
+
+   ilog( "proposed producer schedule with version ${v}", ("v", version) );
+
+   my->db.modify( gpo, [&]( auto& gp ) {
+      auto alloc = gp.proposed_schedule.producers.get_allocator();
+      gp.proposed_schedule_block_num = proposed_block_num;
+      gp.proposed_schedule_change.version = version;
+      gp.proposed_schedule_change.main_changes = changes.main_changes.to_shared(alloc);
+      gp.proposed_schedule_change.backup_changes = changes.backup_changes.to_shared(alloc);
+   });
+   return version;
+}
+
 const producer_authority_schedule&    controller::active_producers()const {
    if( !(my->pending) )
       return  my->head->active_schedule;

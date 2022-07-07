@@ -38,12 +38,13 @@ namespace eosio { namespace chain {
     */
    class global_property_object : public chainbase::object<global_property_object_type, global_property_object>
    {
-      OBJECT_CTOR(global_property_object, (proposed_schedule))
+      OBJECT_CTOR(global_property_object, (proposed_schedule)(proposed_schedule_change))
 
    public:
       id_type                             id;
       optional<block_num_type>            proposed_schedule_block_num;
       shared_producer_authority_schedule  proposed_schedule;
+      shared_producer_schedule_change     proposed_schedule_change;
       chain_config                        configuration;
       chain_id_type                       chain_id;
 

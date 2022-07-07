@@ -247,6 +247,69 @@ class privileged_api : public context_aware_api {
          return context.control.set_proposed_producers( std::move(producers) );
       }
 
+
+      void check_producer_authority(const name& producer_name, uint32_t num_supported_key_types, const block_signing_authority & authority) {
+         authority.visit([&producer_name, num_supported_key_types](const auto& a) {
+            uint32_t sum_weights = 0;
+            std::set<public_key_type> unique_keys;
+            for (const auto& kw: a.keys ) {
+               EOS_ASSERT( kw.key.which() < num_supported_key_types, unactivated_key_type,
+                           "Unactivated key type used in proposed producer schedule");
+
+               if (std::numeric_limits<uint32_t>::max() - sum_weights <= kw.weight) {
+                  sum_weights = std::numeric_limits<uint32_t>::max();
+               } else {
+                  sum_weights += kw.weight;
+               }
+
+               unique_keys.insert(kw.key);
+            }
+
+            EOS_ASSERT( a.keys.size() == unique_keys.size(), wasm_execution_error, "producer schedule includes a duplicated key for ${account}", ("account", producer_name));
+            EOS_ASSERT( a.threshold > 0, wasm_execution_error, "producer schedule includes an authority with a threshold of 0 for ${account}", ("account", producer_name));
+            EOS_ASSERT( sum_weights >= a.threshold, wasm_execution_error, "producer schedule includes an unsatisfiable authority for ${account}", ("account", producer_name));
+         });
+      }
+
+      void check_producer_authority(const name& producer_name, uint32_t num_supported_key_types, const producer_change_record& change) {
+         change.visit([&producer_name, num_supported_key_types, this](const auto& c) {
+            if (c.authority) {
+               this->check_producer_authority(producer_name, num_supported_key_types, *c.authority);
+            }
+         });
+      }
+
+      int64_t set_proposed_producer_changes( proposed_producer_changes &&changes ) {
+
+         auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
+         EOS_ASSERT( total_change_count <= config::max_producer_changes, wasm_execution_error, "Producer schedule exceeds the maximum producer change count for this chain");
+         EOS_ASSERT( total_change_count > 0, wasm_execution_error, "Producer schedule changes cannot be empty" );
+
+         const auto num_supported_key_types = context.db.get<protocol_state_object>().num_supported_key_types;
+
+         // main producers
+         for (const auto& change : changes.main_changes.changes) {
+            const auto& producer_name = change.first;
+            EOS_ASSERT( context.is_account(producer_name), wasm_execution_error, "producer schedule change includes a nonexisting account" );
+            check_producer_authority(producer_name, num_supported_key_types, change.second);
+            // TODO: check added main bp does not exist in main bp list, [ackup bp list, backup_changes]
+            // TODO: check modified and deleted main bp exist in main bp list
+         }
+
+         // backup producers
+         for (const auto& change : changes.backup_changes.changes) {
+            const auto& producer_name = change.first;
+            EOS_ASSERT( context.is_account(producer_name), wasm_execution_error, "producer schedule change includes a nonexisting account" );
+            check_producer_authority(producer_name, num_supported_key_types, change.second);
+            // TODO: check added backup bp does not exist in main bp list, ackup bp list
+            // TODO: check modified and deleted backup bp exist in backup bp list
+         }
+
+         return -1;
+
+         // return context.control.set_proposed_producers( std::move(producers) );
+      }
+
       int64_t set_proposed_producers( array_ptr<char> packed_producer_schedule, uint32_t datalen ) {
          datastream<const char*> ds( packed_producer_schedule, datalen );
          vector<producer_authority> producers;
@@ -273,6 +336,12 @@ class privileged_api : public context_aware_api {
 
             fc::raw::unpack(ds, producers);
             return set_proposed_producers_common(std::move(producers), false);
+         } else if (packed_producer_format == 2) {
+            datastream<const char*> ds( packed_producer_schedule, datalen );
+            proposed_producer_changes changes;
+
+            fc::raw::unpack(ds, changes);
+            return set_proposed_producer_changes(std::move(changes));
          } else {
             EOS_THROW(wasm_execution_error, "Producer schedule is in an unknown format!");
          }
@@ -1950,7 +2019,7 @@ REGISTER_INTRINSICS(permission_api,
    (get_permission_last_used,        int64_t(int64_t, int64_t)                          )
    (get_account_creation_time,       int64_t(int64_t)                                   )
    (get_account_creator,             int64_t(int64_t)                                   )
-   
+
 );
 
 

@@ -87,7 +87,7 @@ namespace detail {
 using producer_change_ref = fc::static_variant<
    std::nullptr_t,
    std::reference_wrapper<producer_authority_schedule>,
-   std::reference_wrapper<producer_change_records>
+   std::reference_wrapper<producer_schedule_change>
 >;
 struct pending_block_header_state : public detail::block_header_state_common {
    protocol_feature_activation_set_ptr  prev_activated_protocol_features;

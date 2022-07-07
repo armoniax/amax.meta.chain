@@ -43,7 +43,7 @@ namespace eosio { namespace chain {
          }
       }
 
-      void operator()( const std::reference_wrapper<producer_change_records>& changes ) {
+      void operator()( const std::reference_wrapper<producer_schedule_change>& changes ) {
 
       }
 
