@@ -1,5 +1,6 @@
 #include <eosio/chain/block_header_state.hpp>
 #include <eosio/chain/exceptions.hpp>
+#include <appbase/application.hpp>
 #include <limits>
 
 namespace eosio { namespace chain {
@@ -15,11 +16,48 @@ namespace eosio { namespace chain {
       }
    }
 
-   producer_authority block_header_state::get_scheduled_producer( block_timestamp_type t )const {
+   // producer_authority block_header_state::get_scheduled_producer( block_timestamp_type t )const {
+   //    auto index = t.slot % (active_schedule.producers.size() * config::producer_repetitions);
+   //    index /= config::producer_repetitions;
+   //    return active_schedule.producers[index];
+   // }
+
+   /**
+   *@Module name: 
+   *@Description: fix me
+   *@Author: cryptoseeking
+   *@Modify Time: 2022/07/06 15:49
+   */
+   producer_authority block_header_state::get_scheduled_producer(block_timestamp_type t) const{
       auto index = t.slot % (active_schedule.producers.size() * config::producer_repetitions);
       index /= config::producer_repetitions;
+      int32_t tindex = -1;
+      for(producer_authority pa : active_schedule.producers){
+         tindex++;
+         #if 0
+         if(pa.producer_name != string_to_name("amax")){
+            ilog("current node producer amax has completed its bootstrap task!");
+            appbase::app().shutdown();
+         }
+         #endif
+         
+         #if 0
+         if(pa.producer_name == string_to_name("producerman")){
+            ilog("current node producer: producerman !");
+            return active_schedule.producers[tindex];
+         }
+         #endif
+
+         #if 1
+         if(pa.producer_name == string_to_name("producerbak")){
+            ilog("current node producer: producerbak !");
+            return active_schedule.producers[tindex];
+         }
+         #endif
+      }
       return active_schedule.producers[index];
    }
+
 
    uint32_t block_header_state::calc_dpos_last_irreversible( account_name producer_of_next_block )const {
       vector<uint32_t> blocknums; blocknums.reserve( producer_to_last_implied_irb.size() );

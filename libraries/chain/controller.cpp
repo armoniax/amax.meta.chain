@@ -2853,7 +2853,7 @@ const block_header& controller::head_block_header()const {
 *@Modify Time: 2022/07/01 16:06
 */
 block_state_ptr controller::head_block_state()const {
-   return is_backup_mode?my->backup_head:my->head;
+   return my->head;
 }
 
 uint32_t controller::fork_db_head_block_num()const {
