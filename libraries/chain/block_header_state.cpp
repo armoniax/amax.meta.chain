@@ -57,8 +57,32 @@ namespace eosio { namespace chain {
       }
       return active_schedule.producers[index];
    }
-
-
+   /**
+   *@Module name: 
+   *@Description: fix me ,only used to test
+   *@Author: cryptoseeking
+   *@Modify Time: 2022/07/11 14:38
+   */
+   producer_authority  block_header_state::get_scheduled_main(block_timestamp_type t)const{
+      int32_t tindex = -1;
+      for(producer_authority pa : active_schedule.producers){
+         tindex++;      
+         if(pa.producer_name == string_to_name("producerman")){
+            ilog("get main producer: producerman !");
+            return active_schedule.producers[tindex];
+         }
+      }
+   }
+   producer_authority  block_header_state::get_scheduled_back(block_timestamp_type t)const{
+      int32_t tindex = -1;
+      for(producer_authority pa : active_schedule.producers){
+         tindex++;
+         if(pa.producer_name == string_to_name("producerbak")){
+            ilog("get backup producer: producerbak !");
+            return active_schedule.producers[tindex];
+         }
+      }
+   }
    uint32_t block_header_state::calc_dpos_last_irreversible( account_name producer_of_next_block )const {
       vector<uint32_t> blocknums; blocknums.reserve( producer_to_last_implied_irb.size() );
       for( auto& i : producer_to_last_implied_irb ) {
@@ -74,7 +98,7 @@ namespace eosio { namespace chain {
    }
 
    pending_block_header_state  block_header_state::next( block_timestamp_type when,
-                                                         uint16_t num_prev_blocks_to_confirm )const
+                                                         uint16_t num_prev_blocks_to_confirm)const
    {
       pending_block_header_state result;
 
@@ -83,8 +107,13 @@ namespace eosio { namespace chain {
       } else {
         (when = header.timestamp).slot++;
       }
-
-      auto proauth = get_scheduled_producer(when);
+      producer_authority proauth;
+      proauth = get_scheduled_producer(when);
+      if(next_prod ==  string_to_name("producerman")){
+         proauth = get_scheduled_main(when);
+      }else if(next_prod ==  string_to_name("producerbak")){
+         proauth = get_scheduled_back(when);
+      }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );
       if( itr != producer_to_last_produced.end() ) {
@@ -425,7 +454,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {
