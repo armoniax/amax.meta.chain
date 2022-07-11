@@ -15,9 +15,12 @@ namespace test {
       del       = 2,
    };
 
+   #define STR_REF(s) #s
+
    #define producer_authority_change(operation) \
       struct producer_authority_##operation { \
          static constexpr producer_change_operation change_operation = producer_change_operation::operation; \
+         static constexpr char abi_type_name[] = STR_REF(producer_authority_##operation); \
          std::optional<block_signing_authority> authority; \
          EOSLIB_SERIALIZE( producer_authority_##operation, (authority) ) \
       };
@@ -39,7 +42,12 @@ namespace test {
       EOSLIB_SERIALIZE( producer_change_map, (producer_count)(changes) )
    };
 
-   inline std::optional<uint64_t> set_proposed_producers( const producer_change_map& changes ) {
+   struct proposed_producer_changes {
+      producer_change_map main_changes;
+      producer_change_map backup_changes;
+   };
+
+   inline std::optional<uint64_t> set_proposed_producers( const proposed_producer_changes& changes ) {
       auto packed_changes = eosio::pack( changes );
       int64_t ret = internal_use_do_not_use::set_proposed_producers_ex(2, (char*)packed_changes.data(), packed_changes.size());
       if (ret >= 0)
@@ -48,12 +56,11 @@ namespace test {
    }
 }
 
-// #define producer_change_map int
-using producer_change_map = test::producer_change_map;
+using proposed_producer_changes = test::proposed_producer_changes;
 
 class [[eosio::contract]] producer_change_test : public eosio::contract {
 public:
    using eosio::contract::contract;
 
-   [[eosio::action]] void change(const producer_change_map& changes);
+   [[eosio::action]] void change(const proposed_producer_changes& changes);
 };

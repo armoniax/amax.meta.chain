@@ -385,9 +385,9 @@ namespace eosio { namespace chain {
    using producer_authority_del = producer_authority_change<producer_change_operation::del>;
 
    using producer_change_record = static_variant<
-      producer_authority_change<producer_change_operation::add>,     // add
-      producer_authority_change<producer_change_operation::modify>,  // modify
-      producer_authority_change<producer_change_operation::del>    // delete
+      producer_authority_add,     // add
+      producer_authority_modify,  // modify
+      producer_authority_del      // delete
    >;
 
    struct shared_producer_change_map {
