@@ -117,7 +117,7 @@ struct building_block {
    {}
 
    pending_block_header_state            _pending_block_header_state;
-   optional<producer_authority_schedule> _new_pending_producer_schedule;
+   block_producer_schedule_change        _new_pending_producer_schedule;
    vector<digest_type>                   _new_protocol_feature_activations;
    size_t                                _num_new_protocol_features_that_have_activated = 0;
    vector<transaction_metadata_ptr>      _pending_trx_metas;
@@ -133,7 +133,7 @@ struct assembled_block {
    signed_block_ptr                  _unsigned_block;
 
    // if the _unsigned_block pre-dates block-signing authorities this may be present.
-   optional<producer_authority_schedule> _new_producer_authority_cache;
+   block_producer_schedule_change    _new_producer_authority_cache;
 };
 
 struct completed_block {
@@ -1706,19 +1706,11 @@ struct controller_impl {
 
       auto& bb = pending->_block_stage.get<building_block>();
 
-
-      producer_change_ref ref = nullptr;
-      if (bb._new_pending_producer_schedule) {
-         ref = std::ref(*bb._new_pending_producer_schedule);
-      } else {
-         // TODO: ...
-      }
-
       // Create (unsigned) block:
       auto block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
          bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
          calculate_action_merkle(),
-         ref,
+         bb._new_pending_producer_schedule,
          std::move( bb._new_protocol_feature_activations ),
          protocol_features.get_protocol_feature_set()
       ) );
@@ -3094,15 +3086,14 @@ const producer_authority_schedule& controller::pending_producers()const {
 
    if( my->pending->_block_stage.contains<assembled_block>() ) {
       const auto& new_prods_cache = my->pending->_block_stage.get<assembled_block>()._new_producer_authority_cache;
-      if( new_prods_cache ) {
-         return *new_prods_cache;
-      }
+      if( new_prods_cache.contains<producer_authority_schedule>() )
+         return new_prods_cache.get<producer_authority_schedule>();
    }
 
    const auto& bb = my->pending->_block_stage.get<building_block>();
 
-   if( bb._new_pending_producer_schedule )
-      return *bb._new_pending_producer_schedule;
+   if( bb._new_pending_producer_schedule.contains<producer_authority_schedule>() )
+      return bb._new_pending_producer_schedule.get<producer_authority_schedule>();
 
    return bb._pending_block_header_state.prev_pending_schedule.schedule;
 }

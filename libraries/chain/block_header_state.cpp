@@ -21,8 +21,7 @@ namespace eosio { namespace chain {
          const protocol_feature_activation_set_ptr& prev_activated_protocol_features, signed_block_header& header):
             _pfs(pfs), _prev_activated_protocol_features(prev_activated_protocol_features), _header(header) {}
 
-      void operator()( const std::reference_wrapper<producer_authority_schedule>& changes ) {
-         const producer_authority_schedule& new_producers = changes.get();
+      void operator()( const producer_authority_schedule& new_producers ) {
          if ( detail::is_builtin_activated(_prev_activated_protocol_features, _pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
             // add the header extension to update the block schedule
             emplace_extension(
@@ -43,11 +42,12 @@ namespace eosio { namespace chain {
          }
       }
 
-      void operator()( const std::reference_wrapper<producer_schedule_change>& changes ) {
+      void operator()( const producer_schedule_change& changes ) {
+         // TODO: ...
 
       }
 
-      void operator()( const std::nullptr_t& changes ) {}
+      void operator()( const std::nullptr_t& ) {} // do nothing
 
       private:
          const protocol_feature_set& _pfs;
@@ -213,7 +213,7 @@ namespace eosio { namespace chain {
    signed_block_header pending_block_header_state::make_block_header(
                                                       const checksum256_type& transaction_mroot,
                                                       const checksum256_type& action_mroot,
-                                                      const producer_change_ref& produce_changes,
+                                                      const block_producer_schedule_change& producer_schedule_change,
                                                       vector<digest_type>&& new_protocol_feature_activations,
                                                       const protocol_feature_set& pfs
    )const
@@ -237,7 +237,7 @@ namespace eosio { namespace chain {
       }
 
       emplace_produce_change_ext_visitor produce_change_visitor(pfs, prev_activated_protocol_features, h);
-      produce_changes.visit(produce_change_visitor);
+      producer_schedule_change.visit(produce_change_visitor);
 
       // if (new_producers) {
       //    if ( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {

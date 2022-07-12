@@ -84,11 +84,6 @@ namespace detail {
                               builtin_protocol_feature_t feature_codename );
 }
 
-using producer_change_ref = fc::static_variant<
-   std::nullptr_t,
-   std::reference_wrapper<producer_authority_schedule>,
-   std::reference_wrapper<producer_schedule_change>
->;
 struct pending_block_header_state : public detail::block_header_state_common {
    protocol_feature_activation_set_ptr  prev_activated_protocol_features;
    detail::schedule_info                prev_pending_schedule;
@@ -101,7 +96,7 @@ struct pending_block_header_state : public detail::block_header_state_common {
 
    signed_block_header make_block_header( const checksum256_type& transaction_mroot,
                                           const checksum256_type& action_mroot,
-                                          const producer_change_ref& produce_changes,
+                                          const block_producer_schedule_change& producer_schedule_change,
                                           vector<digest_type>&& new_protocol_feature_activations,
                                           const protocol_feature_set& pfs)const;
 

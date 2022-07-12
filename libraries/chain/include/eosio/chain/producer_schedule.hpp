@@ -511,6 +511,8 @@ namespace eosio { namespace chain {
       }
    };
 
+   using block_producer_schedule_change = static_variant<nullptr_t, producer_authority_schedule, producer_schedule_change >;
+
    /**
     * Block Header Extension Compatibility
     */
