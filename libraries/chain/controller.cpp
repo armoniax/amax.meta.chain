@@ -1619,27 +1619,42 @@ struct controller_impl {
          const auto& gpo = db.get<global_property_object>();
 
          if( gpo.proposed_schedule_block_num.valid() && // if there is a proposed schedule that was proposed in a block ...
-             ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) && // ... that has now become irreversible ...
-             pbhs.prev_pending_schedule.schedule.producers.size() == 0 // ... and there was room for a new pending schedule prior to any possible promotion
-         )
-         {
-            // Promote proposed schedule to pending schedule.
-            if( !replay_head_time ) {
-               ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
-                     ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
-                     ("lib", pbhs.dpos_irreversible_blocknum)
-                     ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+             ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) ) { // ... that has now become irreversible ...
+
+            if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
+               if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
+
+                  // Promote proposed schedule to pending schedule.
+                  if( !replay_head_time ) {
+                     ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
+                           ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
+                           ("lib", pbhs.dpos_irreversible_blocknum)
+                           ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+                  }
+
+
+                  EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
+                              producer_schedule_exception, "wrong producer schedule version specified" );
+
+                  pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
+                  db.modify( gpo, [&]( auto& gp ) {
+                     gp.proposed_schedule_block_num = optional<block_num_type>();
+                     gp.proposed_schedule.version=0;
+                     gp.proposed_schedule.producers.clear();
+                     // gp.proposed_schedule_change.clear();
+                  });
+               }
+            } else {
+               // TODO: if (!prev_pending_schedule_change.empty())
+               // TODO: check version with active schedule change
+               // if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
+               // EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
+               //             producer_schedule_exception, "wrong producer schedule version specified" );
+
+               // TODO: save proposed_schedule_change to _new_pending_producer_schedule
+               // TODO: save to db
             }
 
-            EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
-                        producer_schedule_exception, "wrong producer schedule version specified" );
-
-            pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
-            db.modify( gpo, [&]( auto& gp ) {
-               gp.proposed_schedule_block_num = optional<block_num_type>();
-               gp.proposed_schedule.version=0;
-               gp.proposed_schedule.producers.clear();
-            });
          }
 
          try {
@@ -3048,7 +3063,7 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    //    (a) peding backup changes,
    // || (b) active backup schedule
 
-   ilog( "proposed producer schedule with version ${v}", ("v", version) );
+   ilog( "proposed producer schedule change with version ${v}", ("v", version) );
 
    my->db.modify( gpo, [&]( auto& gp ) {
       auto alloc = gp.proposed_schedule.producers.get_allocator();

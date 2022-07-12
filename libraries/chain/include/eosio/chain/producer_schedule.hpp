@@ -377,6 +377,14 @@ namespace eosio { namespace chain {
          return result;
       }
 
+
+      friend bool operator == ( const producer_authority_change& lhs, const producer_authority_change& rhs ) {
+         return lhs.authority == rhs.authority;
+      }
+      friend bool operator != ( const producer_authority_change& lhs, const producer_authority_change& rhs ) {
+         return lhs.authority != rhs.authority;
+      }
+
       optional<block_signing_authority> authority;
    };
 
@@ -399,6 +407,11 @@ namespace eosio { namespace chain {
       shared_producer_change_map( shared_producer_change_map&& ) = default;
       shared_producer_change_map& operator= ( shared_producer_change_map && ) = default;
       shared_producer_change_map& operator= ( const shared_producer_change_map & ) = default;
+
+      void clear() {
+         producer_count = 0;
+         changes.clear();
+      }
 
       uint32_t  producer_count = 0; // the total producer count after change
       shared_flat_map<name, shared_producer_change_record> changes;
@@ -430,9 +443,8 @@ namespace eosio { namespace chain {
          for( const auto& c : src.changes ) {
             result.changes.emplace(c.first,
                c.second.visit([](const auto &record) {
-                  using shared_type = typename std::remove_reference<decltype(record)>::type;
                   return producer_change_record(
-                     producer_authority_change<shared_type::change_operation>::from_shared(record)
+                     producer_authority_change<std::decay_t<decltype(record)>::change_operation>::from_shared(record)
                   );
                })
             );
@@ -440,6 +452,14 @@ namespace eosio { namespace chain {
 
          return result;
       }
+
+      friend bool operator == ( const producer_change_map& lhs, const producer_change_map& rhs ) {
+         return tie( lhs.producer_count, lhs.changes ) == tie( rhs.producer_count, rhs.changes );
+      }
+      friend bool operator != ( const producer_change_map& lhs, const producer_change_map& rhs ) {
+         return tie( lhs.producer_count, lhs.changes ) != tie( rhs.producer_count, rhs.changes );
+      }
+
    };
 
    struct proposed_producer_changes {
@@ -456,6 +476,12 @@ namespace eosio { namespace chain {
       shared_producer_schedule_change( shared_producer_schedule_change&& ) = default;
       shared_producer_schedule_change& operator= ( shared_producer_schedule_change && ) = default;
       shared_producer_schedule_change& operator= ( const shared_producer_schedule_change & ) = default;
+
+      void clear() {
+         version = 0;
+         main_changes.clear();
+         backup_changes.clear();
+      }
 
       uint32_t  version = 0; ///< sequentially incrementing version number
       shared_producer_change_map main_changes;

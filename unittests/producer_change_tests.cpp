@@ -206,17 +206,15 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       }
       changes.backup_changes.producer_count = backup_bp_count;
 
-      // using v_test = std::variant<int, string>;
-      // v_test v1 = int(0);
-      // auto aaa = mvo() ("aaa", v1);
-      // wdump( (aaa) );
-      // wdump( (changes) );
-      // auto c = mvo()
-      //      ( "changes", changes);
-      // wdump( (c));
-      // wlog("222222222222222222222222222");
       change(changes);
 
+      const auto& gpo = control->get_global_properties();
+      BOOST_REQUIRE( gpo.proposed_schedule_block_num.valid() );
+      BOOST_REQUIRE_EQUAL( *gpo.proposed_schedule_block_num, control->head_block_num() );
+
+      BOOST_REQUIRE_EQUAL( gpo.proposed_schedule_change.version, 1 );
+      BOOST_REQUIRE( producer_change_map::from_shared(gpo.proposed_schedule_change.main_changes) == changes.main_changes );
+      BOOST_REQUIRE( producer_change_map::from_shared(gpo.proposed_schedule_change.backup_changes) == changes.backup_changes );
 
       // vector<account_name> valid_producers = {
       //    "inita", "initb", "initc", "initd", "inite", "initf", "initg",

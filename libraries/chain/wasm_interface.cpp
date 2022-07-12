@@ -305,9 +305,7 @@ class privileged_api : public context_aware_api {
             // TODO: check modified and deleted backup bp exist in backup bp list
          }
 
-         return -1;
-
-         // return context.control.set_proposed_producers( std::move(producers) );
+         return context.control.set_proposed_producers( std::move(changes) );
       }
 
       int64_t set_proposed_producers( array_ptr<char> packed_producer_schedule, uint32_t datalen ) {
