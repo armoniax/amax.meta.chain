@@ -77,7 +77,7 @@ namespace variant_ext {
 vector<account_name> gen_producer_names(uint32_t count, uint64_t from) {
    vector<account_name> result;
    for (uint32_t n = from; result.size() < count; n++) {
-      result.emplace_back(n);
+      result.emplace_back(n << 4);
    }
    return result;
 }
@@ -183,9 +183,12 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
  BOOST_FIXTURE_TEST_CASE( propose_producer_change_api, producer_change_tester ) try {
 
       auto producers = gen_producer_names(121, 1);
+      // wdump( (producers) );
+
+      create_accounts(producers);
 
       uint32_t main_bp_count = 1;
-      uint32_t backup_bp_count = 1;
+      uint32_t backup_bp_count = 0;
       uint32_t total_bp_count = main_bp_count + backup_bp_count;
       BOOST_CHECK(total_bp_count <= producers.size());
 
