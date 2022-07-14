@@ -1648,11 +1648,14 @@ struct controller_impl {
                // TODO: if (!prev_pending_schedule_change.empty())
                // TODO: check version with active schedule change
                // if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
-               // EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
-               //             producer_schedule_exception, "wrong producer schedule version specified" );
+               EOS_ASSERT( gpo.proposed_schedule_change.version == pbhs.active_schedule_version + 1,
+                           producer_schedule_exception, "wrong producer schedule version specified" );
 
-               // TODO: save proposed_schedule_change to _new_pending_producer_schedule
-               // TODO: save to db
+               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+               db.modify( gpo, [&]( auto& gp ) {
+                  gp.proposed_schedule_block_num = optional<block_num_type>();
+                  gp.proposed_schedule_change.clear();
+               });
             }
 
          }
@@ -2961,6 +2964,8 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
       return -1;
    }
 
+   // TODO: check pending schedule change is empty()
+
    if( gpo.proposed_schedule_block_num.valid() ) {
       if( *gpo.proposed_schedule_block_num != cur_block_num )
          return -1; // there is already a proposed schedule set in a previous block, wait for it to become pending
@@ -3008,7 +3013,7 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
 int64_t controller::set_proposed_producers( const proposed_producer_changes& changes ) {
    const auto& gpo = get_global_properties();
    auto hbs = head_block_state();
-   auto proposed_block_num = hbs->block_num + 1;
+   auto cur_block_num = hbs->block_num + 1;
    auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
    // if( producers.size() == 0 && is_builtin_activated( builtin_protocol_feature_t::disallow_empty_producer_schedule ) ) {
    //    return -1;
@@ -3059,7 +3064,7 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
 
    my->db.modify( gpo, [&]( auto& gp ) {
       auto alloc = gp.proposed_schedule.producers.get_allocator();
-      gp.proposed_schedule_block_num = proposed_block_num;
+      gp.proposed_schedule_block_num = cur_block_num;
       gp.proposed_schedule_change.version = version;
       gp.proposed_schedule_change.main_changes = changes.main_changes.to_shared(alloc);
       gp.proposed_schedule_change.backup_changes = changes.backup_changes.to_shared(alloc);

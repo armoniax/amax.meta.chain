@@ -43,8 +43,15 @@ namespace eosio { namespace chain {
       }
 
       void operator()( const producer_schedule_change& changes ) {
-         // TODO: ...
+         // TODO: check apos feature activated
+         // if ( detail::is_builtin_activated(_prev_activated_protocol_features, _pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
 
+         // add the header extension to update the block schedule
+         emplace_extension(
+               _header.header_extensions,
+               producer_schedule_change_extension_v2::extension_id(),
+               fc::raw::pack( producer_schedule_change_extension_v2( changes ) )
+         );
       }
 
       void operator()( const std::nullptr_t& ) {} // do nothing

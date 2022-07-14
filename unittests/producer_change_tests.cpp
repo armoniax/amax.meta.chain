@@ -107,19 +107,11 @@ public:
       abi_ser.set_abi(abi, abi_serializer::create_yield_function( abi_serializer_max_time ));
    }
 
-   action_result push_action( const account_name& signer, const action_name &name, const variant_object &data ) {
-      string action_type_name = abi_ser.get_action_type(name);
-
-      action act;
-      act.account = contract_name;
-      act.name    = name;
-      act.data    = abi_ser.variant_to_binary( action_type_name, data, abi_serializer::create_yield_function( abi_serializer_max_time ) );
-
-      return base_tester::push_action( std::move(act), signer.to_uint64_t() );
+   transaction_trace_ptr push_action( const account_name& signer, const action_name &name, const variant_object &data ) {
+      return base_tester::push_action( contract_name, name, signer, data);
    }
 
-   action_result change( const proposed_producer_changes &changes) {
-      // wdump( (variant_ext::to_variant(changes)) );
+   transaction_trace_ptr change( const proposed_producer_changes &changes) {
       return push_action( contract_name, N(change), mvo()
            ( "changes", variant_ext::to_variant(changes) )
       );
@@ -183,9 +175,9 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
  BOOST_FIXTURE_TEST_CASE( propose_producer_change_api, producer_change_tester ) try {
 
       auto producers = gen_producer_names(121, 1);
-      // wdump( (producers) );
 
       create_accounts(producers);
+      produce_blocks();
 
       uint32_t main_bp_count = 1;
       uint32_t backup_bp_count = 0;
@@ -206,15 +198,25 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       }
       changes.backup_changes.producer_count = backup_bp_count;
 
+      auto last_block_num = control->head_block_num();
       change(changes);
-
+      BOOST_REQUIRE_EQUAL( control->head_block_num(), last_block_num );
       const auto& gpo = control->get_global_properties();
       BOOST_REQUIRE( gpo.proposed_schedule_block_num.valid() );
-      BOOST_REQUIRE_EQUAL( *gpo.proposed_schedule_block_num, control->head_block_num() );
-
+      BOOST_REQUIRE_EQUAL( *gpo.proposed_schedule_block_num, control->head_block_num() + 1 );
       BOOST_REQUIRE_EQUAL( gpo.proposed_schedule_change.version, 1 );
       BOOST_REQUIRE( producer_change_map::from_shared(gpo.proposed_schedule_change.main_changes) == changes.main_changes );
       BOOST_REQUIRE( producer_change_map::from_shared(gpo.proposed_schedule_change.backup_changes) == changes.backup_changes );
+      auto proposed_schedule_block_num = *gpo.proposed_schedule_block_num;
+
+      produce_blocks(2);
+      BOOST_REQUIRE_EQUAL( control->head_block_state()->dpos_irreversible_blocknum, proposed_schedule_block_num );
+      auto exts = control->head_block_header().validate_and_extract_header_extensions();
+      BOOST_REQUIRE_EQUAL( exts.count(producer_schedule_change_extension_v2::extension_id()) , 1 );
+      const auto& new_producer_schedule_change = exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
+      BOOST_REQUIRE_EQUAL( new_producer_schedule_change.version, 1 );
+      BOOST_REQUIRE( new_producer_schedule_change.main_changes == changes.main_changes);
+      BOOST_REQUIRE( new_producer_schedule_change.backup_changes == changes.backup_changes);
 
       // vector<account_name> valid_producers = {
       //    "inita", "initb", "initc", "initd", "inite", "initf", "initg",
