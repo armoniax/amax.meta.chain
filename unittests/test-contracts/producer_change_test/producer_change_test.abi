@@ -32,7 +32,7 @@
             "fields": [
                 {
                     "name": "changes",
-                    "type": "producer_change_map"
+                    "type": "proposed_producer_changes"
                 }
             ]
         },
@@ -105,6 +105,20 @@
                 {
                     "name": "changes",
                     "type": "pair_name_producer_change_record[]"
+                }
+            ]
+        },
+        {
+            "name": "proposed_producer_changes",
+            "base": "",
+            "fields": [
+                {
+                    "name": "main_changes",
+                    "type": "producer_change_map"
+                },
+                {
+                    "name": "backup_changes",
+                    "type": "producer_change_map"
                 }
             ]
         }

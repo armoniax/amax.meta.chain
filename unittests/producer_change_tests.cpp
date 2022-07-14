@@ -111,9 +111,10 @@ public:
       return base_tester::push_action( contract_name, name, signer, data);
    }
 
-   transaction_trace_ptr change( const proposed_producer_changes &changes) {
+   transaction_trace_ptr change( const proposed_producer_changes &changes, const optional<int64_t>& expected) {
       return push_action( contract_name, N(change), mvo()
            ( "changes", variant_ext::to_variant(changes) )
+           ( "expected", expected )
       );
    }
 
@@ -199,7 +200,7 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       changes.backup_changes.producer_count = backup_bp_count;
 
       auto last_block_num = control->head_block_num();
-      change(changes);
+      change(changes, 1);
       BOOST_REQUIRE_EQUAL( control->head_block_num(), last_block_num );
       const auto& gpo = control->get_global_properties();
       BOOST_REQUIRE( gpo.proposed_schedule_block_num.valid() );

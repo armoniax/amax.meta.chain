@@ -47,6 +47,11 @@ namespace test {
       producer_change_map backup_changes;
    };
 
+   inline int64_t set_proposed_producers_ex( const proposed_producer_changes& changes ) {
+      auto packed_changes = eosio::pack( changes );
+      return internal_use_do_not_use::set_proposed_producers_ex(2, (char*)packed_changes.data(), packed_changes.size());
+   }
+
    inline std::optional<uint64_t> set_proposed_producers( const proposed_producer_changes& changes ) {
       auto packed_changes = eosio::pack( changes );
       int64_t ret = internal_use_do_not_use::set_proposed_producers_ex(2, (char*)packed_changes.data(), packed_changes.size());
@@ -62,5 +67,5 @@ class [[eosio::contract]] producer_change_test : public eosio::contract {
 public:
    using eosio::contract::contract;
 
-   [[eosio::action]] void change(const proposed_producer_changes& changes);
+   [[eosio::action]] void change(const proposed_producer_changes& changes, const std::optional<int64_t> expected);
 };
