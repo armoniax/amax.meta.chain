@@ -174,8 +174,6 @@ namespace eosio { namespace chain {
             // TODO: producer_schedule_change
          }
 
-         // result.active_schedule = pending_schedule.schedule;
-
          flat_map<account_name,uint32_t> new_producer_to_last_produced;
 
          for( const auto& pro : result.active_schedule.producers ) {
@@ -327,6 +325,25 @@ namespace eosio { namespace chain {
 
          maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producer_schedule));
          maybe_new_producer_schedule = producer_authority_schedule(new_producer_schedule);
+      }
+
+      if ( exts.count(producer_schedule_change_extension_v2::extension_id()) > 0 ) {
+         // TODO: check apos feature activated
+         // EOS_ASSERT(wtmsig_enabled, producer_schedule_exception, "Block header producer_schedule_change_extension before activation of WTMsig Block Signatures" );
+
+         EOS_ASSERT( maybe_new_producer_schedule.which() == 0, producer_schedule_exception, "cannot set pending producer schedule in the same block in other ways" );
+         EOS_ASSERT( !was_pending_promoted, producer_schedule_exception, "cannot set pending producer schedule change in the same block in which pending was promoted to active" );
+
+         const auto& new_producer_schedule = exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
+
+         EOS_ASSERT( new_producer_schedule.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
+         EOS_ASSERT( prev_pending_schedule.data_empty(), producer_schedule_exception,
+                     "cannot set new pending producers until last pending is confirmed" );
+         EOS_ASSERT( !new_producer_schedule.empty(), producer_schedule_exception,
+                     "new pending producers cannot be empty" );
+
+         maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producer_schedule));
+         maybe_new_producer_schedule = producer_schedule_change(new_producer_schedule);
       }
 
       protocol_feature_activation_set_ptr new_activated_protocol_features;

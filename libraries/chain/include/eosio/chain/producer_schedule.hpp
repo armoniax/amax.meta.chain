@@ -509,6 +509,10 @@ namespace eosio { namespace chain {
 
          return result;
       }
+
+      bool empty() const {
+         return main_changes.changes.empty() && backup_changes.changes.empty();
+      }
    };
 
    using block_producer_schedule_change = static_variant<uint32_t, producer_authority_schedule, producer_schedule_change >;
