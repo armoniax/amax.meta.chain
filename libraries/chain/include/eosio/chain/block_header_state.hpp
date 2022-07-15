@@ -170,6 +170,45 @@ struct block_header_state : public detail::block_header_state_common {
 
 using block_header_state_ptr = std::shared_ptr<block_header_state>;
 
+namespace legacy {
+
+   /**
+    * a fc::raw::unpack compatible version of the old block_state structure stored in
+    * version 2 snapshots
+    */
+   struct snapshot_block_header_state_v3 : public detail::block_header_state_common {
+      static constexpr uint32_t minimum_version = 3;
+      static constexpr uint32_t maximum_version = 3;
+      static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state_v3 is no longer needed");
+
+      struct schedule_info {
+         uint32_t                          schedule_lib_num = 0; /// last irr block num
+         digest_type                       schedule_hash;
+         producer_authority_schedule       schedule;
+      };
+
+      uint32_t                          block_num = 0;
+      uint32_t                          dpos_proposed_irreversible_blocknum = 0;
+      uint32_t                          dpos_irreversible_blocknum = 0;
+      producer_authority_schedule       active_schedule;
+      incremental_merkle                blockroot_merkle;
+      flat_map<account_name,uint32_t>   producer_to_last_produced;
+      flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
+      block_signing_authority           valid_block_signing_authority;
+      vector<uint8_t>                   confirm_count;
+
+      block_id_type                        id;
+      signed_block_header                  header;
+      schedule_info                        pending_schedule;
+      protocol_feature_activation_set_ptr  activated_protocol_features;
+      vector<signature_type>               additional_signatures;
+
+      /// this data is redundant with the data stored in header, but it acts as a cache that avoids
+      /// duplication of work
+      flat_multimap<uint16_t, block_header_extension> header_exts;
+   };
+}
+
 } } /// namespace eosio::chain
 
 FC_REFLECT( eosio::chain::detail::backup_schedule_index_t,
@@ -224,4 +263,27 @@ FC_REFLECT( eosio::chain::legacy::snapshot_block_header_state_v2,
           ( header )
           ( pending_schedule )
           ( activated_protocol_features )
+)
+
+FC_REFLECT( eosio::chain::legacy::snapshot_block_header_state_v3::schedule_info,
+            (schedule_lib_num)
+            (schedule_hash)
+            (schedule)
+)
+
+FC_REFLECT(  eosio::chain::legacy::snapshot_block_header_state_v3,
+            (block_num)
+            (dpos_proposed_irreversible_blocknum)
+            (dpos_irreversible_blocknum)
+            (active_schedule)
+            (blockroot_merkle)
+            (producer_to_last_produced)
+            (producer_to_last_implied_irb)
+            (valid_block_signing_authority)
+            (confirm_count)
+            (id)
+            (header)
+            (pending_schedule)
+            (activated_protocol_features)
+            (additional_signatures)
 )
