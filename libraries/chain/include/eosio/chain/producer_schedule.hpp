@@ -511,8 +511,13 @@ namespace eosio { namespace chain {
       }
    };
 
-   using block_producer_schedule_change = static_variant<nullptr_t, producer_authority_schedule, producer_schedule_change >;
+   using block_producer_schedule_change = static_variant<uint32_t, producer_authority_schedule, producer_schedule_change >;
 
+   struct schedule_version_visitor {
+      uint32_t operator()( const uint32_t& value) {  return value; }
+      template<typename T> uint32_t operator()( const T& t ) { return t.version; }
+
+   };
    /**
     * Block Header Extension Compatibility
     */

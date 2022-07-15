@@ -54,7 +54,7 @@ namespace eosio { namespace chain {
          );
       }
 
-      void operator()( const std::nullptr_t& ) {} // do nothing
+      void operator()( const uint32_t& ) {} // do nothing
 
       private:
          const protocol_feature_set& _pfs;
@@ -165,10 +165,16 @@ namespace eosio { namespace chain {
 
       result.prev_pending_schedule                 = pending_schedule;
 
-      if( pending_schedule.schedule.producers.size() &&
+      if( !pending_schedule.data_empty() &&
           result.dpos_irreversible_blocknum >= pending_schedule.schedule_lib_num )
       {
-         result.active_schedule = pending_schedule.schedule;
+         if (pending_schedule.schedule.contains<producer_authority_schedule>()) {
+            result.active_schedule = pending_schedule.schedule.get<producer_authority_schedule>();
+         } else {
+            // TODO: producer_schedule_change
+         }
+
+         // result.active_schedule = pending_schedule.schedule;
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;
 
@@ -287,7 +293,7 @@ namespace eosio { namespace chain {
 
       auto exts = h.validate_and_extract_header_extensions();
 
-      std::optional<producer_authority_schedule> maybe_new_producer_schedule;
+      block_producer_schedule_change maybe_new_producer_schedule;
       std::optional<digest_type> maybe_new_producer_schedule_hash;
       bool wtmsig_enabled = false;
 
@@ -302,11 +308,11 @@ namespace eosio { namespace chain {
 
          const auto& new_producers = *h.new_producers;
          EOS_ASSERT( new_producers.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
-         EOS_ASSERT( prev_pending_schedule.schedule.producers.empty(), producer_schedule_exception,
+         EOS_ASSERT( prev_pending_schedule.data_empty(), producer_schedule_exception,
                     "cannot set new pending producers until last pending is confirmed" );
 
          maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producers));
-         maybe_new_producer_schedule.emplace(new_producers);
+         maybe_new_producer_schedule = producer_authority_schedule(new_producers);
       }
 
       if ( exts.count(producer_schedule_change_extension::extension_id()) > 0 ) {
@@ -316,11 +322,11 @@ namespace eosio { namespace chain {
          const auto& new_producer_schedule = exts.lower_bound(producer_schedule_change_extension::extension_id())->second.get<producer_schedule_change_extension>();
 
          EOS_ASSERT( new_producer_schedule.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
-         EOS_ASSERT( prev_pending_schedule.schedule.producers.empty(), producer_schedule_exception,
+         EOS_ASSERT( prev_pending_schedule.data_empty(), producer_schedule_exception,
                      "cannot set new pending producers until last pending is confirmed" );
 
          maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producer_schedule));
-         maybe_new_producer_schedule.emplace(new_producer_schedule);
+         maybe_new_producer_schedule = producer_authority_schedule(new_producer_schedule);
       }
 
       protocol_feature_activation_set_ptr new_activated_protocol_features;
@@ -347,13 +353,13 @@ namespace eosio { namespace chain {
 
       result.header_exts = std::move(exts);
 
-      if( maybe_new_producer_schedule ) {
-         result.pending_schedule.schedule = std::move(*maybe_new_producer_schedule);
+      if( maybe_new_producer_schedule.which() > 0 ) {
+         result.pending_schedule.schedule = std::move(maybe_new_producer_schedule);
          result.pending_schedule.schedule_hash = std::move(*maybe_new_producer_schedule_hash);
          result.pending_schedule.schedule_lib_num    = block_number;
       } else {
          if( was_pending_promoted ) {
-            result.pending_schedule.schedule.version = prev_pending_schedule.schedule.version;
+            result.pending_schedule.clear_data(prev_pending_schedule.get_version());
          } else {
             result.pending_schedule.schedule         = std::move( prev_pending_schedule.schedule );
          }

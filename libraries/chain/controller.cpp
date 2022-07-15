@@ -1622,7 +1622,7 @@ struct controller_impl {
              ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) ) { // ... that has now become irreversible ...
 
             if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
-               if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
+               if (pbhs.prev_pending_schedule.data_empty()) { // ... and there was room for a new pending schedule prior to any possible promotion
 
                   // Promote proposed schedule to pending schedule.
                   if( !replay_head_time ) {
@@ -3082,25 +3082,33 @@ const producer_authority_schedule&    controller::active_producers()const {
    return my->pending->get_pending_block_header_state().active_schedule;
 }
 
-const producer_authority_schedule& controller::pending_producers()const {
-   if( !(my->pending) )
-      return  my->head->pending_schedule.schedule;
+producer_authority_schedule controller::pending_producers()const {
+
+   auto get_producers = [](const block_producer_schedule_change& schedule) {
+      if (schedule.contains<producer_authority_schedule>())
+         return schedule.get<producer_authority_schedule>();
+      return producer_authority_schedule{};
+   };
+
+   if( !(my->pending) ) {
+      return get_producers(my->head->pending_schedule.schedule);
+   }
 
    if( my->pending->_block_stage.contains<completed_block>() )
-      return my->pending->_block_stage.get<completed_block>()._block_state->pending_schedule.schedule;
+      return get_producers(my->pending->_block_stage.get<completed_block>()._block_state->pending_schedule.schedule);
 
    if( my->pending->_block_stage.contains<assembled_block>() ) {
       const auto& new_prods_cache = my->pending->_block_stage.get<assembled_block>()._new_producer_authority_cache;
-      if( new_prods_cache.contains<producer_authority_schedule>() )
-         return new_prods_cache.get<producer_authority_schedule>();
+      if (new_prods_cache.which() > 0)
+         return get_producers(new_prods_cache);
    }
 
    const auto& bb = my->pending->_block_stage.get<building_block>();
 
-   if( bb._new_pending_producer_schedule.contains<producer_authority_schedule>() )
-      return bb._new_pending_producer_schedule.get<producer_authority_schedule>();
+   if( bb._new_pending_producer_schedule.which() > 0 )
+      return get_producers(bb._new_pending_producer_schedule);
 
-   return bb._pending_block_header_state.prev_pending_schedule.schedule;
+   return get_producers(bb._pending_block_header_state.prev_pending_schedule.schedule);
 }
 
 optional<producer_authority_schedule> controller::proposed_producers()const {

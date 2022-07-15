@@ -224,7 +224,7 @@ namespace eosio { namespace chain {
          const vector<transaction_receipt>& get_pending_trx_receipts()const;
 
          const producer_authority_schedule&    active_producers()const;
-         const producer_authority_schedule&    pending_producers()const;
+         producer_authority_schedule           pending_producers()const;
          optional<producer_authority_schedule> proposed_producers()const;
 
          uint32_t last_irreversible_block_num() const;

@@ -76,7 +76,19 @@ namespace detail {
    struct schedule_info {
       uint32_t                          schedule_lib_num = 0; /// last irr block num
       digest_type                       schedule_hash;
-      producer_authority_schedule       schedule;
+      block_producer_schedule_change    schedule;
+
+      bool data_empty() const {
+         return schedule.which() == 0;
+      }
+
+      void clear_data(uint32_t version = 0) {
+         schedule = version;
+      }
+
+      uint32_t get_version () const {
+         return schedule.visit(schedule_version_visitor());
+      }
    };
 
    bool is_builtin_activated( const protocol_feature_activation_set_ptr& pfa,
@@ -156,7 +168,7 @@ struct block_header_state : public detail::block_header_state_common {
                                                         const vector<digest_type>& )>& validator,
                               bool skip_validate_signee = false )const;
 
-   bool                 has_pending_producers()const { return pending_schedule.schedule.producers.size(); }
+   bool                 has_pending_producers()const { return !pending_schedule.data_empty(); }
    uint32_t             calc_dpos_last_irreversible( account_name producer_of_next_block )const;
 
    producer_authority     get_scheduled_producer( block_timestamp_type t )const;
