@@ -53,6 +53,8 @@ namespace detail {
       uint32_t                          dpos_proposed_irreversible_blocknum = 0;
       uint32_t                          dpos_irreversible_blocknum = 0;
       producer_authority_schedule       active_schedule;
+      producer_authority_schedule       main_schedule;
+      producer_authority_schedule       backup_schedule;
       account_name                      next_prod;
       incremental_merkle                blockroot_merkle;
       flat_map<account_name,uint32_t>   producer_to_last_produced;
@@ -150,6 +152,8 @@ struct block_header_state : public detail::block_header_state_common {
    producer_authority     get_scheduled_producer(block_timestamp_type t )const;
    producer_authority     get_scheduled_main(block_timestamp_type t)const;
    producer_authority     get_scheduled_back(block_timestamp_type t)const;
+   producer_authority_schedule  construct_main_schedule()const;
+   producer_authority_schedule  construct_backup_schedule()const;
    const block_id_type&   prev()const { return header.previous; }
    digest_type            sig_digest()const;
    void                   sign( const signer_callback_type& signer );

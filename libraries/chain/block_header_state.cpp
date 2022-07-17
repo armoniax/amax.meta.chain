@@ -83,6 +83,43 @@ namespace eosio { namespace chain {
          }
       }
    }
+   // void block_header_state::construct_main_and_backup_schedule(producer_authority_schedule& main_schedule,producer_authority_schedule& backup_schedule)const{
+   //    for(producer_authority pa : active_schedule.producers){
+   //        if(pa.producer_name == string_to_name("producerman")){
+   //           main_schedule.version = active_schedule.version;
+   //           main_schedule.producers = active_schedule.producers;
+   //           ilog("active main schedule up...");
+   //        }
+
+   //        if(pa.producer_name == string_to_name("producerbak")){
+   //           backup_schedule.version = active_schedule.version;
+   //           backup_schedule.producers = active_schedule.producers;
+   //           ilog("active backup schedule up...");
+   //        }
+   //    }
+   // }
+   producer_authority_schedule  block_header_state::construct_main_schedule()const{
+      producer_authority_schedule new_pa;
+      for(producer_authority pa : pending_schedule.schedule.producers){
+          if(pa.producer_name == string_to_name("producerman")){
+             new_pa.version = pending_schedule.schedule.version;
+             new_pa.producers.push_back(pa);
+             ilog("active main schedule up...");
+          }
+      }
+      return new_pa;
+   }
+   producer_authority_schedule  block_header_state::construct_backup_schedule()const{
+      producer_authority_schedule new_pa;
+      for(producer_authority pa : pending_schedule.schedule.producers){
+          if(pa.producer_name == string_to_name("producerbak")){
+             new_pa.version = pending_schedule.schedule.version;
+             new_pa.producers.push_back(pa);
+             ilog("active backup schedule up...");
+          }
+      }
+      return new_pa;
+   }
    uint32_t block_header_state::calc_dpos_last_irreversible( account_name producer_of_next_block )const {
       vector<uint32_t> blocknums; blocknums.reserve( producer_to_last_implied_irb.size() );
       for( auto& i : producer_to_last_implied_irb ) {
@@ -190,6 +227,8 @@ namespace eosio { namespace chain {
           result.dpos_irreversible_blocknum >= pending_schedule.schedule_lib_num )
       {
          result.active_schedule = pending_schedule.schedule;
+         result.main_schedule = construct_main_schedule();
+         result.backup_schedule = construct_backup_schedule();
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;
 
@@ -229,6 +268,8 @@ namespace eosio { namespace chain {
          result.was_pending_promoted = true;
       } else {
          result.active_schedule                  = active_schedule;
+         result.main_schedule                    = main_schedule;
+         result.backup_schedule                  = backup_schedule;
          result.producer_to_last_produced        = producer_to_last_produced;
          result.producer_to_last_produced[proauth.producer_name] = result.block_num;
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;

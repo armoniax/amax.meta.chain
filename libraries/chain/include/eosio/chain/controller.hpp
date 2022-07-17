@@ -198,7 +198,8 @@ namespace eosio { namespace chain {
          void   set_contract_blacklist( const flat_set<account_name>& );
          void   set_action_blacklist( const flat_set< pair<account_name, action_name> >& );
          void   set_key_blacklist( const flat_set<public_key_type>& );
-         void   set_backup_mode(bool is_backup){this->is_backup_mode = is_backup;}
+         void   set_produce_mode(bool is_backup){this->is_backup_mode = is_backup;}
+         void   set_verify_mode(bool is_backup){this->is_backup_verify_mode = is_backup;}
 
          uint32_t             head_block_num()const;
          time_point           head_block_time()const;
@@ -250,7 +251,8 @@ namespace eosio { namespace chain {
          void check_key_list( const public_key_type& key )const;
          bool is_building_block()const;
          bool is_producing_block()const;
-         bool is_backup()const;
+         bool is_backup_produce()const;
+         bool is_backup_verify()const;
 
          bool is_ram_billing_in_notify_allowed()const;
 
@@ -298,6 +300,7 @@ namespace eosio { namespace chain {
          void add_to_ram_correction( account_name account, uint64_t ram_bytes );
          bool all_subjective_mitigations_disabled()const;
          bool is_backup_mode = false;
+         bool is_backup_verify_mode = false;
 
 #if defined(AMAX_EOS_VM_RUNTIME_ENABLED) || defined(AMAX_EOS_VM_JIT_RUNTIME_ENABLED)
          vm::wasm_allocator&  get_wasm_allocator();

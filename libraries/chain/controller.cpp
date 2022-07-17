@@ -431,7 +431,7 @@ struct controller_impl {
 
             emit( self.irreversible_block, *bitr );
 
-            if(!self.is_backup()){
+            if(!self.is_backup_produce() && !self.is_backup_verify()){
                db.commit( (*bitr)->block_num );
             }else{
                //when we are in backup mode, we needn't to update state db affected by backup block
@@ -1552,7 +1552,7 @@ struct controller_impl {
          protocol_features.popped_blocks_to( head_block_num );
          pending.reset();
       });
-      if(self.is_backup()){
+      if(self.is_backup_produce() || self.is_backup_verify()){
          //testing backup mode producer session production!
          //because session is pseudo completed , so revision != head
          //and state db won't be affected
@@ -1730,11 +1730,13 @@ struct controller_impl {
       *@Author: cryptoseeking
       *@Modify Time: 2022/06/21 14:35
       */
-      if(self.is_backup()){
+      if(self.is_backup_produce()){
          block_ptr->is_backup = true;
          ilog("backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          ilog("backup block's previous main block num: ${mnum}",("mnum",head->block_num));
          ilog("new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
+      }else if(self.is_backup_verify()){
+         ilog("backup verify mode, block num: ${num}, producer: ${pb}",("num",block_ptr->block_num())("pb",block_ptr->producer));
       }else{
          ilog("main producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          ilog("new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
@@ -1848,7 +1850,7 @@ struct controller_impl {
       }
 
       // push the state for pending except to backup mode.
-      if(!self.is_backup()){
+      if(!self.is_backup_produce()&& !self.is_backup_verify()){
          pending->push();
       }else{
          pending->discard();
@@ -2059,6 +2061,10 @@ struct controller_impl {
       EOS_ASSERT( prev, unlinkable_block_exception,
                   "unlinkable block ${id}", ("id", id)("previous", b->previous) );
       //fix me
+      if(b->is_backup){
+         self.set_verify_mode(true);
+      }
+
       prev->next_prod = b->producer;
 
       return async_thread_pool( thread_pool.get_executor(), [b, prev, control=this]() {
@@ -3228,8 +3234,12 @@ bool controller::is_producing_block()const {
    return (my->pending->_block_status == block_status::incomplete);
 }
 
-bool controller::is_backup()const{
+bool controller::is_backup_produce()const{
    return is_backup_mode;
+}
+
+bool controller::is_backup_verify()const{
+   return is_backup_verify_mode;
 }
 
 bool controller::is_ram_billing_in_notify_allowed()const {
@@ -3265,7 +3275,7 @@ void controller::validate_expiration( const transaction& trx )const { try {
 */
 void controller::validate_tapos( const transaction& trx )const { try {
    const auto& tapos_block_summary = db().get<block_summary_object>((uint16_t)trx.ref_block_num);
-   if(is_backup()){
+   if(is_backup_produce() || is_backup_verify()){
 
    }else{
        //Verify TaPoS block summary has correct ID prefix, and that this block's time is not past the expiration
