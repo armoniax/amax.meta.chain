@@ -376,7 +376,7 @@ namespace eosio { namespace chain {
          result.pending_schedule.schedule_lib_num    = block_number;
       } else {
          if( was_pending_promoted ) {
-            result.pending_schedule.clear_data(prev_pending_schedule.get_version());
+            result.pending_schedule.data_clear(prev_pending_schedule.get_version());
          } else {
             result.pending_schedule.schedule         = std::move( prev_pending_schedule.schedule );
          }

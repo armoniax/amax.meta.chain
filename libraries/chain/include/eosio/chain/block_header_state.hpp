@@ -78,16 +78,24 @@ namespace detail {
       digest_type                       schedule_hash;
       block_producer_schedule_change    schedule;
 
+      static bool data_empty(const block_producer_schedule_change& schedule) {
+         return schedule.which() == 0;
+      }
+
       bool data_empty() const {
          return schedule.which() == 0;
       }
 
-      void clear_data(uint32_t version = 0) {
+      void data_clear(uint32_t version = 0) {
          schedule = version;
       }
 
-      uint32_t get_version () const {
+      static uint32_t get_version (const block_producer_schedule_change& schedule) {
          return schedule.visit(schedule_version_visitor());
+      }
+
+      uint32_t get_version () const {
+         return get_version(schedule);
       }
    };
 
@@ -199,6 +207,7 @@ namespace legacy {
          producer_authority_schedule       schedule;
       };
 
+      /// from block_header_state_common
       uint32_t                          block_num = 0;
       uint32_t                          dpos_proposed_irreversible_blocknum = 0;
       uint32_t                          dpos_irreversible_blocknum = 0;
@@ -209,15 +218,12 @@ namespace legacy {
       block_signing_authority           valid_block_signing_authority;
       vector<uint8_t>                   confirm_count;
 
+      /// from block_header_state
       block_id_type                        id;
       signed_block_header                  header;
       schedule_info                        pending_schedule;
       protocol_feature_activation_set_ptr  activated_protocol_features;
       vector<signature_type>               additional_signatures;
-
-      /// this data is redundant with the data stored in header, but it acts as a cache that avoids
-      /// duplication of work
-      flat_multimap<uint16_t, block_header_extension> header_exts;
    };
 }
 

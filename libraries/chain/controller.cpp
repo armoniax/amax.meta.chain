@@ -2975,22 +2975,31 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
          return -1; // the proposed producer schedule does not change
    }
 
+   const auto& pending_sch = pending_producer_schedule();
+   if (pending_sch.contains<producer_schedule_change>()) {
+      wlog( "there is already a pending changed schedule set, wait for it to become active.");
+      return -1;
+   }
+
    producer_authority_schedule sch;
 
    decltype(sch.producers.cend()) end;
    decltype(end)                  begin;
 
-   const auto& pending_sch = pending_producers();
+   const producer_authority_schedule* pending_producers = nullptr;
+   if (pending_sch.contains<producer_authority_schedule>()) {
+      pending_producers = &pending_sch.get<producer_authority_schedule>();
+   }
 
-   if( pending_sch.producers.size() == 0 ) {
+   if( !pending_producers || pending_producers->producers.size() == 0 ) {
       const auto& active_sch = active_producers();
       begin = active_sch.producers.begin();
       end   = active_sch.producers.end();
       sch.version = active_sch.version + 1;
    } else {
-      begin = pending_sch.producers.begin();
-      end   = pending_sch.producers.end();
-      sch.version = pending_sch.version + 1;
+      begin = pending_producers->producers.begin();
+      end   = pending_producers->producers.end();
+      sch.version = pending_producers->version + 1;
    }
 
    if( std::equal( producers.begin(), producers.end(), begin, end ) )
@@ -3024,18 +3033,22 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    }
 
    if (!gpo.proposed_schedule.producers.empty()) {
-      wlog( "there is already a proposed full schedule set, wait for it to become active.");
+      wlog( "there is already a proposed schedule set, wait for it to become active.");
       return -1;
    }
-
-   const auto& pending_sch = pending_producers();
-   if (!pending_sch.producers.empty()) {
+   const auto& pending_sch = pending_producer_schedule();
+   if (pending_sch.contains<producer_authority_schedule>()) {
       wlog( "there is already a pending full schedule set, wait for it to become active.");
       return -1;
    }
 
+   const producer_schedule_change* pending_change = nullptr;
+   if (pending_sch.contains<producer_schedule_change>()) {
+      pending_change = &pending_sch.get<producer_schedule_change>();
+   }
    const auto& active_sch = active_producers();
-   auto version = active_sch.version + 1;
+   auto version = pending_change ? pending_change->version : active_sch.version;
+   version++;
 
    // TODO: check changes:
    // 1. add main: producer is empty (not found or empty) in:
@@ -3082,33 +3095,35 @@ const producer_authority_schedule&    controller::active_producers()const {
    return my->pending->get_pending_block_header_state().active_schedule;
 }
 
-producer_authority_schedule controller::pending_producers()const {
-
-   auto get_producers = [](const block_producer_schedule_change& schedule) {
-      if (schedule.contains<producer_authority_schedule>())
-         return schedule.get<producer_authority_schedule>();
-      return producer_authority_schedule{};
-   };
+const block_producer_schedule_change& controller::pending_producer_schedule()const {
 
    if( !(my->pending) ) {
-      return get_producers(my->head->pending_schedule.schedule);
+      return my->head->pending_schedule.schedule;
    }
 
    if( my->pending->_block_stage.contains<completed_block>() )
-      return get_producers(my->pending->_block_stage.get<completed_block>()._block_state->pending_schedule.schedule);
+      return my->pending->_block_stage.get<completed_block>()._block_state->pending_schedule.schedule;
 
    if( my->pending->_block_stage.contains<assembled_block>() ) {
       const auto& new_prods_cache = my->pending->_block_stage.get<assembled_block>()._new_producer_authority_cache;
       if (new_prods_cache.which() > 0)
-         return get_producers(new_prods_cache);
+         return new_prods_cache;
    }
 
    const auto& bb = my->pending->_block_stage.get<building_block>();
 
    if( bb._new_pending_producer_schedule.which() > 0 )
-      return get_producers(bb._new_pending_producer_schedule);
+      return bb._new_pending_producer_schedule;
 
-   return get_producers(bb._pending_block_header_state.prev_pending_schedule.schedule);
+   return bb._pending_block_header_state.prev_pending_schedule.schedule;
+}
+
+producer_authority_schedule controller::pending_producers()const {
+   const auto& schedule = pending_producer_schedule();
+
+   if (schedule.contains<producer_authority_schedule>())
+      return schedule.get<producer_authority_schedule>();
+   return producer_authority_schedule{};
 }
 
 optional<producer_authority_schedule> controller::proposed_producers()const {

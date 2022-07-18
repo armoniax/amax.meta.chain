@@ -225,6 +225,7 @@ namespace eosio { namespace chain {
 
          const producer_authority_schedule&    active_producers()const;
          producer_authority_schedule           pending_producers()const;
+         const block_producer_schedule_change& pending_producer_schedule()const;
          optional<producer_authority_schedule> proposed_producers()const;
 
          uint32_t last_irreversible_block_num() const;
