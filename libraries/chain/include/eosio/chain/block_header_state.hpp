@@ -51,13 +51,12 @@ namespace detail {
    struct backup_schedule_index_t {
       backup_producer_schedule_ptr   schedule;
 
-      const backup_producer_schedule_ptr& get_schedule() {
+      backup_producer_schedule_ptr   pre_schedule; // only in memory, not persisted
+
+      const backup_producer_schedule_ptr& get_schedule() const {
 
          return schedule ? schedule : pre_schedule;
       }
-
-      private:
-         backup_producer_schedule_ptr   pre_schedule; // only in memory, not persisted
    };
 
    struct block_header_state_common {

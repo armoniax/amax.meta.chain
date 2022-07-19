@@ -219,6 +219,20 @@ namespace eosio { namespace chain {
             for (size_t i = 0; i < new_producers.size(); i++) {
                active_producers[i] = producer_authority{std::move(new_producers.nth(i)->first), std::move(new_producers.nth(i)->second)};
             }
+
+            const auto& backup_changes = schedule_change.backup_changes;
+            const auto& cur_backup_schedule = active_backup_schedule.get_schedule();
+            auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
+            if (cur_backup_schedule) {
+               *new_backup_schedule = *cur_backup_schedule; // deep copy
+            }
+            produce_change_merger::merge(backup_changes, new_backup_schedule->producers);
+            EOS_ASSERT( new_backup_schedule->producers.size() == backup_changes.producer_count, producer_schedule_exception,
+                        "new producer count ${count} mismatch with expected ${expected}",
+                        ("count", new_backup_schedule->producers.size())("expected", backup_changes.producer_count) );
+            new_backup_schedule->version = schedule_change.version;
+            result.active_backup_schedule.schedule = new_backup_schedule;
+            result.active_backup_schedule.pre_schedule = cur_backup_schedule;
          }
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;

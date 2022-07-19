@@ -192,8 +192,8 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       create_accounts(producers);
       produce_blocks();
 
-      uint32_t main_bp_count = 1;
-      uint32_t backup_bp_count = 0;
+      uint32_t main_bp_count = 3;
+      uint32_t backup_bp_count = 3;
       uint32_t total_bp_count = main_bp_count + backup_bp_count;
       BOOST_CHECK(total_bp_count <= producers.size());
 
@@ -208,9 +208,13 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
          main_producers[i] = {producer_name, authority};
       }
       changes.main_changes.producer_count = main_bp_count;
+
+      flat_map<name, block_signing_authority> backup_producers;
       for( uint32_t i = main_bp_count; i < total_bp_count; i++) {
          auto producer_name = producers[i];
-         changes.backup_changes.changes[producer_name] = producer_authority_add{make_producer_authority(producer_name, 1)};
+         auto authority = make_producer_authority(producer_name, 1);
+         changes.backup_changes.changes[producer_name] = producer_authority_add{authority};
+         backup_producers[producer_name] = authority;
       }
       changes.backup_changes.producer_count = backup_bp_count;
 
@@ -257,9 +261,15 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       auto active_schedule = hbs->active_schedule;
 
       BOOST_REQUIRE_EQUAL( active_schedule.version, 1 );
-
       BOOST_REQUIRE( active_schedule.producers == main_producers);
       BOOST_REQUIRE_EQUAL( hbs->header.producer, N(amax) );
+
+      BOOST_REQUIRE( hbs->active_backup_schedule.schedule );
+      BOOST_REQUIRE( hbs->active_backup_schedule.schedule == hbs->active_backup_schedule.get_schedule() );
+      const auto& active_backup_schedule = *hbs->active_backup_schedule.schedule;
+
+      BOOST_REQUIRE_EQUAL( active_backup_schedule.version, 1 );
+      BOOST_REQUIRE( active_backup_schedule.producers == backup_producers);
 
       produce_blocks(1);
       hbs = control->head_block_state();
