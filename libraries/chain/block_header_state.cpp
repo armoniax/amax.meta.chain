@@ -15,6 +15,33 @@ namespace eosio { namespace chain {
       }
    }
 
+   struct produce_change_merger {
+
+      static void merge(const producer_change_map& change_map, flat_map<name, block_signing_authority> &producers) {
+
+         for (const auto& change : change_map.changes) {
+            const auto producer_name = change.first;
+            change.second.visit( [&producer_name, &producers](const auto& c ) {
+               switch(c.change_operation) {
+                  case producer_change_operation::add:
+                     // TODO: need to check producer not existed for add
+                  case producer_change_operation::modify:
+                     // TODO: need to check producer existed for modify
+                     EOS_ASSERT( c.authority, producer_schedule_exception,
+                                 "producer authority can not be empty for change operation ${op}",
+                                 ("op", (uint32_t)c.change_operation) );
+                     producers[producer_name] = *c.authority;
+                     break;
+                  case producer_change_operation::del:
+                     // TODO: need to check producer existed for del
+                     producers.erase(producer_name);
+                     break;
+               }
+            });
+         }
+      }
+   };
+
    struct emplace_produce_change_ext_visitor {
 
       emplace_produce_change_ext_visitor(const protocol_feature_set& pfs,
@@ -171,7 +198,27 @@ namespace eosio { namespace chain {
          if (pending_schedule.schedule.contains<producer_authority_schedule>()) {
             result.active_schedule = pending_schedule.schedule.get<producer_authority_schedule>();
          } else {
-            // TODO: producer_schedule_change
+            // merge producer changes to main active producers
+            const auto& schedule_change = pending_schedule.schedule.get<producer_schedule_change>();
+            auto& active_producers = result.active_schedule.producers;
+
+            EOS_ASSERT( schedule_change.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
+            result.active_schedule.version = schedule_change.version;
+
+            flat_map<name, block_signing_authority> new_producers;
+            for (const auto& p : active_producers) {
+               new_producers[p.producer_name] = p.authority;
+            }
+
+            const auto& main_changes = schedule_change.main_changes;
+            produce_change_merger::merge(main_changes, new_producers);
+            EOS_ASSERT( new_producers.size() == main_changes.producer_count, producer_schedule_exception,
+                        "new producer count ${count} mismatch with expected ${expected}",
+                        ("count", new_producers.size())("expected", main_changes.producer_count) );
+            active_producers.resize(new_producers.size());
+            for (size_t i = 0; i < new_producers.size(); i++) {
+               active_producers[i] = producer_authority{std::move(new_producers.nth(i)->first), std::move(new_producers.nth(i)->second)};
+            }
          }
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;

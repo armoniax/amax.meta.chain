@@ -126,21 +126,27 @@ public:
    }
 
 
-   static auto get_producer_public_key( name producer_name, uint64_t version = 1 ) {
-      return get_public_key(producer_name, std::to_string(version));
+   static auto get_producer_private_key( name producer_name, uint64_t version = 1 ) {
+      return get_private_key(producer_name, std::to_string(version));
    }
 
-   static block_signing_authority make_producer_authority(name producer_name, uint64_t version = 1) {
+   static auto get_producer_public_key( name producer_name, uint64_t version = 1 ) {
+      return get_producer_private_key(producer_name, version).get_public_key();
+   }
+
+   block_signing_authority make_producer_authority(name producer_name, uint64_t version = 1){
+      auto privkey = get_producer_private_key(producer_name, version);
+      auto pubkey = privkey.get_public_key();
+      block_signing_private_keys[pubkey] = privkey;
       return block_signing_authority_v0{
          1, {
-            {get_producer_public_key(producer_name, version), 1}
+            {pubkey, 1}
          }
       };
    }
 
    abi_serializer abi_ser;
 };
-
 
    // Calculate expected producer given the schedule and slot number
    account_name get_expected_producer(const vector<producer_authority>& schedule, const uint64_t slot) {
@@ -169,6 +175,12 @@ public:
       return res;
    };
 
+   producer_authority calc_main_scheduled_producer( const vector<producer_authority> &producers, block_timestamp_type t ) {
+      auto index = t.slot % (producers.size() * config::producer_repetitions);
+      index /= config::producer_repetitions;
+      return producers[index];
+   }
+
 
 BOOST_AUTO_TEST_SUITE(producer_change_tests)
 
@@ -188,9 +200,12 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       proposed_producer_changes changes;
       changes.main_changes.changes[N(amax)] = producer_authority_del{};
 
+      vector<producer_authority> main_producers(main_bp_count);
       for( uint32_t i = 0; i < main_bp_count; i++) {
          auto producer_name = producers[i];
-         changes.main_changes.changes[producer_name] = producer_authority_add{make_producer_authority(producer_name, 1)};
+         auto authority = make_producer_authority(producer_name, 1);
+         changes.main_changes.changes[producer_name] = producer_authority_add{authority};
+         main_producers[i] = {producer_name, authority};
       }
       changes.main_changes.producer_count = main_bp_count;
       for( uint32_t i = main_bp_count; i < total_bp_count; i++) {
@@ -202,7 +217,7 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       auto last_block_num = control->head_block_num();
       change(changes, 1);
       BOOST_REQUIRE_EQUAL( control->head_block_num(), last_block_num );
-      const auto& gpo = control->get_global_properties();
+      auto gpo = control->get_global_properties();
       BOOST_REQUIRE( gpo.proposed_schedule_block_num.valid() );
       BOOST_REQUIRE_EQUAL( *gpo.proposed_schedule_block_num, control->head_block_num() + 1 );
       BOOST_REQUIRE_EQUAL( gpo.proposed_schedule_change.version, 1 );
@@ -210,35 +225,47 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       BOOST_REQUIRE( producer_change_map::from_shared(gpo.proposed_schedule_change.backup_changes) == changes.backup_changes );
       auto proposed_schedule_block_num = *gpo.proposed_schedule_block_num;
 
-      produce_blocks(2);
-      BOOST_REQUIRE_EQUAL( control->head_block_state()->dpos_irreversible_blocknum, proposed_schedule_block_num );
-      auto exts = control->head_block_header().validate_and_extract_header_extensions();
+      produce_blocks(1);
+      BOOST_REQUIRE(control->is_building_block());
+      gpo = control->get_global_properties();
+      BOOST_REQUIRE( !gpo.proposed_schedule_block_num.valid() ); // new building block state
+
+      produce_blocks(1);
+      auto hbs = control->head_block_state();
+      auto exts = hbs->header.validate_and_extract_header_extensions();
+      BOOST_REQUIRE_EQUAL( hbs->dpos_irreversible_blocknum, proposed_schedule_block_num );
+
       BOOST_REQUIRE_EQUAL( exts.count(producer_schedule_change_extension_v2::extension_id()) , 1 );
       const auto& new_producer_schedule_change = exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
       BOOST_REQUIRE_EQUAL( new_producer_schedule_change.version, 1 );
       BOOST_REQUIRE( new_producer_schedule_change.main_changes == changes.main_changes);
       BOOST_REQUIRE( new_producer_schedule_change.backup_changes == changes.backup_changes);
 
-      // vector<account_name> valid_producers = {
-      //    "inita", "initb", "initc", "initd", "inite", "initf", "initg",
-      //    "inith", "initi", "initj", "initk", "initl", "initm", "initn",
-      //    "inito", "initp", "initq", "initr", "inits", "initt", "initu"
-      // };
-      // create_accounts(valid_producers);
-      // set_producers(valid_producers);
+      BOOST_REQUIRE_EQUAL( hbs->pending_schedule.schedule_lib_num, control->head_block_num() );
+      BOOST_REQUIRE( hbs->pending_schedule.schedule.contains<producer_schedule_change>());
+      const auto& change = hbs->pending_schedule.schedule.get<producer_schedule_change>();
+      BOOST_REQUIRE_EQUAL( change.version, 1 );
+      BOOST_REQUIRE( change.main_changes == changes.main_changes);
+      BOOST_REQUIRE( change.backup_changes == changes.backup_changes);
 
-      // // account initz does not exist
-      // vector<account_name> nonexisting_producer = { "initz" };
-      // BOOST_CHECK_THROW(set_producers(nonexisting_producer), wasm_execution_error);
+      produce_blocks(1);
+      hbs = control->head_block_state();
+      exts = hbs->header.validate_and_extract_header_extensions();
+      BOOST_REQUIRE_EQUAL( exts.count(producer_schedule_change_extension_v2::extension_id()) , 0 );
 
-      // // replace initg with inita, inita is now duplicate
-      // vector<account_name> invalid_producers = {
-      //    "inita", "initb", "initc", "initd", "inite", "initf", "inita",
-      //    "inith", "initi", "initj", "initk", "initl", "initm", "initn",
-      //    "inito", "initp", "initq", "initr", "inits", "initt", "initu"
-      // };
+      BOOST_REQUIRE( hbs->pending_schedule.schedule.contains<uint32_t>());
+      auto active_schedule = hbs->active_schedule;
 
-      // BOOST_CHECK_THROW(set_producers(invalid_producers), wasm_execution_error);
+      BOOST_REQUIRE_EQUAL( active_schedule.version, 1 );
+
+      BOOST_REQUIRE( active_schedule.producers == main_producers);
+      BOOST_REQUIRE_EQUAL( hbs->header.producer, N(amax) );
+
+      produce_blocks(1);
+      hbs = control->head_block_state();
+      BOOST_REQUIRE_EQUAL( hbs->header.producer, calc_main_scheduled_producer(main_producers, hbs->header.timestamp).producer_name );
+
+      // BOOST_REQUIRE( change.backup_changes == changes.backup_changes);
 
    } FC_LOG_AND_RETHROW()
 
