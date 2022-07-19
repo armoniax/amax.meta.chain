@@ -1556,6 +1556,9 @@ struct controller_impl {
          //testing backup mode producer session production!
          //because session is pseudo completed , so revision != head
          //and state db won't be affected
+         //in backup produce mode receive main block, it upsets me!
+         //head->next_prod = string_to_name();
+         //main block can not come into backup case.
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
       }else if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
@@ -1690,7 +1693,8 @@ struct controller_impl {
          clear_expired_input_transactions();
          update_producers_authority();
       }
-
+       
+      //when function return from here , that normal logical
       guard_pending.cancel();
    } /// start_block
 
@@ -1730,7 +1734,9 @@ struct controller_impl {
       *@Author: cryptoseeking
       *@Modify Time: 2022/06/21 14:35
       */
-      if(self.is_backup_produce()){
+      if(self.is_backup_produce() && pbhs.is_backup){
+         //when backup producer producing, next prod in next is not set in on_incoming_block 
+         //createstatefuture, so can not come here. so upsets!
          block_ptr->is_backup = true;
          ilog("backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          ilog("backup block's previous main block num: ${mnum}",("mnum",head->block_num));
@@ -1850,7 +1856,11 @@ struct controller_impl {
       }
 
       // push the state for pending except to backup mode.
+      //if backup produce mode, receive main block upset me.
       if(!self.is_backup_produce()&& !self.is_backup_verify()){
+         pending->push();
+      }else if(self.is_backup_produce()&&!self.is_backup_verify()){
+         //backup node receive main block.
          pending->push();
       }else{
          pending->discard();
@@ -2110,9 +2120,12 @@ struct controller_impl {
 
          emit( self.accepted_block_header, bsp );
 
-         if( read_mode != db_read_mode::IRREVERSIBLE ) {
+         if( read_mode != db_read_mode::IRREVERSIBLE && !self.is_backup_verify()) {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
-         } else {
+         } else if(read_mode != db_read_mode::IRREVERSIBLE && self.is_backup_verify()){
+            //main node receive backup block
+            ilog("main producer node receive backup block....");
+         }else {
             log_irreversible();
          }
 

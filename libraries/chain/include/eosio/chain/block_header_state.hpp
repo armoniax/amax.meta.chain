@@ -55,6 +55,7 @@ namespace detail {
       producer_authority_schedule       active_schedule;
       producer_authority_schedule       main_schedule;
       producer_authority_schedule       backup_schedule;
+      bool                              is_backup = false;
       account_name                      next_prod;
       incremental_merkle                blockroot_merkle;
       flat_map<account_name,uint32_t>   producer_to_last_produced;

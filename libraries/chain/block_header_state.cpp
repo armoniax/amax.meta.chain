@@ -148,8 +148,10 @@ namespace eosio { namespace chain {
       proauth = get_scheduled_producer(when);
       if(next_prod ==  string_to_name("producerman")){
          proauth = get_scheduled_main(when);
+         result.is_backup = false;
       }else if(next_prod ==  string_to_name("producerbak")){
          proauth = get_scheduled_back(when);
+         result.is_backup = true;
       }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );

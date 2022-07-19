@@ -342,6 +342,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          auto bsf = chain.create_block_state_future( block );
 
          // abort the pending block
+         // here will reset pending_block if it exist.
          abort_block();
 
          // exceptions throw out, make sure we restart our loop
