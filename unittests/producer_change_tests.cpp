@@ -181,6 +181,13 @@ public:
       return producers[index];
    }
 
+   producer_authority calc_backup_scheduled_producer( const flat_map<name, block_signing_authority>& producers, block_timestamp_type t ) {
+      optional<producer_authority> result;
+      auto index = t.slot % (producers.size() * config::backup_producer_repetitions);
+      index /= config::producer_repetitions;
+      const auto& itr = producers.nth(index);
+      return producer_authority{itr->first, itr->second};
+   }
 
 BOOST_AUTO_TEST_SUITE(producer_change_tests)
 
@@ -274,6 +281,8 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       produce_blocks(1);
       hbs = control->head_block_state();
       BOOST_REQUIRE_EQUAL( hbs->header.producer, calc_main_scheduled_producer(main_producers, hbs->header.timestamp).producer_name );
+      const auto& new_backup_producer = hbs->get_backup_scheduled_producer(hbs->header.timestamp);
+      BOOST_REQUIRE( new_backup_producer && *new_backup_producer == calc_backup_scheduled_producer(backup_producers, hbs->header.timestamp) );
 
       // BOOST_REQUIRE( change.backup_changes == changes.backup_changes);
 

@@ -95,6 +95,18 @@ namespace eosio { namespace chain {
       return active_schedule.producers[index];
    }
 
+   optional<producer_authority> block_header_state::get_backup_scheduled_producer( block_timestamp_type t ) const {
+      optional<producer_authority> result;
+      auto schedule = active_backup_schedule.get_schedule();
+      if (schedule) {
+         auto index = t.slot % (schedule->producers.size() * config::backup_producer_repetitions);
+         index /= config::producer_repetitions;
+         const auto& itr = schedule->producers.nth(index);
+         return producer_authority{itr->first, itr->second};
+      }
+      return optional<producer_authority>{};
+   }
+
    uint32_t block_header_state::calc_dpos_last_irreversible( account_name producer_of_next_block )const {
       vector<uint32_t> blocknums; blocknums.reserve( producer_to_last_implied_irb.size() );
       for( auto& i : producer_to_last_implied_irb ) {
@@ -277,6 +289,8 @@ namespace eosio { namespace chain {
          result.producer_to_last_produced[proauth.producer_name] = result.block_num;
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;
          result.producer_to_last_implied_irb[proauth.producer_name] = dpos_proposed_irreversible_blocknum;
+
+         result.active_backup_schedule.pre_schedule = active_backup_schedule.get_schedule();
       }
 
       return result;
