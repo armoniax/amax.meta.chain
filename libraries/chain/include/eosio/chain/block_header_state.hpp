@@ -57,6 +57,18 @@ namespace detail {
 
          return schedule ? schedule : pre_schedule;
       }
+
+      void ensure_pre_schedule(const backup_schedule_index_t& pre_schedule_index) {
+         if (!pre_schedule) {
+            pre_schedule = pre_schedule_index.get_schedule();
+         }
+      }
+
+      void ensure_persisted() {
+         if (!schedule) {
+            schedule = pre_schedule;
+         }
+      }
    };
 
    struct block_header_state_common {
@@ -243,6 +255,7 @@ FC_REFLECT( eosio::chain::detail::block_header_state_common,
             (producer_to_last_implied_irb)
             (valid_block_signing_authority)
             (confirm_count)
+            (active_backup_schedule)
 )
 
 FC_REFLECT( eosio::chain::detail::schedule_info,
