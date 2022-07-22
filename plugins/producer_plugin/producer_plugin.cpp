@@ -318,13 +318,13 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       bool on_incoming_block(const signed_block_ptr& block, const std::optional<block_id_type>& block_id) {
          auto& chain = chain_plug->chain();
-         if(!chain.is_backup_produce()){
-            if ( _pending_block_mode == pending_block_mode::producing && !block->is_backup ) {
-               fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
-                     ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
-               return false;
-            }
-         }
+         // if(!chain.is_backup_produce()){
+         //    if ( _pending_block_mode == pending_block_mode::producing && !block->is_backup ) {
+         //       fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
+         //             ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
+         //       return false;
+         //    }
+         // }
 
          const auto& id = block_id ? *block_id : block->id();
          auto blk_num = block->block_num();
@@ -1529,11 +1529,13 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
 
    const auto& hbs = chain.head_block_state();
    /**
-    * @brief todo
+    * @brief this method is trouble, is_backup in controller has a large scope that may effect 
+    * verify a main block in full duplex
     * should accord to current producer is backup or not
     * 
     */
-   chain.set_produce_mode(false);
+   //chain.set_produce_mode(false);
+   bool is_backup = false;
 
    const fc::time_point now = fc::time_point::now();
    const fc::time_point block_time = calculate_pending_block_time();
@@ -1560,11 +1562,11 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       */
       if(scheduled_producer.producer_name == string_to_name("producerbak") && num_relevant_signatures > 0){
          dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
-         chain.set_produce_mode(true);
+         is_backup = true;
       }
       if(scheduled_producer.producer_name == string_to_name("producerman") && num_relevant_signatures > 0){
          dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
-         chain.set_produce_mode(false);
+         is_backup = false;
       }
    });
 
@@ -1590,13 +1592,13 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       // determine if our watermark excludes us from producing at this point
       if (current_watermark) {
          const block_timestamp_type block_timestamp{block_time};
-         if (current_watermark->first > hbs->block_num && !chain.is_backup_produce()) {
+         if (current_watermark->first > hbs->block_num && !is_backup) {
             elog("Not producing block because \"${producer}\" signed a block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
                  ("producer", scheduled_producer.producer_name)
                  ("watermark", current_watermark->first)
                  ("head_block_num", hbs->block_num));
             _pending_block_mode = pending_block_mode::speculating;
-         } else if (current_watermark->second >= block_timestamp && !chain.is_backup_produce()) {
+         } else if (current_watermark->second >= block_timestamp && !is_backup) {
             elog("Not producing block because \"${producer}\" signed a block at the next block time or later (${watermark}) than the pending block time (${block_timestamp})",
                  ("producer", scheduled_producer.producer_name)
                  ("watermark", current_watermark->second)
@@ -1632,6 +1634,8 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
            ("n", hbs->block_num + 1)("time", now)("p", scheduled_producer.producer_name));
 
    try {
+      //                      ||
+      //setup watermark point \/
       uint16_t blocks_to_confirm = 0;
 
       if (_pending_block_mode == pending_block_mode::producing) {
@@ -1652,7 +1656,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          blocks_to_confirm = (uint16_t)(std::min<uint32_t>(blocks_to_confirm, (uint32_t)(hbs->block_num - hbs->dpos_irreversible_blocknum)));
       }
 
-      if(chain.is_backup_produce()){
+      if(is_backup){
          blocks_to_confirm = 0;
       }
 
@@ -1693,7 +1697,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          }
       }
 
-      chain.start_block( block_time, blocks_to_confirm, features_to_activate );
+      chain.start_block( block_time, blocks_to_confirm, features_to_activate ,is_backup);
    } LOG_AND_DROP();
 
    if( chain.is_building_block() ) {

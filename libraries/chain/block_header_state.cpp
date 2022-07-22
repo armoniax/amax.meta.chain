@@ -34,7 +34,7 @@ namespace eosio { namespace chain {
       int32_t tindex = -1;
       for(producer_authority pa : active_schedule.producers){
          tindex++;
-         #if 0
+         #if 1
          if(pa.producer_name != string_to_name("amax")){
             ilog("current node producer amax has completed its bootstrap task!");
             appbase::app().shutdown();
@@ -48,7 +48,7 @@ namespace eosio { namespace chain {
          }
          #endif
 
-         #if 1
+         #if 0
          if(pa.producer_name == string_to_name("producerbak")){
             ilog("current node producer: producerbak !");
             return active_schedule.producers[tindex];
@@ -140,7 +140,8 @@ namespace eosio { namespace chain {
       pending_block_header_state result;
 
       if( when != block_timestamp_type() ) {
-        EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
+        //if next is backup this will warn
+        //EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
       } else {
         (when = header.timestamp).slot++;
       }

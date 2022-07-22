@@ -102,6 +102,9 @@ namespace eosio { namespace chain {
             validated   = 1, ///< this is a complete block signed by a valid producer and has been previously applied by this node and therefore validated but it is not yet irreversible
             complete   = 2, ///< this is a complete block signed by a valid producer but is not yet irreversible nor has it yet been applied by this node
             incomplete  = 3, ///< this is an incomplete block (either being produced by a producer or speculatively produced by a node)
+            backup_validated = 4,
+            backup_complete  = 5,
+            backup_incomplete = 6,
          };
 
          controller( const config& cfg, const chain_id_type& chain_id );
@@ -133,7 +136,7 @@ namespace eosio { namespace chain {
           */
          void start_block( block_timestamp_type time,
                            uint16_t confirm_block_count,
-                           const vector<digest_type>& new_protocol_feature_activations );
+                           const vector<digest_type>& new_protocol_feature_activations,bool is_backup = false);
 
          /**
           * @return transactions applied in aborted block
