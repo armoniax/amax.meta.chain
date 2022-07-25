@@ -351,6 +351,7 @@ BOOST_FIXTURE_TEST_CASE( producer_schedule_reduction, tester ) try {
    BOOST_REQUIRE_EQUAL( validate(), true );
 } FC_LOG_AND_RETHROW()
 
+#ifdef EMPTY_PRODUCER_SCHEDULE_HAS_NO_EFFECT
 BOOST_AUTO_TEST_CASE( empty_producer_schedule_has_no_effect ) try {
    fc::temp_directory tempdir;
    validating_tester c( tempdir, true );
@@ -432,6 +433,7 @@ BOOST_AUTO_TEST_CASE( empty_producer_schedule_has_no_effect ) try {
 
    BOOST_REQUIRE_EQUAL( c.validate(), true );
 } FC_LOG_AND_RETHROW()
+#endif//EMPTY_PRODUCER_SCHEDULE_HAS_NO_EFFECT
 
 BOOST_AUTO_TEST_CASE( producer_watermark_test ) try {
    tester c;

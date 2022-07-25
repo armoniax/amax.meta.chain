@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE( activate_preactivate_feature ) try {
    // BOOST_CHECK_EXCEPTION( c.set_code( config::system_account_name, contracts::amax_bios_wasm() ),
    //                        wasm_exception, fc_exception_message_is("env.is_feature_activated unresolveable")
    // );
-   // 
+   //
    // // But the old bios contract can still be set.
    // c.set_code( config::system_account_name, contracts::before_preactivate_amax_bios_wasm() );
    // c.set_abi( config::system_account_name, contracts::before_preactivate_amax_bios_abi().data() );
@@ -1187,7 +1187,7 @@ BOOST_AUTO_TEST_CASE( webauthn_producer ) { try {
    c.produce_block();
 
    vector<legacy::producer_key> waprodsched = {{N(waprod), public_key_type("PUB_WA_WdCPfafVNxVMiW5ybdNs83oWjenQXvSt1F49fg9mv7qrCiRwHj5b38U3ponCFWxQTkDsMC"s)}};
-   
+
    BOOST_CHECK_THROW(
       c.push_action(config::system_account_name, N(setprods), config::system_account_name, fc::mutable_variant_object()("schedule", waprodsched)),
       eosio::chain::unactivated_key_type
@@ -1354,7 +1354,28 @@ BOOST_AUTO_TEST_CASE( webauthn_assert_recover_key ) { try {
 
 } FC_LOG_AND_RETHROW() }
 
-static const char import_set_proposed_producer_ex_wast[] = R"=====(
+// static const char import_set_proposed_producer_ex_wast[] = R"=====(
+// (module
+//  (import "env" "set_proposed_producers_ex" (func $set_proposed_producers_ex (param i64 i32 i32) (result i64)))
+//  (memory $0 1)
+//  (export "apply" (func $apply))
+//  (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+//    (drop
+//      (call $set_proposed_producers_ex
+//        (i64.const 0)
+//        (i32.const 0)
+//        (i32.const 43)
+//      )
+//    )
+//  )
+//  (data (i32.const 8) "\01\00\00\00\00\00\85\5C\34\00\03\EB\CF\44\B4\5A\71\D4\F2\25\76\8F\60\2D\1E\2E\2B\25\EF\77\9E\E9\89\7F\E7\44\BF\1A\16\E8\54\23\D5")
+// )
+// )=====";
+
+string make_set_proposed_producer_ex_wast(const vector<producer_authority>& producers) {
+   auto raw_data = fc::raw::pack(producers);
+   std::stringstream ss;
+   ss << R"=====(
 (module
  (import "env" "set_proposed_producers_ex" (func $set_proposed_producers_ex (param i64 i32 i32) (result i64)))
  (memory $0 1)
@@ -1362,15 +1383,24 @@ static const char import_set_proposed_producer_ex_wast[] = R"=====(
  (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
    (drop
      (call $set_proposed_producers_ex
-       (i64.const 0)
+       (i64.const 1)
        (i32.const 0)
-       (i32.const 43)
+       (i32.const )=====" << raw_data.size() << ")"
+      << R"=====(
      )
    )
  )
- (data (i32.const 8) "\01\00\00\00\00\00\85\5C\34\00\03\EB\CF\44\B4\5A\71\D4\F2\25\76\8F\60\2D\1E\2E\2B\25\EF\77\9E\E9\89\7F\E7\44\BF\1A\16\E8\54\23\D5")
+ (data (i32.const 0) ")=====";
+
+   for (const auto& c : raw_data) {
+      ss << "\\" << fc::to_hex(&c, 1);
+   }
+   ss << "\")";
+   ss << R"=====(
 )
 )=====";
+   return ss.str();
+}
 
 BOOST_AUTO_TEST_CASE( set_proposed_producers_ex_test ) { try {
    tester c( setup_policy::preactivate_feature_and_new_bios );
@@ -1383,7 +1413,11 @@ BOOST_AUTO_TEST_CASE( set_proposed_producers_ex_test ) { try {
    c.create_accounts( {alice_account} );
    c.produce_block();
 
-   BOOST_CHECK_EXCEPTION(  c.set_code( alice_account, import_set_proposed_producer_ex_wast ),
+   auto import_set_proposed_producer_ex_wast = make_set_proposed_producer_ex_wast(
+      { producer_authority{N(alice), block_signing_authority_v0{ 1, {{get_public_key(N(alice), "active"),1}}}} }
+   );
+   // wdump( (import_set_proposed_producer_ex_wast) );
+   BOOST_CHECK_EXCEPTION(  c.set_code( alice_account, import_set_proposed_producer_ex_wast.c_str() ),
                            wasm_exception,
                            fc_exception_message_is( "env.set_proposed_producers_ex unresolveable" ) );
 
@@ -1391,7 +1425,7 @@ BOOST_AUTO_TEST_CASE( set_proposed_producers_ex_test ) { try {
    c.produce_block();
 
    // ensure it now resolves
-   c.set_code( alice_account, import_set_proposed_producer_ex_wast );
+   c.set_code( alice_account, import_set_proposed_producer_ex_wast.c_str() );
 
    // ensure it requires privilege
    BOOST_REQUIRE_EQUAL(
