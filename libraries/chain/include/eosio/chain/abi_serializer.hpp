@@ -539,6 +539,11 @@ namespace impl {
             mvo("new_producer_schedule", new_producer_schedule);
          }
 
+         if ( header_exts.count(producer_schedule_change_extension_v2::extension_id())) {
+            const auto& producer_schedule_change = header_exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
+            mvo("producer_schedule_change", producer_schedule_change);
+         }
+
          mvo("producer_signature", block.producer_signature);
          add(mvo, "transactions", block.transactions, resolver, ctx);
 

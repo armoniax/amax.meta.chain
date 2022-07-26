@@ -15,10 +15,96 @@ namespace eosio { namespace chain {
       }
    }
 
+   struct produce_change_merger {
+
+      static void merge(const producer_change_map& change_map, flat_map<name, block_signing_authority> &producers) {
+
+         for (const auto& change : change_map.changes) {
+            const auto producer_name = change.first;
+            change.second.visit( [&producer_name, &producers](const auto& c ) {
+               switch(c.change_operation) {
+                  case producer_change_operation::add:
+                     // TODO: need to check producer not existed for add
+                  case producer_change_operation::modify:
+                     // TODO: need to check producer existed for modify
+                     EOS_ASSERT( c.authority, producer_schedule_exception,
+                                 "producer authority can not be empty for change operation ${op}",
+                                 ("op", (uint32_t)c.change_operation) );
+                     producers[producer_name] = *c.authority;
+                     break;
+                  case producer_change_operation::del:
+                     // TODO: need to check producer existed for del
+                     producers.erase(producer_name);
+                     break;
+               }
+            });
+         }
+      }
+   };
+
+   struct emplace_produce_change_ext_visitor {
+
+      emplace_produce_change_ext_visitor(const protocol_feature_set& pfs,
+         const protocol_feature_activation_set_ptr& prev_activated_protocol_features, signed_block_header& header):
+            _pfs(pfs), _prev_activated_protocol_features(prev_activated_protocol_features), _header(header) {}
+
+      void operator()( const producer_authority_schedule& new_producers ) {
+         if ( detail::is_builtin_activated(_prev_activated_protocol_features, _pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
+            // add the header extension to update the block schedule
+            emplace_extension(
+                  _header.header_extensions,
+                  producer_schedule_change_extension::extension_id(),
+                  fc::raw::pack( producer_schedule_change_extension( new_producers ) )
+            );
+         } else {
+            legacy::producer_schedule_type downgraded_producers;
+            downgraded_producers.version = new_producers.version;
+            for (const auto &p : new_producers.producers) {
+               p.authority.visit([&downgraded_producers, &p](const auto& auth){
+                  EOS_ASSERT(auth.keys.size() == 1 && auth.keys.front().weight == auth.threshold, producer_schedule_exception, "multisig block signing present before enabled!");
+                  downgraded_producers.producers.emplace_back(legacy::producer_key{p.producer_name, auth.keys.front().key});
+               });
+            }
+            _header.new_producers = std::move(downgraded_producers);
+         }
+      }
+
+      void operator()( const producer_schedule_change& changes ) {
+         // TODO: check apos feature activated
+         // if ( detail::is_builtin_activated(_prev_activated_protocol_features, _pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
+
+         // add the header extension to update the block schedule
+         emplace_extension(
+               _header.header_extensions,
+               producer_schedule_change_extension_v2::extension_id(),
+               fc::raw::pack( producer_schedule_change_extension_v2( changes ) )
+         );
+      }
+
+      void operator()( const uint32_t& ) {} // do nothing
+
+      private:
+         const protocol_feature_set& _pfs;
+         const protocol_feature_activation_set_ptr& _prev_activated_protocol_features;
+         signed_block_header& _header;
+   };
+
    producer_authority block_header_state::get_scheduled_producer( block_timestamp_type t )const {
       auto index = t.slot % (active_schedule.producers.size() * config::producer_repetitions);
       index /= config::producer_repetitions;
       return active_schedule.producers[index];
+   }
+
+   optional<producer_authority> block_header_state::get_backup_scheduled_producer( block_timestamp_type t ) const {
+      optional<producer_authority> result;
+      auto schedule = active_backup_schedule.get_schedule();
+      if (schedule) {
+         auto index = t.slot % (schedule->producers.size() * config::backup_producer_repetitions);
+         index /= config::producer_repetitions;
+         const auto& itr = schedule->producers.nth(index);
+         return producer_authority{itr->first, itr->second};
+      }
+      return optional<producer_authority>{};
    }
 
    uint32_t block_header_state::calc_dpos_last_irreversible( account_name producer_of_next_block )const {
@@ -118,10 +204,48 @@ namespace eosio { namespace chain {
 
       result.prev_pending_schedule                 = pending_schedule;
 
-      if( pending_schedule.schedule.producers.size() &&
+      if( !pending_schedule.data_empty() &&
           result.dpos_irreversible_blocknum >= pending_schedule.schedule_lib_num )
       {
-         result.active_schedule = pending_schedule.schedule;
+         if (pending_schedule.schedule.contains<producer_authority_schedule>()) {
+            result.active_schedule = pending_schedule.schedule.get<producer_authority_schedule>();
+         } else {
+            // merge producer changes to main active producers
+            const auto& schedule_change = pending_schedule.schedule.get<producer_schedule_change>();
+            auto& active_producers = result.active_schedule.producers;
+
+            EOS_ASSERT( schedule_change.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
+            result.active_schedule.version = schedule_change.version;
+
+            flat_map<name, block_signing_authority> new_producers;
+            for (const auto& p : active_producers) {
+               new_producers[p.producer_name] = p.authority;
+            }
+
+            const auto& main_changes = schedule_change.main_changes;
+            produce_change_merger::merge(main_changes, new_producers);
+            EOS_ASSERT( new_producers.size() == main_changes.producer_count, producer_schedule_exception,
+                        "new producer count ${count} mismatch with expected ${expected}",
+                        ("count", new_producers.size())("expected", main_changes.producer_count) );
+            active_producers.resize(new_producers.size());
+            for (size_t i = 0; i < new_producers.size(); i++) {
+               active_producers[i] = producer_authority{std::move(new_producers.nth(i)->first), std::move(new_producers.nth(i)->second)};
+            }
+
+            const auto& backup_changes = schedule_change.backup_changes;
+            const auto& cur_backup_schedule = active_backup_schedule.get_schedule();
+            auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
+            if (cur_backup_schedule) {
+               *new_backup_schedule = *cur_backup_schedule; // deep copy
+            }
+            produce_change_merger::merge(backup_changes, new_backup_schedule->producers);
+            EOS_ASSERT( new_backup_schedule->producers.size() == backup_changes.producer_count, producer_schedule_exception,
+                        "new producer count ${count} mismatch with expected ${expected}",
+                        ("count", new_backup_schedule->producers.size())("expected", backup_changes.producer_count) );
+            new_backup_schedule->version = schedule_change.version;
+            result.active_backup_schedule.schedule = new_backup_schedule;
+            result.active_backup_schedule.pre_schedule = cur_backup_schedule;
+         }
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;
 
@@ -165,6 +289,8 @@ namespace eosio { namespace chain {
          result.producer_to_last_produced[proauth.producer_name] = result.block_num;
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;
          result.producer_to_last_implied_irb[proauth.producer_name] = dpos_proposed_irreversible_blocknum;
+
+         result.active_backup_schedule.pre_schedule = active_backup_schedule.get_schedule();
       }
 
       return result;
@@ -173,7 +299,7 @@ namespace eosio { namespace chain {
    signed_block_header pending_block_header_state::make_block_header(
                                                       const checksum256_type& transaction_mroot,
                                                       const checksum256_type& action_mroot,
-                                                      const optional<producer_authority_schedule>& new_producers,
+                                                      const block_producer_schedule_change& producer_schedule_change,
                                                       vector<digest_type>&& new_protocol_feature_activations,
                                                       const protocol_feature_set& pfs
    )const
@@ -196,26 +322,29 @@ namespace eosio { namespace chain {
          );
       }
 
-      if (new_producers) {
-         if ( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
-            // add the header extension to update the block schedule
-            emplace_extension(
-                  h.header_extensions,
-                  producer_schedule_change_extension::extension_id(),
-                  fc::raw::pack( producer_schedule_change_extension( *new_producers ) )
-            );
-         } else {
-            legacy::producer_schedule_type downgraded_producers;
-            downgraded_producers.version = new_producers->version;
-            for (const auto &p : new_producers->producers) {
-               p.authority.visit([&downgraded_producers, &p](const auto& auth){
-                  EOS_ASSERT(auth.keys.size() == 1 && auth.keys.front().weight == auth.threshold, producer_schedule_exception, "multisig block signing present before enabled!");
-                  downgraded_producers.producers.emplace_back(legacy::producer_key{p.producer_name, auth.keys.front().key});
-               });
-            }
-            h.new_producers = std::move(downgraded_producers);
-         }
-      }
+      emplace_produce_change_ext_visitor produce_change_visitor(pfs, prev_activated_protocol_features, h);
+      producer_schedule_change.visit(produce_change_visitor);
+
+      // if (new_producers) {
+      //    if ( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
+      //       // add the header extension to update the block schedule
+      //       emplace_extension(
+      //             h.header_extensions,
+      //             producer_schedule_change_extension::extension_id(),
+      //             fc::raw::pack( producer_schedule_change_extension( *new_producers ) )
+      //       );
+      //    } else {
+      //       legacy::producer_schedule_type downgraded_producers;
+      //       downgraded_producers.version = new_producers->version;
+      //       for (const auto &p : new_producers->producers) {
+      //          p.authority.visit([&downgraded_producers, &p](const auto& auth){
+      //             EOS_ASSERT(auth.keys.size() == 1 && auth.keys.front().weight == auth.threshold, producer_schedule_exception, "multisig block signing present before enabled!");
+      //             downgraded_producers.producers.emplace_back(legacy::producer_key{p.producer_name, auth.keys.front().key});
+      //          });
+      //       }
+      //       h.new_producers = std::move(downgraded_producers);
+      //    }
+      // }
 
       return h;
    }
@@ -237,7 +366,7 @@ namespace eosio { namespace chain {
 
       auto exts = h.validate_and_extract_header_extensions();
 
-      std::optional<producer_authority_schedule> maybe_new_producer_schedule;
+      block_producer_schedule_change maybe_new_producer_schedule;
       std::optional<digest_type> maybe_new_producer_schedule_hash;
       bool wtmsig_enabled = false;
 
@@ -252,11 +381,11 @@ namespace eosio { namespace chain {
 
          const auto& new_producers = *h.new_producers;
          EOS_ASSERT( new_producers.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
-         EOS_ASSERT( prev_pending_schedule.schedule.producers.empty(), producer_schedule_exception,
+         EOS_ASSERT( prev_pending_schedule.data_empty(), producer_schedule_exception,
                     "cannot set new pending producers until last pending is confirmed" );
 
          maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producers));
-         maybe_new_producer_schedule.emplace(new_producers);
+         maybe_new_producer_schedule = producer_authority_schedule(new_producers);
       }
 
       if ( exts.count(producer_schedule_change_extension::extension_id()) > 0 ) {
@@ -266,11 +395,30 @@ namespace eosio { namespace chain {
          const auto& new_producer_schedule = exts.lower_bound(producer_schedule_change_extension::extension_id())->second.get<producer_schedule_change_extension>();
 
          EOS_ASSERT( new_producer_schedule.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
-         EOS_ASSERT( prev_pending_schedule.schedule.producers.empty(), producer_schedule_exception,
+         EOS_ASSERT( prev_pending_schedule.data_empty(), producer_schedule_exception,
                      "cannot set new pending producers until last pending is confirmed" );
 
          maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producer_schedule));
-         maybe_new_producer_schedule.emplace(new_producer_schedule);
+         maybe_new_producer_schedule = producer_authority_schedule(new_producer_schedule);
+      }
+
+      if ( exts.count(producer_schedule_change_extension_v2::extension_id()) > 0 ) {
+         // TODO: check apos feature activated
+         // EOS_ASSERT(wtmsig_enabled, producer_schedule_exception, "Block header producer_schedule_change_extension before activation of WTMsig Block Signatures" );
+
+         EOS_ASSERT( maybe_new_producer_schedule.which() == 0, producer_schedule_exception, "cannot set pending producer schedule in the same block in other ways" );
+         EOS_ASSERT( !was_pending_promoted, producer_schedule_exception, "cannot set pending producer schedule change in the same block in which pending was promoted to active" );
+
+         const auto& new_producer_schedule = exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
+
+         EOS_ASSERT( new_producer_schedule.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
+         EOS_ASSERT( prev_pending_schedule.data_empty(), producer_schedule_exception,
+                     "cannot set new pending producers until last pending is confirmed" );
+         EOS_ASSERT( !new_producer_schedule.empty(), producer_schedule_exception,
+                     "new pending producers cannot be empty" );
+
+         maybe_new_producer_schedule_hash.emplace(digest_type::hash(new_producer_schedule));
+         maybe_new_producer_schedule = producer_schedule_change(new_producer_schedule);
       }
 
       protocol_feature_activation_set_ptr new_activated_protocol_features;
@@ -297,13 +445,13 @@ namespace eosio { namespace chain {
 
       result.header_exts = std::move(exts);
 
-      if( maybe_new_producer_schedule ) {
-         result.pending_schedule.schedule = std::move(*maybe_new_producer_schedule);
+      if( maybe_new_producer_schedule.which() > 0 ) {
+         result.pending_schedule.schedule = std::move(maybe_new_producer_schedule);
          result.pending_schedule.schedule_hash = std::move(*maybe_new_producer_schedule_hash);
          result.pending_schedule.schedule_lib_num    = block_number;
       } else {
          if( was_pending_promoted ) {
-            result.pending_schedule.schedule.version = prev_pending_schedule.schedule.version;
+            result.pending_schedule.data_clear(prev_pending_schedule.get_version());
          } else {
             result.pending_schedule.schedule         = std::move( prev_pending_schedule.schedule );
          }

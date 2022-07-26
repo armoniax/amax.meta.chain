@@ -287,6 +287,241 @@ namespace eosio { namespace chain {
       }
    };
 
+   struct backup_producer_schedule {
+      uint32_t  version = 0; ///< sequentially incrementing version number
+      flat_map<name, block_signing_authority> producers;
+
+      template<typename Op>
+      static void for_each_key( const block_signing_authority& authority, Op&& op ) {
+         authority.visit([&op](const auto &a){
+            a.for_each_key(std::forward<Op>(op));
+         });
+      }
+
+      friend bool operator == ( const backup_producer_schedule& a, const backup_producer_schedule& b ) {
+         if( a.version != b.version ) return false;
+         if ( a.producers.size() != b.producers.size() ) return false;
+         if( !(a.producers == b.producers) ) return false;
+         return true;
+      }
+
+      friend bool operator != ( const backup_producer_schedule& a, const backup_producer_schedule& b ) {
+         return !(a==b);
+      }
+   };
+
+   typedef std::shared_ptr<backup_producer_schedule> backup_producer_schedule_ptr;
+
+   enum producer_type {
+      main_producer_type      = 0,
+      backup_producer_type    = 1
+   };
+
+   enum class producer_change_operation: uint8_t {
+      add       = 0,
+      modify    = 1,
+      del       = 2,
+   };
+
+   template <producer_change_operation ProducerChangeOperation>
+   struct shared_producer_authority_change {
+      shared_producer_authority_change() = delete;
+      shared_producer_authority_change( const shared_producer_authority_change& ) = default;
+      shared_producer_authority_change( shared_producer_authority_change&& ) = default;
+      shared_producer_authority_change& operator= ( shared_producer_authority_change && ) = default;
+      shared_producer_authority_change& operator= ( const shared_producer_authority_change & ) = default;
+
+      shared_producer_authority_change( chainbase::allocator<char> alloc ) {}
+      shared_producer_authority_change( optional<shared_block_signing_authority>&& authority )
+      :authority(std::move(authority))
+      {}
+
+      static constexpr producer_change_operation change_operation = ProducerChangeOperation;
+      optional<shared_block_signing_authority> authority;
+   };
+
+   using shared_producer_authority_add = shared_producer_authority_change<producer_change_operation::add>;
+   using shared_producer_authority_modify = shared_producer_authority_change<producer_change_operation::modify>;
+   using shared_producer_authority_del = shared_producer_authority_change<producer_change_operation::del>;
+
+   using shared_producer_change_record = static_variant<
+      shared_producer_authority_add,
+      shared_producer_authority_modify,
+      shared_producer_authority_del
+   >;
+
+   template <producer_change_operation ProducerChangeOperation>
+   struct producer_authority_change {
+      static constexpr producer_change_operation change_operation = ProducerChangeOperation;
+
+      auto to_shared(chainbase::allocator<char> alloc) const {
+         shared_producer_authority_change<ProducerChangeOperation> result(alloc);
+         if (authority) {
+            authority->visit([&alloc, &result](const auto& a) {
+               result.authority = a.to_shared(alloc);
+            });
+         }
+
+         return result;
+      }
+
+      static auto from_shared( const shared_producer_authority_change<ProducerChangeOperation>& src ) {
+         producer_authority_change<ProducerChangeOperation> result;
+         if (src.authority) {
+            result.authority = src.authority->visit(overloaded {
+               [](const shared_block_signing_authority_v0& a) {
+                  return block_signing_authority_v0::from_shared(a);
+            }
+         });
+         }
+         return result;
+      }
+
+
+      friend bool operator == ( const producer_authority_change& lhs, const producer_authority_change& rhs ) {
+         return lhs.authority == rhs.authority;
+      }
+      friend bool operator != ( const producer_authority_change& lhs, const producer_authority_change& rhs ) {
+         return lhs.authority != rhs.authority;
+      }
+
+      optional<block_signing_authority> authority;
+   };
+
+   using producer_authority_add = producer_authority_change<producer_change_operation::add>;
+   using producer_authority_modify = producer_authority_change<producer_change_operation::modify>;
+   using producer_authority_del = producer_authority_change<producer_change_operation::del>;
+
+   using producer_change_record = static_variant<
+      producer_authority_add,     // add
+      producer_authority_modify,  // modify
+      producer_authority_del      // delete
+   >;
+
+   struct shared_producer_change_map {
+      shared_producer_change_map() = delete;
+
+      explicit shared_producer_change_map( chainbase::allocator<char> alloc ): changes(alloc) {}
+
+      shared_producer_change_map( const shared_producer_change_map& ) = default;
+      shared_producer_change_map( shared_producer_change_map&& ) = default;
+      shared_producer_change_map& operator= ( shared_producer_change_map && ) = default;
+      shared_producer_change_map& operator= ( const shared_producer_change_map & ) = default;
+
+      void clear() {
+         producer_count = 0;
+         changes.clear();
+      }
+
+      uint32_t  producer_count = 0; // the total producer count after change
+      shared_flat_map<name, shared_producer_change_record> changes;
+   };
+
+   struct producer_change_map {
+      uint32_t  producer_count = 0; // the total producer count after change
+      flat_map<name, producer_change_record> changes;
+
+      auto to_shared(chainbase::allocator<char> alloc) const {
+         auto result = shared_producer_change_map(alloc);
+         result.producer_count = producer_count;
+         result.changes.clear();
+         result.changes.reserve( changes.size() );
+         for( const auto& c : changes ) {
+            result.changes.emplace(c.first,
+               c.second.visit([&alloc](const auto &record) {
+                  return shared_producer_change_record(record.to_shared(alloc));
+               })
+            );
+         }
+         return result;
+      }
+
+      static auto from_shared( const shared_producer_change_map& src ) {
+         producer_change_map result;
+         result.producer_count = src.producer_count;
+         result.changes.reserve(src.changes.size());
+         for( const auto& c : src.changes ) {
+            result.changes.emplace(c.first,
+               c.second.visit([](const auto &record) {
+                  return producer_change_record(
+                     producer_authority_change<std::decay_t<decltype(record)>::change_operation>::from_shared(record)
+                  );
+               })
+            );
+         }
+
+         return result;
+      }
+
+      friend bool operator == ( const producer_change_map& lhs, const producer_change_map& rhs ) {
+         return tie( lhs.producer_count, lhs.changes ) == tie( rhs.producer_count, rhs.changes );
+      }
+      friend bool operator != ( const producer_change_map& lhs, const producer_change_map& rhs ) {
+         return tie( lhs.producer_count, lhs.changes ) != tie( rhs.producer_count, rhs.changes );
+      }
+
+   };
+
+   struct proposed_producer_changes {
+      producer_change_map main_changes;
+      producer_change_map backup_changes;
+   };
+
+   struct shared_producer_schedule_change {
+      shared_producer_schedule_change() = delete;
+
+      explicit shared_producer_schedule_change( chainbase::allocator<char> alloc ): main_changes(alloc), backup_changes(alloc) {}
+
+      shared_producer_schedule_change( const shared_producer_schedule_change& ) = default;
+      shared_producer_schedule_change( shared_producer_schedule_change&& ) = default;
+      shared_producer_schedule_change& operator= ( shared_producer_schedule_change && ) = default;
+      shared_producer_schedule_change& operator= ( const shared_producer_schedule_change & ) = default;
+
+      void clear() {
+         version = 0;
+         main_changes.clear();
+         backup_changes.clear();
+      }
+
+      uint32_t  version = 0; ///< sequentially incrementing version number
+      shared_producer_change_map main_changes;
+      shared_producer_change_map backup_changes;
+   };
+
+   struct producer_schedule_change {
+      uint32_t  version = 0; ///< sequentially incrementing version number
+      producer_change_map main_changes;
+      producer_change_map backup_changes;
+
+      auto to_shared(chainbase::allocator<char> alloc) const {
+         auto result = shared_producer_schedule_change(alloc);
+         result.version = version;
+         result.main_changes = main_changes.to_shared(alloc);
+         result.backup_changes = backup_changes.to_shared(alloc);
+         return result;
+      }
+
+      static auto from_shared( const shared_producer_schedule_change& src ) {
+         producer_schedule_change result;
+         result.version = src.version;
+         result.main_changes = producer_change_map::from_shared(src.main_changes);
+         result.backup_changes = producer_change_map::from_shared(src.backup_changes);
+
+         return result;
+      }
+
+      bool empty() const {
+         return main_changes.changes.empty() && backup_changes.changes.empty();
+      }
+   };
+
+   using block_producer_schedule_change = static_variant<uint32_t, producer_authority_schedule, producer_schedule_change >;
+
+   struct schedule_version_visitor {
+      uint32_t operator()( const uint32_t& value) {  return value; }
+      template<typename T> uint32_t operator()( const T& t ) { return t.version; }
+
+   };
    /**
     * Block Header Extension Compatibility
     */
@@ -303,6 +538,18 @@ namespace eosio { namespace chain {
       :producer_authority_schedule(sched) {}
    };
 
+   struct producer_schedule_change_extension_v2 : producer_schedule_change {
+
+      static constexpr uint16_t extension_id() { return 2; }
+      static constexpr bool     enforce_unique() { return true; }
+
+      producer_schedule_change_extension_v2() = default;
+      producer_schedule_change_extension_v2(const producer_schedule_change_extension_v2&) = default;
+      producer_schedule_change_extension_v2( producer_schedule_change_extension_v2&& ) = default;
+
+      producer_schedule_change_extension_v2( const producer_schedule_change& change_records )
+      :producer_schedule_change(change_records) {}
+   };
 
    inline bool operator == ( const producer_authority& pa, const shared_producer_authority& pb )
    {
@@ -327,9 +574,23 @@ FC_REFLECT( eosio::chain::legacy::producer_schedule_type, (version)(producers) )
 FC_REFLECT( eosio::chain::block_signing_authority_v0, (threshold)(keys))
 FC_REFLECT( eosio::chain::producer_authority, (producer_name)(authority) )
 FC_REFLECT( eosio::chain::producer_authority_schedule, (version)(producers) )
+FC_REFLECT( eosio::chain::backup_producer_schedule, (version)(producers) )
 FC_REFLECT_DERIVED( eosio::chain::producer_schedule_change_extension, (eosio::chain::producer_authority_schedule), )
 
 FC_REFLECT( eosio::chain::shared_block_signing_authority_v0, (threshold)(keys))
 FC_REFLECT( eosio::chain::shared_producer_authority, (producer_name)(authority) )
 FC_REFLECT( eosio::chain::shared_producer_authority_schedule, (version)(producers) )
 
+
+FC_REFLECT_TEMPLATE( (eosio::chain::producer_change_operation ProducerChangeOperation),
+                      eosio::chain::shared_producer_authority_change<ProducerChangeOperation>, (authority) )
+FC_REFLECT_TEMPLATE( (eosio::chain::producer_change_operation ProducerChangeOperation),
+                      eosio::chain::producer_authority_change<ProducerChangeOperation>, (authority) )
+
+FC_REFLECT( eosio::chain::shared_producer_change_map, (producer_count)(changes) )
+FC_REFLECT( eosio::chain::producer_change_map, (producer_count)(changes) )
+
+FC_REFLECT( eosio::chain::proposed_producer_changes, (main_changes)(backup_changes) )
+FC_REFLECT( eosio::chain::shared_producer_schedule_change, (version)(main_changes)(backup_changes) )
+FC_REFLECT( eosio::chain::producer_schedule_change, (version)(main_changes)(backup_changes) )
+FC_REFLECT_DERIVED( eosio::chain::producer_schedule_change_extension_v2, (eosio::chain::producer_schedule_change), )

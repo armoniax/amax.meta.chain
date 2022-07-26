@@ -38,12 +38,13 @@ namespace eosio { namespace chain {
     */
    class global_property_object : public chainbase::object<global_property_object_type, global_property_object>
    {
-      OBJECT_CTOR(global_property_object, (proposed_schedule))
+      OBJECT_CTOR(global_property_object, (proposed_schedule)(proposed_schedule_change))
 
    public:
       id_type                             id;
       optional<block_num_type>            proposed_schedule_block_num;
       shared_producer_authority_schedule  proposed_schedule;
+      shared_producer_schedule_change     proposed_schedule_change;
       chain_config                        configuration;
       chain_id_type                       chain_id;
 
@@ -121,7 +122,7 @@ CHAINBASE_SET_INDEX_TYPE(eosio::chain::dynamic_global_property_object,
                          eosio::chain::dynamic_global_property_multi_index)
 
 FC_REFLECT(eosio::chain::global_property_object,
-            (proposed_schedule_block_num)(proposed_schedule)(configuration)(chain_id)
+            (proposed_schedule_block_num)(proposed_schedule)(proposed_schedule_change)(configuration)(chain_id)
           )
 
 FC_REFLECT(eosio::chain::legacy::snapshot_global_property_object_v2,

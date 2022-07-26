@@ -48,6 +48,29 @@ using signer_callback_type = std::function<std::vector<signature_type>(const dig
 struct block_header_state;
 
 namespace detail {
+   struct backup_schedule_index_t {
+      backup_producer_schedule_ptr   schedule;
+
+      backup_producer_schedule_ptr   pre_schedule; // only in memory, not persisted
+
+      const backup_producer_schedule_ptr& get_schedule() const {
+
+         return schedule ? schedule : pre_schedule;
+      }
+
+      void ensure_pre_schedule(const backup_schedule_index_t& pre_schedule_index) {
+         if (!pre_schedule) {
+            pre_schedule = pre_schedule_index.get_schedule();
+         }
+      }
+
+      void ensure_persisted() {
+         if (!schedule) {
+            schedule = pre_schedule;
+         }
+      }
+   };
+
    struct block_header_state_common {
       uint32_t                          block_num = 0;
       uint32_t                          dpos_proposed_irreversible_blocknum = 0;
@@ -58,12 +81,33 @@ namespace detail {
       flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
       block_signing_authority           valid_block_signing_authority;
       vector<uint8_t>                   confirm_count;
+      backup_schedule_index_t           active_backup_schedule;
    };
 
    struct schedule_info {
       uint32_t                          schedule_lib_num = 0; /// last irr block num
       digest_type                       schedule_hash;
-      producer_authority_schedule       schedule;
+      block_producer_schedule_change    schedule;
+
+      static bool data_empty(const block_producer_schedule_change& schedule) {
+         return schedule.which() == 0;
+      }
+
+      bool data_empty() const {
+         return schedule.which() == 0;
+      }
+
+      void data_clear(uint32_t version = 0) {
+         schedule = version;
+      }
+
+      static uint32_t get_version (const block_producer_schedule_change& schedule) {
+         return schedule.visit(schedule_version_visitor());
+      }
+
+      uint32_t get_version () const {
+         return get_version(schedule);
+      }
    };
 
    bool is_builtin_activated( const protocol_feature_activation_set_ptr& pfa,
@@ -83,7 +127,7 @@ struct pending_block_header_state : public detail::block_header_state_common {
 
    signed_block_header make_block_header( const checksum256_type& transaction_mroot,
                                           const checksum256_type& action_mroot,
-                                          const optional<producer_authority_schedule>& new_producers,
+                                          const block_producer_schedule_change& producer_schedule_change,
                                           vector<digest_type>&& new_protocol_feature_activations,
                                           const protocol_feature_set& pfs)const;
 
@@ -143,10 +187,11 @@ struct block_header_state : public detail::block_header_state_common {
                                                         const vector<digest_type>& )>& validator,
                               bool skip_validate_signee = false )const;
 
-   bool                 has_pending_producers()const { return pending_schedule.schedule.producers.size(); }
+   bool                 has_pending_producers()const { return !pending_schedule.data_empty(); }
    uint32_t             calc_dpos_last_irreversible( account_name producer_of_next_block )const;
 
    producer_authority     get_scheduled_producer( block_timestamp_type t )const;
+   optional<producer_authority> get_backup_scheduled_producer( block_timestamp_type t )const;
    const block_id_type&   prev()const { return header.previous; }
    digest_type            sig_digest()const;
    void                   sign( const signer_callback_type& signer );
@@ -157,7 +202,48 @@ struct block_header_state : public detail::block_header_state_common {
 
 using block_header_state_ptr = std::shared_ptr<block_header_state>;
 
+namespace legacy {
+
+   /**
+    * a fc::raw::unpack compatible version of the old block_state structure stored in
+    * version 2 snapshots
+    */
+   struct snapshot_block_header_state_v3 : public detail::block_header_state_common {
+      static constexpr uint32_t minimum_version = 3;
+      static constexpr uint32_t maximum_version = 3;
+      static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state_v3 is no longer needed");
+
+      struct schedule_info {
+         uint32_t                          schedule_lib_num = 0; /// last irr block num
+         digest_type                       schedule_hash;
+         producer_authority_schedule       schedule;
+      };
+
+      /// from block_header_state_common
+      uint32_t                          block_num = 0;
+      uint32_t                          dpos_proposed_irreversible_blocknum = 0;
+      uint32_t                          dpos_irreversible_blocknum = 0;
+      producer_authority_schedule       active_schedule;
+      incremental_merkle                blockroot_merkle;
+      flat_map<account_name,uint32_t>   producer_to_last_produced;
+      flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
+      block_signing_authority           valid_block_signing_authority;
+      vector<uint8_t>                   confirm_count;
+
+      /// from block_header_state
+      block_id_type                        id;
+      signed_block_header                  header;
+      schedule_info                        pending_schedule;
+      protocol_feature_activation_set_ptr  activated_protocol_features;
+      vector<signature_type>               additional_signatures;
+   };
+}
+
 } } /// namespace eosio::chain
+
+FC_REFLECT( eosio::chain::detail::backup_schedule_index_t,
+          (schedule)
+)
 
 FC_REFLECT( eosio::chain::detail::block_header_state_common,
             (block_num)
@@ -169,6 +255,7 @@ FC_REFLECT( eosio::chain::detail::block_header_state_common,
             (producer_to_last_implied_irb)
             (valid_block_signing_authority)
             (confirm_count)
+            (active_backup_schedule)
 )
 
 FC_REFLECT( eosio::chain::detail::schedule_info,
@@ -207,4 +294,27 @@ FC_REFLECT( eosio::chain::legacy::snapshot_block_header_state_v2,
           ( header )
           ( pending_schedule )
           ( activated_protocol_features )
+)
+
+FC_REFLECT( eosio::chain::legacy::snapshot_block_header_state_v3::schedule_info,
+            (schedule_lib_num)
+            (schedule_hash)
+            (schedule)
+)
+
+FC_REFLECT(  eosio::chain::legacy::snapshot_block_header_state_v3,
+            (block_num)
+            (dpos_proposed_irreversible_blocknum)
+            (dpos_irreversible_blocknum)
+            (active_schedule)
+            (blockroot_merkle)
+            (producer_to_last_produced)
+            (producer_to_last_implied_irb)
+            (valid_block_signing_authority)
+            (confirm_count)
+            (id)
+            (header)
+            (pending_schedule)
+            (activated_protocol_features)
+            (additional_signatures)
 )

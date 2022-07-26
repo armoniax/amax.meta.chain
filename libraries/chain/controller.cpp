@@ -117,7 +117,7 @@ struct building_block {
    {}
 
    pending_block_header_state            _pending_block_header_state;
-   optional<producer_authority_schedule> _new_pending_producer_schedule;
+   block_producer_schedule_change        _new_pending_producer_schedule;
    vector<digest_type>                   _new_protocol_feature_activations;
    size_t                                _num_new_protocol_features_that_have_activated = 0;
    vector<transaction_metadata_ptr>      _pending_trx_metas;
@@ -133,7 +133,7 @@ struct assembled_block {
    signed_block_ptr                  _unsigned_block;
 
    // if the _unsigned_block pre-dates block-signing authorities this may be present.
-   optional<producer_authority_schedule> _new_producer_authority_cache;
+   block_producer_schedule_change    _new_producer_authority_cache;
 };
 
 struct completed_block {
@@ -1619,27 +1619,45 @@ struct controller_impl {
          const auto& gpo = db.get<global_property_object>();
 
          if( gpo.proposed_schedule_block_num.valid() && // if there is a proposed schedule that was proposed in a block ...
-             ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) && // ... that has now become irreversible ...
-             pbhs.prev_pending_schedule.schedule.producers.size() == 0 // ... and there was room for a new pending schedule prior to any possible promotion
-         )
-         {
-            // Promote proposed schedule to pending schedule.
-            if( !replay_head_time ) {
-               ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
-                     ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
-                     ("lib", pbhs.dpos_irreversible_blocknum)
-                     ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+             ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) ) { // ... that has now become irreversible ...
+
+            if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
+               if (pbhs.prev_pending_schedule.data_empty()) { // ... and there was room for a new pending schedule prior to any possible promotion
+
+                  // Promote proposed schedule to pending schedule.
+                  if( !replay_head_time ) {
+                     ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
+                           ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
+                           ("lib", pbhs.dpos_irreversible_blocknum)
+                           ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+                  }
+
+
+                  EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
+                              producer_schedule_exception, "wrong producer schedule version specified" );
+
+                  pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
+                  db.modify( gpo, [&]( auto& gp ) {
+                     gp.proposed_schedule_block_num = optional<block_num_type>();
+                     gp.proposed_schedule.version=0;
+                     gp.proposed_schedule.producers.clear();
+                     // gp.proposed_schedule_change.clear();
+                  });
+               }
+            } else {
+               // TODO: if (!prev_pending_schedule_change.empty())
+               // TODO: check version with active schedule change
+               // if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
+               EOS_ASSERT( gpo.proposed_schedule_change.version == pbhs.active_schedule_version + 1,
+                           producer_schedule_exception, "wrong producer schedule version specified" );
+
+               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+               db.modify( gpo, [&]( auto& gp ) {
+                  gp.proposed_schedule_block_num = optional<block_num_type>();
+                  gp.proposed_schedule_change.clear();
+               });
             }
 
-            EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
-                        producer_schedule_exception, "wrong producer schedule version specified" );
-
-            pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
-            db.modify( gpo, [&]( auto& gp ) {
-               gp.proposed_schedule_block_num = optional<block_num_type>();
-               gp.proposed_schedule.version=0;
-               gp.proposed_schedule.producers.clear();
-            });
          }
 
          try {
@@ -2946,6 +2964,8 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
       return -1;
    }
 
+   // TODO: check pending schedule change is empty()
+
    if( gpo.proposed_schedule_block_num.valid() ) {
       if( *gpo.proposed_schedule_block_num != cur_block_num )
          return -1; // there is already a proposed schedule set in a previous block, wait for it to become pending
@@ -2955,22 +2975,31 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
          return -1; // the proposed producer schedule does not change
    }
 
+   const auto& pending_sch = pending_producer_schedule();
+   if (pending_sch.contains<producer_schedule_change>()) {
+      wlog( "there is already a pending changed schedule set, wait for it to become active.");
+      return -1;
+   }
+
    producer_authority_schedule sch;
 
    decltype(sch.producers.cend()) end;
    decltype(end)                  begin;
 
-   const auto& pending_sch = pending_producers();
+   const producer_authority_schedule* pending_producers = nullptr;
+   if (pending_sch.contains<producer_authority_schedule>()) {
+      pending_producers = &pending_sch.get<producer_authority_schedule>();
+   }
 
-   if( pending_sch.producers.size() == 0 ) {
+   if( !pending_producers || pending_producers->producers.size() == 0 ) {
       const auto& active_sch = active_producers();
       begin = active_sch.producers.begin();
       end   = active_sch.producers.end();
       sch.version = active_sch.version + 1;
    } else {
-      begin = pending_sch.producers.begin();
-      end   = pending_sch.producers.end();
-      sch.version = pending_sch.version + 1;
+      begin = pending_producers->producers.begin();
+      end   = pending_producers->producers.end();
+      sch.version = pending_producers->version + 1;
    }
 
    if( std::equal( producers.begin(), producers.end(), begin, end ) )
@@ -2989,6 +3018,73 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
    return version;
 }
 
+
+int64_t controller::set_proposed_producers( const proposed_producer_changes& changes ) {
+   const auto& gpo = get_global_properties();
+   auto hbs = head_block_state();
+   auto cur_block_num = hbs->block_num + 1;
+   auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
+   // if( producers.size() == 0 && is_builtin_activated( builtin_protocol_feature_t::disallow_empty_producer_schedule ) ) {
+   //    return -1;
+   // }
+
+   if( gpo.proposed_schedule_block_num.valid() ) {
+      return -1; // there is already a proposed schedule set in a previous block, wait for it to become pending
+   }
+
+   if (!gpo.proposed_schedule.producers.empty()) {
+      wlog( "there is already a proposed schedule set, wait for it to become active.");
+      return -1;
+   }
+   const auto& pending_sch = pending_producer_schedule();
+   if (pending_sch.contains<producer_authority_schedule>()) {
+      wlog( "there is already a pending full schedule set, wait for it to become active.");
+      return -1;
+   }
+
+   const producer_schedule_change* pending_change = nullptr;
+   if (pending_sch.contains<producer_schedule_change>()) {
+      pending_change = &pending_sch.get<producer_schedule_change>();
+   }
+   const auto& active_sch = active_producers();
+   auto version = pending_change ? pending_change->version : active_sch.version;
+   version++;
+
+   // TODO: check changes:
+   // 1. add main: producer is empty (not found or empty) in:
+   //    (a) peding main changes,
+   // || (b) active main schedule
+   // || (c) proposed backup changes
+   // || (d) pending backup changes
+   // || (e) active backup schedule
+
+   // 2. delete | modify main: producer is not empty (found and not empty) in:
+   //    (a) peding main changes,
+   // || (b) active main schedule
+
+   // 3. add backup: producer is empty (not found or empty) in:
+   //    (a) peding backup changes,
+   // || (b) active backup schedule
+   // || (c) proposed main changes
+   // || (d) pending main changes
+   // || (e) active main schedule
+
+   // 4. delete | modify backup: producer is not empty (found and not empty) in:
+   //    (a) peding backup changes,
+   // || (b) active backup schedule
+
+   ilog( "proposed producer schedule change with version ${v}", ("v", version) );
+
+   my->db.modify( gpo, [&]( auto& gp ) {
+      auto alloc = gp.proposed_schedule.producers.get_allocator();
+      gp.proposed_schedule_block_num = cur_block_num;
+      gp.proposed_schedule_change.version = version;
+      gp.proposed_schedule_change.main_changes = changes.main_changes.to_shared(alloc);
+      gp.proposed_schedule_change.backup_changes = changes.backup_changes.to_shared(alloc);
+   });
+   return version;
+}
+
 const producer_authority_schedule&    controller::active_producers()const {
    if( !(my->pending) )
       return  my->head->active_schedule;
@@ -2999,26 +3095,35 @@ const producer_authority_schedule&    controller::active_producers()const {
    return my->pending->get_pending_block_header_state().active_schedule;
 }
 
-const producer_authority_schedule& controller::pending_producers()const {
-   if( !(my->pending) )
-      return  my->head->pending_schedule.schedule;
+const block_producer_schedule_change& controller::pending_producer_schedule()const {
+
+   if( !(my->pending) ) {
+      return my->head->pending_schedule.schedule;
+   }
 
    if( my->pending->_block_stage.contains<completed_block>() )
       return my->pending->_block_stage.get<completed_block>()._block_state->pending_schedule.schedule;
 
    if( my->pending->_block_stage.contains<assembled_block>() ) {
       const auto& new_prods_cache = my->pending->_block_stage.get<assembled_block>()._new_producer_authority_cache;
-      if( new_prods_cache ) {
-         return *new_prods_cache;
-      }
+      if (new_prods_cache.which() > 0)
+         return new_prods_cache;
    }
 
    const auto& bb = my->pending->_block_stage.get<building_block>();
 
-   if( bb._new_pending_producer_schedule )
-      return *bb._new_pending_producer_schedule;
+   if( bb._new_pending_producer_schedule.which() > 0 )
+      return bb._new_pending_producer_schedule;
 
    return bb._pending_block_header_state.prev_pending_schedule.schedule;
+}
+
+producer_authority_schedule controller::pending_producers()const {
+   const auto& schedule = pending_producer_schedule();
+
+   if (schedule.contains<producer_authority_schedule>())
+      return schedule.get<producer_authority_schedule>();
+   return producer_authority_schedule{};
 }
 
 optional<producer_authority_schedule> controller::proposed_producers()const {

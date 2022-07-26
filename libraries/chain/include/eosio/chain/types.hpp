@@ -93,6 +93,8 @@ namespace eosio { namespace chain {
    template<typename T>
    using shared_set = boost::interprocess::set<T, std::less<T>, allocator<T>>;
    template<typename K, typename V>
+   using shared_flat_map = boost::interprocess::flat_map< K, V, std::less<K>, allocator< std::pair<K,V> > >;
+   template<typename K, typename V>
    using shared_flat_multimap = boost::interprocess::flat_multimap< K, V, std::less<K>, allocator< std::pair<K,V> > >;
 
    /**
