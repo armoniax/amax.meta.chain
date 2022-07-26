@@ -102,6 +102,9 @@ namespace eosio { namespace chain {
             validated   = 1, ///< this is a complete block signed by a valid producer and has been previously applied by this node and therefore validated but it is not yet irreversible
             complete   = 2, ///< this is a complete block signed by a valid producer but is not yet irreversible nor has it yet been applied by this node
             incomplete  = 3, ///< this is an incomplete block (either being produced by a producer or speculatively produced by a node)
+            backup_validated = 4,
+            backup_complete  = 5,
+            backup_incomplete = 6,
          };
 
          controller( const config& cfg, const chain_id_type& chain_id );
@@ -133,7 +136,7 @@ namespace eosio { namespace chain {
           */
          void start_block( block_timestamp_type time,
                            uint16_t confirm_block_count,
-                           const vector<digest_type>& new_protocol_feature_activations );
+                           const vector<digest_type>& new_protocol_feature_activations,bool is_backup = false);
 
          /**
           * @return transactions applied in aborted block
@@ -198,6 +201,8 @@ namespace eosio { namespace chain {
          void   set_contract_blacklist( const flat_set<account_name>& );
          void   set_action_blacklist( const flat_set< pair<account_name, action_name> >& );
          void   set_key_blacklist( const flat_set<public_key_type>& );
+         void   set_produce_mode(bool is_backup){this->is_backup_mode = is_backup;}
+         void   set_verify_mode(bool is_backup){this->is_backup_verify_mode = is_backup;}
 
          uint32_t             head_block_num()const;
          time_point           head_block_time()const;
@@ -250,6 +255,8 @@ namespace eosio { namespace chain {
          void check_key_list( const public_key_type& key )const;
          bool is_building_block()const;
          bool is_producing_block()const;
+         bool is_backup_produce()const;
+         bool is_backup_verify()const;
 
          bool is_ram_billing_in_notify_allowed()const;
 
@@ -297,6 +304,8 @@ namespace eosio { namespace chain {
 
          void add_to_ram_correction( account_name account, uint64_t ram_bytes );
          bool all_subjective_mitigations_disabled()const;
+         bool is_backup_mode = false;
+         bool is_backup_verify_mode = false;
 
 #if defined(AMAX_EOS_VM_RUNTIME_ENABLED) || defined(AMAX_EOS_VM_JIT_RUNTIME_ENABLED)
          vm::wasm_allocator&  get_wasm_allocator();

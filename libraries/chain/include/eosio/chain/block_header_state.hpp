@@ -76,6 +76,10 @@ namespace detail {
       uint32_t                          dpos_proposed_irreversible_blocknum = 0;
       uint32_t                          dpos_irreversible_blocknum = 0;
       producer_authority_schedule       active_schedule;
+      producer_authority_schedule       main_schedule;
+      producer_authority_schedule       backup_schedule;
+      bool                              is_backup = false;
+      account_name                      next_prod;
       incremental_merkle                blockroot_merkle;
       flat_map<account_name,uint32_t>   producer_to_last_produced;
       flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
@@ -177,7 +181,7 @@ struct block_header_state : public detail::block_header_state_common {
 
    explicit block_header_state( legacy::snapshot_block_header_state_v2&& snapshot );
 
-   pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm )const;
+   pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm)const;
 
    block_header_state   next( const signed_block_header& h,
                               vector<signature_type>&& additional_signatures,

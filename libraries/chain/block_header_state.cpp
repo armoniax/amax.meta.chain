@@ -122,17 +122,26 @@ namespace eosio { namespace chain {
    }
 
    pending_block_header_state  block_header_state::next( block_timestamp_type when,
-                                                         uint16_t num_prev_blocks_to_confirm )const
+                                                         uint16_t num_prev_blocks_to_confirm)const
    {
       pending_block_header_state result;
 
       if( when != block_timestamp_type() ) {
-        EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
+        //if next is backup this will warn
+        //EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
       } else {
         (when = header.timestamp).slot++;
       }
-
-      auto proauth = get_scheduled_producer(when);
+      producer_authority proauth;
+      proauth = get_scheduled_producer(when);
+      if(!is_backup){
+         proauth = get_scheduled_producer(when);
+         result.is_backup = false;
+      }else if(is_backup){
+        auto temp = get_backup_scheduled_producer(when);
+        if(temp.valid()) proauth = *temp;
+         result.is_backup = true;
+      }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );
       if( itr != producer_to_last_produced.end() ) {
@@ -150,7 +159,8 @@ namespace eosio { namespace chain {
       result.prev_activated_protocol_features                = activated_protocol_features;
 
       result.valid_block_signing_authority                   = proauth.authority;
-      result.producer                                        = proauth.producer_name;
+      result.producer                                        = proauth.producer_name; 
+      ilog("next block producer is: ${bp} .....",("bp",proauth.producer_name));
 
       result.blockroot_merkle = blockroot_merkle;
       result.blockroot_merkle.append( id );
@@ -285,6 +295,8 @@ namespace eosio { namespace chain {
          result.was_pending_promoted = true;
       } else {
          result.active_schedule                  = active_schedule;
+         result.main_schedule                    = main_schedule;
+         result.backup_schedule                  = backup_schedule;
          result.producer_to_last_produced        = producer_to_last_produced;
          result.producer_to_last_produced[proauth.producer_name] = result.block_num;
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;
@@ -534,7 +546,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {

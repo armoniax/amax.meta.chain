@@ -509,13 +509,15 @@ namespace impl {
       template<typename Resolver>
       static void add( mutable_variant_object &out, const char* name, const signed_block& block, Resolver resolver, abi_traverse_context& ctx )
       {
-         static_assert(fc::reflector<signed_block>::total_member_count == 12);
+         static_assert(fc::reflector<signed_block>::total_member_count == 14);
          auto h = ctx.enter_scope();
          mutable_variant_object mvo;
          mvo("timestamp", block.timestamp);
          mvo("producer", block.producer);
          mvo("confirmed", block.confirmed);
          mvo("previous", block.previous);
+         mvo("previous_backup",block.previous_backup);
+         mvo("is_backup",block.is_backup);
          mvo("transaction_mroot", block.transaction_mroot);
          mvo("action_mroot", block.action_mroot);
          mvo("schedule_version", block.schedule_version);
