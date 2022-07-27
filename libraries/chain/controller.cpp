@@ -139,11 +139,9 @@ struct assembled_block {
 struct completed_block {
    block_state_ptr                   _block_state;
 };
+
 /**
-*@Module name: core controller 
-*@Description: a block from epoch to stronger will experience 3 stages
-*@Author: cryptoseeking
-*@Modify Time: 2022/06/15 10:03
+*a block from epoch to stronger will experience 3 stages
 */
 using block_stage_type = fc::static_variant<building_block, assembled_block, completed_block>;
 
@@ -431,7 +429,7 @@ struct controller_impl {
 
             emit( self.irreversible_block, *bitr );
 
-            if(!self.is_backup_produce() && !self.is_backup_verify()){
+            if(controller::block_status::backup_incomplete != pending->_block_status && controller::block_status::backup_complete != pending->_block_status){
                db.commit( (*bitr)->block_num );
             }else{
                //when we are in backup mode, we needn't to update state db affected by backup block
@@ -1560,9 +1558,11 @@ struct controller_impl {
          //head->next_prod = string_to_name();
          //main block can not come into backup case.
          //todo why distinguish?
+         head->next_is_backup = true;
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
          pending->_block_status = s;
       }else if(controller::block_status::backup_complete == s){
+         head->next_is_backup = true;
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
          pending->_block_status = s;
       }else if (!self.skip_db_sessions(s)) {
@@ -1732,11 +1732,8 @@ struct controller_impl {
          protocol_features.get_protocol_feature_set()
       ) );
       
-      /**
-      *@Module name: 
+      /** 
       *@Description: when controller in backup mode, block should be backup block
-      *@Author: cryptoseeking
-      *@Modify Time: 2022/06/21 14:35
       */
       if(controller::block_status::backup_incomplete == pending->_block_status){
          //when backup producer producing, next prod in next is not set in on_incoming_block 
@@ -2105,7 +2102,7 @@ struct controller_impl {
       //fix me
       if(b->is_backup){
          self.set_verify_mode(true);
-         prev->is_backup = true;
+         prev->next_is_backup = true;
       }
 
       return async_thread_pool( thread_pool.get_executor(), [b, prev, control=this]() {
@@ -2911,12 +2908,9 @@ account_name  controller::head_block_producer()const {
 const block_header& controller::head_block_header()const {
    return my->head->header;
 }
-/**
-*@Module name: 
+/** 
 *@Description: currently backup depend on main block, wheather we should depend on 
 *backup self. this mode may throw sigsegv in calculate_pending_block_time().
-*@Author: cryptoseeking
-*@Modify Time: 2022/07/01 16:06
 */
 block_state_ptr controller::head_block_state()const {
    return my->head;
@@ -3411,17 +3405,16 @@ void controller::validate_expiration( const transaction& trx )const { try {
                ("max_til_exp",chain_configuration.max_transaction_lifetime) );
 } FC_CAPTURE_AND_RETHROW((trx)) }
 
-/**
-*@Module name: 
+/** 
 *@Description: when in backup mode reference block may not exist in db state.
 *@todo paragraph describing what is to be done
-*@Author: cryptoseeking
-*@Modify Time: 2022/06/21 11:27
 */
 void controller::validate_tapos( const transaction& trx )const { try {
    const auto& tapos_block_summary = db().get<block_summary_object>((uint16_t)trx.ref_block_num);
    if(is_backup_produce() || is_backup_verify()){
-
+      dlog("backup produce? ${produce}, tapos verify",("produce",is_backup_produce()?"true":"false"));
+      dlog("backup verify? ${verify}, tapos verify",("verify",is_backup_verify()?"true":"false"));
+      return;
    }else{
        //Verify TaPoS block summary has correct ID prefix, and that this block's time is not past the expiration
       EOS_ASSERT(trx.verify_reference_block(tapos_block_summary.block_id), invalid_ref_block_exception,

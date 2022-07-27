@@ -387,11 +387,8 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
             }
          }
-         /**
-         *@Module name: 
+         /** 
          *@Description: reset backup verify mode to main
-         *@Author: cryptoseeking
-         *@Modify Time: 2022/07/15 16:21
          */
          if(chain.is_backup_verify()){
             chain.set_verify_mode(false);
@@ -1433,77 +1430,106 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
       ilog("in special situation, head block state is null ptr.....");
    }
    auto active_schedule = hbs->active_schedule.producers;
+   auto backup_active_schedule = hbs->active_backup_schedule.get_schedule()->producers;
 
-   // determine if this producer is in the active schedule and if so, where
+   // determine if this producer is in the active schedule/backup active schedule and if so, where
    auto itr = std::find_if(active_schedule.begin(), active_schedule.end(), [&](const auto& asp){ return asp.producer_name == producer_name; });
-   if (itr == active_schedule.end()) {
-      // this producer is not in the active producer set
+   auto itr_bak = std::find_if(backup_active_schedule.begin(), backup_active_schedule.end(),[&](const auto& basp){ return basp.first == producer_name; });
+
+   if (itr == active_schedule.end() && itr_bak == backup_active_schedule.end()) {
+      // this producer is neither in the active producer set nor in backup active producer set
       return optional<fc::time_point>();
    }
    
-   if(itr->producer_name == string_to_name("producerman")){
-      active_schedule.resize(0);
-      active_schedule = hbs->main_schedule.producers;
-      ilog("active schedule is assigned to main schedule...");
-   }else if(itr->producer_name == string_to_name("producerbak")){
-      active_schedule.resize(0);
-      active_schedule = hbs->backup_schedule.producers;
-      ilog("active schedule is assigned to backup schedule...");
-   }
-   
-   //if change repeate calculate
-   itr = std::find_if(active_schedule.begin(), active_schedule.end(), [&](const auto& asp){ return asp.producer_name == producer_name; });
-   if (itr == active_schedule.end()) {
-      // this producer is not in the active producer set
-      ilog("error time wanted......");
-      return optional<fc::time_point>();
-   }
+   if(itr != active_schedule.end()){
+      size_t producer_index = itr - active_schedule.begin();
+      uint32_t minimum_offset = 1; // must at least be the "next" block
 
-   size_t producer_index = itr - active_schedule.begin();
-   uint32_t minimum_offset = 1; // must at least be the "next" block
-
-   // account for a watermark in the future which is disqualifying this producer for now
-   // this is conservative assuming no blocks are dropped.  If blocks are dropped the watermark will
-   // disqualify this producer for longer but it is assumed they will wake up, determine that they
-   // are disqualified for longer due to skipped blocks and re-caculate their next block with better
-   // information then
-   auto current_watermark = get_watermark(producer_name);
-   if (current_watermark) {
-      const auto watermark = *current_watermark;
-      auto block_num = chain.head_block_state()->block_num;
-      if (chain.is_building_block()) {
-         ++block_num;
-      }
-      if (watermark.first > block_num) {
-         // if I have a watermark block number then I need to wait until after that watermark
-         minimum_offset = watermark.first - block_num + 1;
-      }
-      if (watermark.second > current_block_time) {
-          // if I have a watermark block timestamp then I need to wait until after that watermark timestamp
-          minimum_offset = std::max(minimum_offset, watermark.second.slot - current_block_time.slot + 1);
-      }
-   }
-
-   // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
-   uint32_t minimum_slot = current_block_time.slot + minimum_offset;
-   size_t minimum_slot_producer_index = (minimum_slot % (active_schedule.size() * config::producer_repetitions)) / config::producer_repetitions;
-   if ( producer_index == minimum_slot_producer_index ) {
-      // this is the producer for the minimum slot, go with that
-      return block_timestamp_type(minimum_slot).to_time_point();
-   } else {
-      // calculate how many rounds are between the minimum producer and the producer in question
-      size_t producer_distance = producer_index - minimum_slot_producer_index;
-      // check for unsigned underflow
-      if (producer_distance > producer_index) {
-         producer_distance += active_schedule.size();
+      // account for a watermark in the future which is disqualifying this producer for now
+      // this is conservative assuming no blocks are dropped.  If blocks are dropped the watermark will
+      // disqualify this producer for longer but it is assumed they will wake up, determine that they
+      // are disqualified for longer due to skipped blocks and re-caculate their next block with better
+      // information then
+      auto current_watermark = get_watermark(producer_name);
+      if (current_watermark) {
+         const auto watermark = *current_watermark;
+         auto block_num = chain.head_block_state()->block_num;
+         if (chain.is_building_block()) {
+            ++block_num;
+         }
+         if (watermark.first > block_num) {
+            // if I have a watermark block number then I need to wait until after that watermark
+            minimum_offset = watermark.first - block_num + 1;
+         }
+         if (watermark.second > current_block_time) {
+            // if I have a watermark block timestamp then I need to wait until after that watermark timestamp
+            minimum_offset = std::max(minimum_offset, watermark.second.slot - current_block_time.slot + 1);
+         }
       }
 
-      // align the minimum slot to the first of its set of reps
-      uint32_t first_minimum_producer_slot = minimum_slot - (minimum_slot % config::producer_repetitions);
+      // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
+      uint32_t minimum_slot = current_block_time.slot + minimum_offset;
+      size_t minimum_slot_producer_index = (minimum_slot % (active_schedule.size() * config::producer_repetitions)) / config::producer_repetitions;
+      if ( producer_index == minimum_slot_producer_index ) {
+         // this is the producer for the minimum slot, go with that
+         return block_timestamp_type(minimum_slot).to_time_point();
+      } else {
+         // calculate how many rounds are between the minimum producer and the producer in question
+         size_t producer_distance = producer_index - minimum_slot_producer_index;
+         // check for unsigned underflow
+         if (producer_distance > producer_index) {
+            producer_distance += active_schedule.size();
+         }
 
-      // offset the aligned minimum to the *earliest* next set of slots for this producer
-      uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::producer_repetitions);
-      return block_timestamp_type(next_block_slot).to_time_point();
+         // align the minimum slot to the first of its set of reps
+         uint32_t first_minimum_producer_slot = minimum_slot - (minimum_slot % config::producer_repetitions);
+
+         // offset the aligned minimum to the *earliest* next set of slots for this producer
+         uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::producer_repetitions);
+         return block_timestamp_type(next_block_slot).to_time_point();
+      }
+   }else if(itr_bak != backup_active_schedule.end()){
+      size_t producer_index = itr_bak - backup_active_schedule.begin();
+      uint32_t minimum_offset = 1; // must at least be the "next" block
+
+      auto current_watermark = get_watermark(producer_name);
+      if (current_watermark) {
+         const auto watermark = *current_watermark;
+         auto block_num = chain.head_block_state()->block_num;
+         if (chain.is_building_block()) {
+            ++block_num;
+         }
+         if (watermark.first > block_num) {
+            // if I have a watermark block number then I need to wait until after that watermark
+            minimum_offset = watermark.first - block_num + 1;
+         }
+         if (watermark.second > current_block_time) {
+            // if I have a watermark block timestamp then I need to wait until after that watermark timestamp
+            minimum_offset = std::max(minimum_offset, watermark.second.slot - current_block_time.slot + 1);
+         }
+      }
+
+      // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
+      uint32_t minimum_slot = current_block_time.slot + minimum_offset;
+      size_t minimum_slot_producer_index = (minimum_slot % (backup_active_schedule.size() * config::backup_producer_repetitions)) / config::backup_producer_repetitions;
+      if ( producer_index == minimum_slot_producer_index ) {
+         // this is the producer for the minimum slot, go with that
+         return block_timestamp_type(minimum_slot).to_time_point();
+      } else {
+         // calculate how many rounds are between the minimum producer and the producer in question
+         size_t producer_distance = producer_index - minimum_slot_producer_index;
+         // check for unsigned underflow
+         if (producer_distance > producer_index) {
+            producer_distance += backup_active_schedule.size();
+         }
+
+         // align the minimum slot to the first of its set of reps
+         uint32_t first_minimum_producer_slot = minimum_slot - (minimum_slot % config::backup_producer_repetitions);
+
+         // offset the aligned minimum to the *earliest* next set of slots for this producer
+         uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::backup_producer_repetitions);
+         return block_timestamp_type(next_block_slot).to_time_point();
+      }
    }
 }
 
@@ -1555,13 +1581,11 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          num_relevant_signatures++;
       }
       /**
-      *@Module name: 
       *@Description: for test 2 producing mode switch
-      *@Author: cryptoseeking
-      *@Modify Time: 2022/06/21 14:13
       */
       if(num_relevant_signatures > 0){
          dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
+         chain.set_produce_mode(false);
          is_backup = false;
       }
    });
@@ -1572,14 +1596,12 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          if(iter != _signature_providers.end()) {
             num_relevant_signatures++;
          }
-         /**
-         *@Module name: 
+         /** 
          *@Description: for test 2 producing mode switch
-         *@Author: cryptoseeking
-         *@Modify Time: 2022/06/21 14:13
          */
          if(num_relevant_signatures > 0){
             dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
+            chain.set_verify_mode(true);
             is_backup = true;
          }
       });

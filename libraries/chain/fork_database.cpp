@@ -27,11 +27,9 @@ namespace eosio
       {
          return bs.is_valid();
       }
-      /**
-      *@Module name: 
-      *@Description: 
-      *@Author: cryptoseeking
-      *@Modify Time: 2022/06/23 19:39
+
+      /** 
+      *@Description:
       */
       inline bool block_state_is_main(const block_state &bs)
       {
@@ -288,11 +286,8 @@ namespace eosio
          }
          my->head = my->root;
       }
-      /**
-      *@Module name: 
+      /** 
       *@Description: after a backup block upgrading to main block, how to deal with this situation. 
-      *@Author: cryptoseeking
-      *@Modify Time: 2022/06/17 17:24
       */
       void fork_database::advance_root(const block_id_type &id)
       {
@@ -316,10 +311,7 @@ namespace eosio
          // because we do not want the blocks branching off of it to be removed from the fork database.
 
          /**
-          *@Module name: forks_db
           *@Description: this is necessary ,if not do this operation,using remove method or not may lead to all blocks would be removed from fork database
-          *@Author: cryptoseeking
-          *@Modify Time: 2022/06/16 15:28
           */
          my->index.erase(my->index.find(id));
 
@@ -390,13 +382,10 @@ namespace eosio
          }
 
          /**
-          *@Module name:
           *@Description: this index sorted by first priority validated, sencond priority greater last irreversiable block num
           *3rd priority greater block num, 4th priority less hash value. so begin block is validated biggest irreversible block
           *num biggest block num ,least hash vale block, in other words, it is header.
           *for backup block here needn't to checkout head
-          *@Author: cryptoseeking
-          *@Modify Time: 2022/06/17 15:59
           */
          auto candidate = index.get<by_lib_block_num>().begin();
          if ((*candidate)->is_valid() && !(*candidate)->is_backup())
@@ -534,14 +523,11 @@ namespace eosio
             EOS_ASSERT(remove_queue[i] != head_id, fork_database_exception,
                        "removing the block and its descendants would remove the current head block");
             /**
-             *@Module name:
              *@Description: would return lower bound iterater of a element in index set ,for example
              * block num set {10,11,12,15,16,......}==>lower_bound(15)
              *                         ^
              *                         |   {15,16,......}
              * this will add all forks extended from this index i (including i) into remove queue.
-             *@Author: cryptoseeking
-             *@Modify Time: 2022/06/16 14:26
              */
             auto previtr = previdx.lower_bound(remove_queue[i]);
             while (previtr != previdx.end() && (*previtr)->header.previous == remove_queue[i])

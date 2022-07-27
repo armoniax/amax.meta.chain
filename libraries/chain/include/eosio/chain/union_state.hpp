@@ -14,19 +14,13 @@ namespace eosio{
            void set_main_state(block_header_state_ptr ptr){
                main_state = *ptr;
            }
-           /**
-           *@Module name: 
-           *@Description: when a backup block upgrade to a main block, this fuction will work right now! 
-           *@Author: cryptoseeking
-           *@Modify Time: 2022/06/20 12:18
+           /** 
+           *@Description: when a backup block upgrade to a main block, this fuction will work right now!
            *@todo paragraph describing what is to be done
            */
            bool upgrade();
-           /**
-           *@Module name: 
-           *@Description: 
-           *@Author: cryptoseeking
-           *@Modify Time: 2022/06/20 14:00
+           /** 
+           *@Description:
            *@todo paragraph describing what is to be done
            */
            pending_block_header_state next();

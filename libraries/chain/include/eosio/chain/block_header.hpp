@@ -23,10 +23,7 @@ namespace eosio { namespace chain {
 
    using block_header_extension = block_header_extension_types::block_header_extension_t;
    /**
-   *@Module name: chain lib
    *@Description: block header for main chain and backup chain
-   *@Author: shunshun
-   *@Modify Time: 2022/06/14 18:12
    */
    struct block_header
    {

@@ -127,20 +127,18 @@ namespace eosio { namespace chain {
       pending_block_header_state result;
 
       if( when != block_timestamp_type() ) {
-        //if next is backup this will warn
-        //EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
+        //next is backup/main block alternative
+        EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
       } else {
         (when = header.timestamp).slot++;
       }
       producer_authority proauth;
-      proauth = get_scheduled_producer(when);
-      if(!is_backup){
+      if(!next_is_backup){
          proauth = get_scheduled_producer(when);
-         result.is_backup = false;
-      }else if(is_backup){
-        auto temp = get_backup_scheduled_producer(when);
-        if(temp.valid()) proauth = *temp;
-         result.is_backup = true;
+      }else if(next_is_backup){
+         auto temp = get_backup_scheduled_producer(when);
+         EOS_ASSERT(temp.valid(),block_validate_exception, "next backup block must has block BP");
+         proauth = *temp;
       }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );
@@ -295,8 +293,6 @@ namespace eosio { namespace chain {
          result.was_pending_promoted = true;
       } else {
          result.active_schedule                  = active_schedule;
-         result.main_schedule                    = main_schedule;
-         result.backup_schedule                  = backup_schedule;
          result.producer_to_last_produced        = producer_to_last_produced;
          result.producer_to_last_produced[proauth.producer_name] = result.block_num;
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;
