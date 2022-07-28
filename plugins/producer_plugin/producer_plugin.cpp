@@ -1431,10 +1431,14 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
       ilog("in special situation, head block state is null ptr.....");
    }
    auto active_schedule = hbs->active_schedule.producers;
-   auto backup_active_schedule = hbs->active_backup_schedule.get_schedule()->producers;
-
+   auto schedule = hbs->active_backup_schedule.get_schedule();
+   flat_map<name, block_signing_authority> backup_active_schedule;
+   if(schedule){
+      backup_active_schedule = hbs->active_backup_schedule.get_schedule()->producers;
+   }
    // determine if this producer is in the active schedule/backup active schedule and if so, where
    auto itr = std::find_if(active_schedule.begin(), active_schedule.end(), [&](const auto& asp){ return asp.producer_name == producer_name; });
+   
    auto itr_bak = std::find_if(backup_active_schedule.begin(), backup_active_schedule.end(),[&](const auto& basp){ return basp.first == producer_name; });
 
    if (itr == active_schedule.end() && itr_bak == backup_active_schedule.end()) {
