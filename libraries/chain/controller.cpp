@@ -140,9 +140,6 @@ struct completed_block {
    block_state_ptr                   _block_state;
 };
 
-/**
-*a block from epoch to stronger will experience 3 stages
-*/
 using block_stage_type = fc::static_variant<building_block, assembled_block, completed_block>;
 
 struct pending_state {
@@ -316,7 +313,7 @@ struct controller_impl {
         cfg.read_only ? database::read_only : database::read_write,
         cfg.reversible_cache_size, false, cfg.db_map_mode, cfg.db_hugepage_paths ),
     blog( cfg.blocks_dir ),
-    backup_log(cfg.blocks_dir,"backup_blocks"),
+    backup_log(cfg.blocks_dir, "backup_blocks"),
     fork_db( cfg.state_dir ),
     wasmif( cfg.wasm_runtime, cfg.eosvmoc_tierup, db, cfg.state_dir, cfg.eosvmoc_config ),
     resource_limits( db ),
@@ -395,7 +392,7 @@ struct controller_impl {
       }
    }
 
-   void log_irreversible(bool is_backup) {
+   void log_irreversible() {
       EOS_ASSERT( fork_db.root(), fork_database_exception, "fork database not properly initialized" );
 
       const auto& log_head = blog.head();
@@ -429,13 +426,7 @@ struct controller_impl {
 
             emit( self.irreversible_block, *bitr );
 
-            if(!is_backup){
-               db.commit( (*bitr)->block_num );
-            }else{
-               //when we are in backup mode, we needn't to update state db affected by backup block
-               //this block only need to be persisted into forks db.
-               db.undo();
-            }
+            db.commit( (*bitr)->block_num );
 
             root_id = (*bitr)->id;
 
@@ -681,8 +672,7 @@ struct controller_impl {
       // Furthermore, fork_db.root()->block_num <= lib_num.
       // Also, even though blog.head() may still be nullptr, blog.first_block_num() is guaranteed to be lib_num + 1.
       
-      //in backup mode, we allow db.revision() < head->block_num.
-      EOS_ASSERT( head->is_backup()||db.revision() >= head->block_num, fork_database_exception,
+      EOS_ASSERT(db.revision() >= head->block_num, fork_database_exception,
                   "fork database head (${head}) is inconsistent with state (${db})",
                   ("db",db.revision())("head",head->block_num) );
 
@@ -1540,7 +1530,7 @@ struct controller_impl {
                      uint16_t confirm_block_count,
                      const vector<digest_type>& new_protocol_feature_activations,
                      controller::block_status s,
-                     const optional<block_id_type>& producer_block_id ,bool is_backup)
+                     const optional<block_id_type>& producer_block_id , bool is_backup)
    {
       EOS_ASSERT( !pending, block_validate_exception, "pending block already exists" );
 
@@ -1552,14 +1542,8 @@ struct controller_impl {
       });
       if(is_backup){
          //testing backup mode producer session production!
-         //because session is pseudo completed , so revision != head
-         //and state db won't be affected
-         //in backup produce mode receive main block, it upsets me!
-         //head->next_prod = string_to_name();
-         //main block can not come into backup case.
          head->next_is_backup = true;
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
-         //pending->_block_status = s;
       }else if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
                      ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
@@ -1804,7 +1788,7 @@ struct controller_impl {
    /**
     * @post regardless of the success of commit block there is no active pending block
     */
-   void commit_block( bool add_to_fork_db ,bool is_backup) {
+   void commit_block( bool add_to_fork_db , bool is_backup) {
       auto reset_pending_on_exit = fc::make_scoped_exit([this]{
          pending.reset();
       });
@@ -1856,8 +1840,8 @@ struct controller_impl {
 
          emit( self.accepted_block, bsp );
 
-         if( add_to_fork_db ) {
-            log_irreversible(is_backup);
+         if( add_to_fork_db && !is_backup) {
+            log_irreversible();
          }
       } catch (...) {
          // dont bother resetting pending, instead abort the block
@@ -2140,8 +2124,8 @@ struct controller_impl {
                prebackup_head = backup_head;
             }
             backup_head = bsp;
-         }else {
-            log_irreversible(false);
+         }else if(!bsp->is_backup()){
+            log_irreversible();
          }
 
       } FC_LOG_AND_RETHROW( )
@@ -2267,9 +2251,10 @@ struct controller_impl {
          head_changed = false;
       }
 
-      if( head_changed )
-         log_irreversible(false);
-
+      if( head_changed ){
+         //only main block may come into 
+         log_irreversible();
+      }
    } /// push_block
 
    vector<transaction_metadata_ptr> abort_block() {

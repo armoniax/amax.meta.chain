@@ -42,6 +42,7 @@ using std::deque;
 using boost::signals2::scoped_connection;
 
 #undef FC_LOG_AND_DROP
+#define PRODUCING_ACCEPT
 #define LOG_AND_DROP()  \
    catch ( const guard_exception& e ) { \
       chain_plugin::handle_guard_exception(e); \
@@ -318,14 +319,14 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       bool on_incoming_block(const signed_block_ptr& block, const std::optional<block_id_type>& block_id) {
          auto& chain = chain_plug->chain();
-         // if(!chain.is_backup_produce()){
-         //    if ( _pending_block_mode == pending_block_mode::producing && !block->is_backup ) {
-         //       fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
-         //             ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
-         //       return false;
-         //    }
-         // }
-
+         #ifndef PRODUCING_ACCEPT
+            if ( _pending_block_mode == pending_block_mode::producing ) {
+               fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
+                     ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
+               return false;
+            }
+         #endif
+         
          const auto& id = block_id ? *block_id : block->id();
          auto blk_num = block->block_num();
          //_log.set_log_level(fc::log_level::debug);
@@ -1432,17 +1433,21 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
    }
    auto active_schedule = hbs->active_schedule.producers;
    auto schedule = hbs->active_backup_schedule.get_schedule();
-   flat_map<name, block_signing_authority> backup_active_schedule;
+   flat_map<name, block_signing_authority>* backup_active_schedule = nullptr;
    if(schedule){
-      backup_active_schedule = hbs->active_backup_schedule.get_schedule()->producers;
+      backup_active_schedule = &(hbs->active_backup_schedule.get_schedule()->producers);
    }
    // determine if this producer is in the active schedule/backup active schedule and if so, where
    auto itr = std::find_if(active_schedule.begin(), active_schedule.end(), [&](const auto& asp){ return asp.producer_name == producer_name; });
-   
-   auto itr_bak = std::find_if(backup_active_schedule.begin(), backup_active_schedule.end(),[&](const auto& basp){ return basp.first == producer_name; });
+   flat_map<name, block_signing_authority>::iterator itr_bak;
 
-   if (itr == active_schedule.end() && itr_bak == backup_active_schedule.end()) {
+   if(backup_active_schedule){
+      itr_bak = backup_active_schedule->find(producer_name);
+   }
+   if (itr == active_schedule.end() && backup_active_schedule && itr_bak == backup_active_schedule->end()) {
       // this producer is neither in the active producer set nor in backup active producer set
+      return optional<fc::time_point>();
+   }else if(itr == active_schedule.end()){
       return optional<fc::time_point>();
    }
    
@@ -1493,8 +1498,8 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
          uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::producer_repetitions);
          return block_timestamp_type(next_block_slot).to_time_point();
       }
-   }else if(itr_bak != backup_active_schedule.end()){
-      size_t producer_index = itr_bak - backup_active_schedule.begin();
+   }else if(backup_active_schedule && itr_bak != backup_active_schedule->end()){
+      size_t producer_index = itr_bak - backup_active_schedule->begin();
       uint32_t minimum_offset = 1; // must at least be the "next" block
 
       auto current_watermark = get_watermark(producer_name);
@@ -1516,7 +1521,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
 
       // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
       uint32_t minimum_slot = current_block_time.slot + minimum_offset;
-      size_t minimum_slot_producer_index = (minimum_slot % (backup_active_schedule.size() * config::backup_producer_repetitions)) / config::backup_producer_repetitions;
+      size_t minimum_slot_producer_index = (minimum_slot % (backup_active_schedule->size() * config::backup_producer_repetitions)) / config::backup_producer_repetitions;
       if ( producer_index == minimum_slot_producer_index ) {
          // this is the producer for the minimum slot, go with that
          return block_timestamp_type(minimum_slot).to_time_point();
@@ -1525,7 +1530,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
          size_t producer_distance = producer_index - minimum_slot_producer_index;
          // check for unsigned underflow
          if (producer_distance > producer_index) {
-            producer_distance += backup_active_schedule.size();
+            producer_distance += backup_active_schedule->size();
          }
 
          // align the minimum slot to the first of its set of reps
@@ -1536,6 +1541,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
          return block_timestamp_type(next_block_slot).to_time_point();
       }
    }
+   return optional<fc::time_point>();
 }
 
 fc::time_point producer_plugin_impl::calculate_pending_block_time() const {
