@@ -1717,37 +1717,37 @@ struct controller_impl {
       if(is_backup){
          //when backup producer producing
          block_ptr->is_backup = true;
-         ilog("backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
-         ilog("backup block's previous main block num: ${mnum}",("mnum",head->block_num));
-         ilog("new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
+         dlog("backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
+         dlog("backup block's previous main block num: ${mnum}",("mnum",head->block_num));
+         dlog("new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
          //received backup block can not reach here!
          //ilog("backup verify mode, block num: ${num}, producer: ${pb}",("num",block_ptr->block_num())("pb",block_ptr->producer));
       }else{
          //backup node receive main block will verify.
          //main node produce also need composite.
-         ilog("main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
-         ilog("new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
+         dlog("main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
+         dlog("new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
          if(prebackup_head != nullptr){
             if(prebackup_head->block_num == head->block_num){
                block_ptr->previous_backup = prebackup_head->block->id();
-               ilog("previos backup num ${prenum},previous main head ${mnum}",("prenum",prebackup_head->block_num)("mnum",head->block_num));
+               dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",prebackup_head->block_num)("mnum",head->block_num));
                EOS_ASSERT(prebackup_head->block_num == head->block_num, block_validate_exception,
                              "previous backup head is not par with main head at sequence NO.");
             }else if(backup_head->block_num == head->block_num){
                block_ptr->previous_backup = backup_head->block->id();
-                  ilog("previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
+                  dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
                   EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
                               "previous backup head is not par with main head at sequence NO.");
             }
             if(prebackup_head->block_num < backup_head->block_num){
-               ilog("current backup head num is: ${cbnum}",("cbnum",backup_head->block_num));
+               dlog("current backup head num is: ${cbnum}",("cbnum",backup_head->block_num));
                prebackup_head = backup_head;
             }
          }else{
             if(backup_head != nullptr){
                if(backup_head->block_num == head->block_num){
                   block_ptr->previous_backup = backup_head->block->id();
-                  ilog("previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
+                  dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
                   EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
                               "previous backup head is not par with main head at sequence NO.");
                }
@@ -1800,18 +1800,18 @@ struct controller_impl {
          auto bsp = pending->_block_stage.get<completed_block>()._block_state;
 
          if( add_to_fork_db ) {
-            ilog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} will be added",("backup",bsp->is_backup())
+            dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} will be added",("backup",bsp->is_backup())
             ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             fork_db.add( bsp );
-            ilog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be added",("backup",bsp->is_backup())
+            dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be added",("backup",bsp->is_backup())
             ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             fork_db.mark_valid( bsp );
-            ilog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be mark valid",("backup",bsp->is_backup())
+            dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be mark valid",("backup",bsp->is_backup())
             ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             emit( self.accepted_block_header, bsp );
-            ilog("emit signal accepted_block_header ${hnum}",("hnum",bsp->block_num));
+            dlog("emit signal accepted_block_header ${hnum}",("hnum",bsp->block_num));
             head = fork_db.head();
-            ilog("after add/mark, new head block num: ${num}, new irreversible num ${inum}",("num",head->block_num)("inum",head->dpos_irreversible_blocknum));
+            dlog("after add/mark, new head block num: ${num}, new irreversible num ${inum}",("num",head->block_num)("inum",head->dpos_irreversible_blocknum));
             if(bsp->is_backup()){
                if(!prebackup_head && backup_head){
                   ilog("initial prebackup num: ${num}",("num",backup_head->block_num));
@@ -1822,11 +1822,11 @@ struct controller_impl {
                if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
                   //prebackup_head = backup_head;
                }
-               ilog("successfully create backup block ${num} id ${id} irreversible: ${inum}",("num",bsp->block_num)("id",bsp->block->id())("inum",bsp->dpos_irreversible_blocknum));
+               dlog("successfully create backup block ${num} id ${id} irreversible: ${inum}",("num",bsp->block_num)("id",bsp->block->id())("inum",bsp->dpos_irreversible_blocknum));
                EOS_ASSERT( bsp->block_num == head->block_num + 1, block_validate_exception, "backup block num error, backup block num should == main head +1");
             }else{
-               ilog("commited main block num: ${cnum} ,new head num: ${nnum}",("cnum",bsp->block_num)("nnum",head->block_num));
-               ilog("commited main block irreversible: ${inum}",("inum",bsp->dpos_irreversible_blocknum));
+               dlog("commited main block num: ${cnum} ,new head num: ${nnum}",("cnum",bsp->block_num)("nnum",head->block_num));
+               dlog("commited main block irreversible: ${inum}",("inum",bsp->dpos_irreversible_blocknum));
                EOS_ASSERT( bsp == head, fork_database_exception, "committed block did not become the new head in fork database");
             }
          }
@@ -2116,11 +2116,11 @@ struct controller_impl {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block
-            ilog("main producer node receive backup block....");
+            dlog("main producer node receive backup block....");
             //can not verify backup block in main node temporary.
             //apply_block(bsp, s, trx_lookup);
             if(!prebackup_head && backup_head){
-               ilog("initial prebackup num: ${num}",("num",backup_head->block_num));
+               dlog("initial prebackup num: ${num}",("num",backup_head->block_num));
                prebackup_head = backup_head;
             }
             backup_head = bsp;

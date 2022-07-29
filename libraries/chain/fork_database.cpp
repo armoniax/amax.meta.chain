@@ -396,7 +396,7 @@ namespace eosio
          if ((*candidate)->is_valid() && (*candidate)->block_num <= n->block_num && !n->is_backup())
          {
             head = n;
-            ilog("same height candidate is backup.....");
+            dlog("same height candidate is backup.....");
          }
          
       }
@@ -568,7 +568,7 @@ namespace eosio
 
          if (first_preferred(**candidate, *my->head) && (*candidate)->is_backup() && (*candidate)->block_num == my->head->block_num)
          {
-            ilog("same height backup and main, backup irreversible num: ${bi},main irreversible num: ${mi}, new block irreversible: ${ni}",("bi",(*candidate)->dpos_irreversible_blocknum)("mi",my->head->dpos_irreversible_blocknum)("ni",(*itr)->dpos_irreversible_blocknum));
+            dlog("same height backup and main, backup irreversible num: ${bi},main irreversible num: ${mi}, new block irreversible: ${ni}",("bi",(*candidate)->dpos_irreversible_blocknum)("mi",my->head->dpos_irreversible_blocknum)("ni",(*itr)->dpos_irreversible_blocknum));
          }
       }
 
