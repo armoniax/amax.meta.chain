@@ -190,7 +190,7 @@ namespace eosio { namespace chain {
       my = std::move(other.my);
    }
    
-   block_log::block_log(const fc::path& data_dir,string block_file)
+   block_log::block_log(const fc::path& data_dir,const string block_file)
    :my(new detail::block_log_impl()){
       open(data_dir,block_file);
    }
@@ -291,7 +291,7 @@ namespace eosio { namespace chain {
       }
    }
    
-   void block_log::open(const fc::path& data_dir, string block_file){
+   void block_log::open(const fc::path& data_dir, const string block_file){
       my->close();
 
       if (!fc::is_directory(data_dir))

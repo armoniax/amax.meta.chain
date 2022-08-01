@@ -2867,10 +2867,7 @@ account_name  controller::head_block_producer()const {
 const block_header& controller::head_block_header()const {
    return my->head->header;
 }
-/** 
-*@Description: currently backup depend on main block, wheather we should depend on 
-*backup self. this mode may throw sigsegv in calculate_pending_block_time().
-*/
+
 block_state_ptr controller::head_block_state()const {
    return my->head;
 }
@@ -3364,10 +3361,6 @@ void controller::validate_expiration( const transaction& trx )const { try {
                ("max_til_exp",chain_configuration.max_transaction_lifetime) );
 } FC_CAPTURE_AND_RETHROW((trx)) }
 
-/** 
-*@Description: when in backup mode reference block may not exist in db state.
-*@todo paragraph describing what is to be done
-*/
 void controller::validate_tapos( const transaction& trx )const { try {
    const auto& tapos_block_summary = db().get<block_summary_object>((uint16_t)trx.ref_block_num);
    if(is_backup_produce() || is_backup_verify()){

@@ -28,9 +28,6 @@ namespace eosio
          return bs.is_valid();
       }
 
-      /** 
-      *@Description:
-      */
       inline bool block_state_is_main(const block_state &bs)
       {
          return !bs.is_backup();
@@ -286,9 +283,7 @@ namespace eosio
          }
          my->head = my->root;
       }
-      /** 
-      *@Description: after a backup block upgrading to main block, how to deal with this situation. 
-      */
+      
       void fork_database::advance_root(const block_id_type &id)
       {
          EOS_ASSERT(my->root, fork_database_exception, "root not yet set");

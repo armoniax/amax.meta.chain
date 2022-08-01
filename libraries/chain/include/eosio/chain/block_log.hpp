@@ -36,7 +36,7 @@ namespace eosio { namespace chain {
       public:
          block_log(const fc::path& data_dir);
          block_log(block_log&& other);
-         block_log(const fc::path& data_dir,string block_file);
+         block_log(const fc::path& data_dir,const string block_file);
          ~block_log();
 
          uint64_t append(const signed_block_ptr& b);

@@ -42,7 +42,7 @@ using std::deque;
 using boost::signals2::scoped_connection;
 
 #undef FC_LOG_AND_DROP
-#define PRODUCING_ACCEPT
+#define ACCEPT_BLOCK_ON_INCOMING
 #define LOG_AND_DROP()  \
    catch ( const guard_exception& e ) { \
       chain_plugin::handle_guard_exception(e); \
@@ -319,7 +319,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       bool on_incoming_block(const signed_block_ptr& block, const std::optional<block_id_type>& block_id) {
          auto& chain = chain_plug->chain();
-         #ifndef PRODUCING_ACCEPT
+         #ifndef ACCEPT_BLOCK_ON_INCOMING
             if ( _pending_block_mode == pending_block_mode::producing ) {
                fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
                      ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
