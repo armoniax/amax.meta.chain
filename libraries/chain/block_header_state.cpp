@@ -127,7 +127,6 @@ namespace eosio { namespace chain {
       pending_block_header_state result;
 
       if( when != block_timestamp_type() ) {
-        //next is backup/main block alternative
         EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
       } else {
         (when = header.timestamp).slot++;
