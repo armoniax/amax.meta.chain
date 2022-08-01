@@ -31,7 +31,8 @@ namespace eosio { namespace chain {
 
 
       signed_block_ptr                                    block;
-
+      //when add to fork_database ,need to know is backup about current block_state.
+      bool              is_backup() const {return block->is_backup;}
    private: // internal use only, not thread safe
       friend struct fc::reflector<block_state>;
       friend bool block_state_is_valid( const block_state& ); // work-around for multi-index access
@@ -43,7 +44,7 @@ namespace eosio { namespace chain {
 
       bool is_valid()const { return validated; }
       bool is_pub_keys_recovered()const { return _pub_keys_recovered; }
-
+      
       vector<transaction_metadata_ptr> extract_trxs_metas() {
          _pub_keys_recovered = false;
          auto result = std::move( _cached_trxs );

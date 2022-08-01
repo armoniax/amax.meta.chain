@@ -416,9 +416,9 @@ namespace eosio { namespace testing {
              result.emplace_back(k.sign(d));
 
          return result;
-      } );
+      } ,false);
 
-      control->commit_block();
+      control->commit_block(false);
       last_produced_block[control->head_block_state()->header.producer] = control->head_block_state()->id;
 
       return control->head_block_state()->block;

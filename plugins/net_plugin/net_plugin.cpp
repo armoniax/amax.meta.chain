@@ -2969,6 +2969,7 @@ namespace eosio {
    // called from connection strand
    void connection::handle_message( const block_id_type& id, signed_block_ptr ptr ) {
       peer_dlog( this, "received signed_block ${id}", ("id", ptr->block_num() ) );
+      //description: here will post to main thread amnod.
       app().post(priority::medium, [ptr{std::move(ptr)}, id, c = shared_from_this()]() mutable {
          c->process_signed_block( id, std::move( ptr ) );
       });
@@ -3006,6 +3007,7 @@ namespace eosio {
       go_away_reason reason = fatal_other;
       try {
          bool accepted = my_impl->chain_plug->accept_block(msg, blk_id);
+         ilog("accepted block has been processed completly by on_incoming_block().........");
          my_impl->update_chain_info();
          if( !accepted ) return;
          reason = no_reason;
@@ -3172,6 +3174,7 @@ namespace eosio {
 
    // called from application thread
    void net_plugin_impl::on_accepted_block(const block_state_ptr& bs) {
+      ilog("on accepted block trigered by emit signal....");
       update_chain_info();
       controller& cc = chain_plug->chain();
       dispatcher->strand.post( [this, bs]() {
@@ -3182,6 +3185,7 @@ namespace eosio {
 
    // called from application thread
    void net_plugin_impl::on_pre_accepted_block(const signed_block_ptr& block) {
+      ilog("on pre accepted block trigered by emit signal....");
       update_chain_info();
       controller& cc = chain_plug->chain();
       if( cc.is_trusted_producer(block->producer) ) {

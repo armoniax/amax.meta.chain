@@ -189,6 +189,11 @@ namespace eosio { namespace chain {
    block_log::block_log(block_log&& other) {
       my = std::move(other.my);
    }
+   
+   block_log::block_log(const fc::path& data_dir,const string block_file)
+   :my(new detail::block_log_impl()){
+      open(data_dir,block_file);
+   }
 
    block_log::~block_log() {
       if (my) {
@@ -227,6 +232,78 @@ namespace eosio { namespace chain {
        *  - If the index file head is not in the log file, delete the index and replay.
        *  - If the index file head is in the log, but not up to date, replay from index head.
        */
+      auto log_size = fc::file_size( my->block_file.get_file_path() );
+      auto index_size = fc::file_size( my->index_file.get_file_path() );
+
+      if (log_size) {
+         ilog("Log is nonempty");
+         my->block_file.seek( 0 );
+         my->version = 0;
+         my->block_file.read( (char*)&my->version, sizeof(my->version) );
+         EOS_ASSERT( my->version > 0, block_log_exception, "Block log was not setup properly" );
+         EOS_ASSERT( is_supported_version(my->version), block_log_unsupported_version,
+                     "Unsupported version of block log. Block log version is ${version} while code supports version(s) [${min},${max}]",
+                     ("version", my->version)("min", block_log::min_supported_version)("max", block_log::max_supported_version) );
+
+
+         my->genesis_written_to_block_log = true; // Assume it was constructed properly.
+         if (my->version > 1){
+            my->first_block_num = 0;
+            my->block_file.read( (char*)&my->first_block_num, sizeof(my->first_block_num) );
+            EOS_ASSERT(my->first_block_num > 0, block_log_exception, "Block log is malformed, first recorded block number is 0 but must be greater than or equal to 1");
+         } else {
+            my->first_block_num = 1;
+         }
+
+         my->head = read_head();
+         if( my->head ) {
+            my->head_id = my->head->id();
+         } else {
+            my->head_id = {};
+         }
+
+         if (index_size) {
+            ilog("Index is nonempty");
+            uint64_t block_pos;
+            my->block_file.seek_end(-sizeof(uint64_t));
+            my->block_file.read((char*)&block_pos, sizeof(block_pos));
+
+            uint64_t index_pos;
+            my->index_file.seek_end(-sizeof(uint64_t));
+            my->index_file.read((char*)&index_pos, sizeof(index_pos));
+
+            if (block_pos < index_pos) {
+               ilog("block_pos < index_pos, close and reopen index_file");
+               construct_index();
+            } else if (block_pos > index_pos) {
+               ilog("Index is incomplete");
+               construct_index();
+            }
+         } else {
+            ilog("Index is empty");
+            construct_index();
+         }
+      } else if (index_size) {
+         ilog("Index is nonempty, remove and recreate it");
+         my->close();
+         fc::remove_all( my->index_file.get_file_path() );
+         my->reopen();
+      }
+   }
+   
+   void block_log::open(const fc::path& data_dir, const string block_file){
+      my->close();
+
+      if (!fc::is_directory(data_dir))
+         fc::create_directories(data_dir);
+
+      string block_name = block_file +".log";
+      string index_name = block_file +".index";
+      my->block_file.set_file_path( data_dir /block_name );
+      my->index_file.set_file_path( data_dir /index_name );
+
+      my->reopen();
+
       auto log_size = fc::file_size( my->block_file.get_file_path() );
       auto index_size = fc::file_size( my->index_file.get_file_path() );
 

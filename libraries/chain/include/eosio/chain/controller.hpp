@@ -133,7 +133,7 @@ namespace eosio { namespace chain {
           */
          void start_block( block_timestamp_type time,
                            uint16_t confirm_block_count,
-                           const vector<digest_type>& new_protocol_feature_activations );
+                           const vector<digest_type>& new_protocol_feature_activations,bool is_backup = false);
 
          /**
           * @return transactions applied in aborted block
@@ -154,9 +154,9 @@ namespace eosio { namespace chain {
          transaction_trace_ptr push_scheduled_transaction( const transaction_id_type& scheduled, fc::time_point deadline,
                                                            uint32_t billed_cpu_time_us, bool explicit_billed_cpu_time );
 
-         block_state_ptr finalize_block( const signer_callback_type& signer_callback );
+         block_state_ptr finalize_block( const signer_callback_type& signer_callback ,bool is_backup);
          void sign_block( const signer_callback_type& signer_callback );
-         void commit_block();
+         void commit_block(bool is_backup);
 
          std::future<block_state_ptr> create_block_state_future( const signed_block_ptr& b );
 
@@ -198,6 +198,8 @@ namespace eosio { namespace chain {
          void   set_contract_blacklist( const flat_set<account_name>& );
          void   set_action_blacklist( const flat_set< pair<account_name, action_name> >& );
          void   set_key_blacklist( const flat_set<public_key_type>& );
+         void   set_produce_mode(bool is_backup){this->is_backup_mode = is_backup;}
+         void   set_verify_mode(bool is_backup){this->is_backup_verify_mode = is_backup;}
 
          uint32_t             head_block_num()const;
          time_point           head_block_time()const;
@@ -250,6 +252,8 @@ namespace eosio { namespace chain {
          void check_key_list( const public_key_type& key )const;
          bool is_building_block()const;
          bool is_producing_block()const;
+         bool is_backup_produce()const;
+         bool is_backup_verify()const;
 
          bool is_ram_billing_in_notify_allowed()const;
 
@@ -297,6 +301,8 @@ namespace eosio { namespace chain {
 
          void add_to_ram_correction( account_name account, uint64_t ram_bytes );
          bool all_subjective_mitigations_disabled()const;
+         bool is_backup_mode = false;
+         bool is_backup_verify_mode = false;
 
 #if defined(AMAX_EOS_VM_RUNTIME_ENABLED) || defined(AMAX_EOS_VM_JIT_RUNTIME_ENABLED)
          vm::wasm_allocator&  get_wasm_allocator();

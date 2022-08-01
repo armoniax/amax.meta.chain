@@ -213,6 +213,10 @@ struct pending_state {
    void push() {
       _db_session.push();
    }
+
+   void discard(){
+      _db_session.undo();
+   }
 };
 
 struct controller_impl {
@@ -228,8 +232,11 @@ struct controller_impl {
    chainbase::database            db;
    chainbase::database            reversible_blocks; ///< a special database to persist blocks that have successfully been applied but are still reversible
    block_log                      blog;
+   block_log                      backup_log;
    optional<pending_state>        pending;
    block_state_ptr                head;
+   block_state_ptr                prebackup_head;
+   block_state_ptr                backup_head;
    fork_database                  fork_db;
    wasm_interface                 wasmif;
    resource_limits_manager        resource_limits;
@@ -306,6 +313,7 @@ struct controller_impl {
         cfg.read_only ? database::read_only : database::read_write,
         cfg.reversible_cache_size, false, cfg.db_map_mode, cfg.db_hugepage_paths ),
     blog( cfg.blocks_dir ),
+    backup_log(cfg.blocks_dir, "backup_blocks"),
     fork_db( cfg.state_dir ),
     wasmif( cfg.wasm_runtime, cfg.eosvmoc_tierup, db, cfg.state_dir, cfg.eosvmoc_config ),
     resource_limits( db ),
@@ -419,6 +427,7 @@ struct controller_impl {
             emit( self.irreversible_block, *bitr );
 
             db.commit( (*bitr)->block_num );
+
             root_id = (*bitr)->id;
 
             blog.append( (*bitr)->block );
@@ -662,8 +671,8 @@ struct controller_impl {
       // At this point head != nullptr && fork_db.head() != nullptr && fork_db.root() != nullptr.
       // Furthermore, fork_db.root()->block_num <= lib_num.
       // Also, even though blog.head() may still be nullptr, blog.first_block_num() is guaranteed to be lib_num + 1.
-
-      EOS_ASSERT( db.revision() >= head->block_num, fork_database_exception,
+      
+      EOS_ASSERT(db.revision() >= head->block_num, fork_database_exception,
                   "fork database head (${head}) is inconsistent with state (${db})",
                   ("db",db.revision())("head",head->block_num) );
 
@@ -1521,7 +1530,7 @@ struct controller_impl {
                      uint16_t confirm_block_count,
                      const vector<digest_type>& new_protocol_feature_activations,
                      controller::block_status s,
-                     const optional<block_id_type>& producer_block_id )
+                     const optional<block_id_type>& producer_block_id , bool is_backup)
    {
       EOS_ASSERT( !pending, block_validate_exception, "pending block already exists" );
 
@@ -1531,11 +1540,13 @@ struct controller_impl {
          protocol_features.popped_blocks_to( head_block_num );
          pending.reset();
       });
-
-      if (!self.skip_db_sessions(s)) {
+      if(is_backup){
+         //testing backup mode producer session production!
+         head->next_is_backup = true;
+         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
+      }else if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
                      ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
-
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
       } else {
          pending.emplace( maybe_session(), *head, when, confirm_block_count, new_protocol_feature_activations );
@@ -1546,149 +1557,131 @@ struct controller_impl {
 
       auto& bb = pending->_block_stage.get<building_block>();
       const auto& pbhs = bb._pending_block_header_state;
+      if(!is_backup){
+         // modify state of speculative block only if we are in speculative read mode (otherwise we need clean state for head or read-only modes)
+         if ( read_mode == db_read_mode::SPECULATIVE || pending->_block_status != controller::block_status::incomplete )
+         {
+            const auto& pso = db.get<protocol_state_object>();
+            auto num_preactivated_protocol_features = pso.preactivated_protocol_features.size();
+            bool handled_all_preactivated_features = (num_preactivated_protocol_features == 0);
 
-      // modify state of speculative block only if we are in speculative read mode (otherwise we need clean state for head or read-only modes)
-      if ( read_mode == db_read_mode::SPECULATIVE || pending->_block_status != controller::block_status::incomplete )
-      {
-         const auto& pso = db.get<protocol_state_object>();
-
-         auto num_preactivated_protocol_features = pso.preactivated_protocol_features.size();
-         bool handled_all_preactivated_features = (num_preactivated_protocol_features == 0);
-
-         if( new_protocol_feature_activations.size() > 0 ) {
-            flat_map<digest_type, bool> activated_protocol_features;
-            activated_protocol_features.reserve( std::max( num_preactivated_protocol_features,
-                                                           new_protocol_feature_activations.size() ) );
-            for( const auto& feature_digest : pso.preactivated_protocol_features ) {
-               activated_protocol_features.emplace( feature_digest, false );
-            }
-
-            size_t num_preactivated_features_that_have_activated = 0;
-
-            const auto& pfs = protocol_features.get_protocol_feature_set();
-            for( const auto& feature_digest : new_protocol_feature_activations ) {
-               const auto& f = pfs.get_protocol_feature( feature_digest );
-
-               auto res = activated_protocol_features.emplace( feature_digest, true );
-               if( res.second ) {
-                  // feature_digest was not preactivated
-                  EOS_ASSERT( !f.preactivation_required, protocol_feature_exception,
-                              "attempted to activate protocol feature without prior required preactivation: ${digest}",
-                              ("digest", feature_digest)
-                  );
-               } else {
-                  EOS_ASSERT( !res.first->second, block_validate_exception,
-                              "attempted duplicate activation within a single block: ${digest}",
-                              ("digest", feature_digest)
-                  );
-                  // feature_digest was preactivated
-                  res.first->second = true;
-                  ++num_preactivated_features_that_have_activated;
+            if( new_protocol_feature_activations.size() > 0 ) {
+               flat_map<digest_type, bool> activated_protocol_features;
+               activated_protocol_features.reserve( std::max( num_preactivated_protocol_features,
+                                                            new_protocol_feature_activations.size() ) );
+               for( const auto& feature_digest : pso.preactivated_protocol_features ) {
+                  activated_protocol_features.emplace( feature_digest, false );
                }
 
-               if( f.builtin_feature ) {
-                  trigger_activation_handler( *f.builtin_feature );
-               }
+               size_t num_preactivated_features_that_have_activated = 0;
 
-               protocol_features.activate_feature( feature_digest, pbhs.block_num );
-
-               ++bb._num_new_protocol_features_that_have_activated;
-            }
-
-            if( num_preactivated_features_that_have_activated == num_preactivated_protocol_features ) {
-               handled_all_preactivated_features = true;
-            }
-         }
-
-         EOS_ASSERT( handled_all_preactivated_features, block_validate_exception,
-                     "There are pre-activated protocol features that were not activated at the start of this block"
-         );
-
-         if( new_protocol_feature_activations.size() > 0 ) {
-            db.modify( pso, [&]( auto& ps ) {
-               ps.preactivated_protocol_features.clear();
-
-               ps.activated_protocol_features.reserve( ps.activated_protocol_features.size()
-                                                         + new_protocol_feature_activations.size() );
+               const auto& pfs = protocol_features.get_protocol_feature_set();
                for( const auto& feature_digest : new_protocol_feature_activations ) {
-                  ps.activated_protocol_features.emplace_back( feature_digest, pbhs.block_num );
-               }
-            });
-         }
+                  const auto& f = pfs.get_protocol_feature( feature_digest );
 
-         const auto& gpo = db.get<global_property_object>();
-
-         if( gpo.proposed_schedule_block_num.valid() && // if there is a proposed schedule that was proposed in a block ...
-             ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) ) { // ... that has now become irreversible ...
-
-            if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
-               if (pbhs.prev_pending_schedule.data_empty()) { // ... and there was room for a new pending schedule prior to any possible promotion
-
-                  // Promote proposed schedule to pending schedule.
-                  if( !replay_head_time ) {
-                     ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
-                           ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
-                           ("lib", pbhs.dpos_irreversible_blocknum)
-                           ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+                  auto res = activated_protocol_features.emplace( feature_digest, true );
+                  if( res.second ) {
+                     // feature_digest was not preactivated
+                     EOS_ASSERT( !f.preactivation_required, protocol_feature_exception,
+                                 "attempted to activate protocol feature without prior required preactivation: ${digest}",
+                                 ("digest", feature_digest)
+                     );
+                  } else {
+                     EOS_ASSERT( !res.first->second, block_validate_exception,
+                                 "attempted duplicate activation within a single block: ${digest}",
+                                 ("digest", feature_digest)
+                     );
+                     // feature_digest was preactivated
+                     res.first->second = true;
+                     ++num_preactivated_features_that_have_activated;
                   }
 
+                  if( f.builtin_feature ) {
+                     trigger_activation_handler( *f.builtin_feature );
+                  }
 
-                  EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
-                              producer_schedule_exception, "wrong producer schedule version specified" );
+                  protocol_features.activate_feature( feature_digest, pbhs.block_num );
 
-                  pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
-                  db.modify( gpo, [&]( auto& gp ) {
-                     gp.proposed_schedule_block_num = optional<block_num_type>();
-                     gp.proposed_schedule.version=0;
-                     gp.proposed_schedule.producers.clear();
-                     // gp.proposed_schedule_change.clear();
-                  });
+                  ++bb._num_new_protocol_features_that_have_activated;
                }
-            } else {
-               // TODO: if (!prev_pending_schedule_change.empty())
-               // TODO: check version with active schedule change
-               // if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
-               EOS_ASSERT( gpo.proposed_schedule_change.version == pbhs.active_schedule_version + 1,
-                           producer_schedule_exception, "wrong producer schedule version specified" );
 
-               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
-               db.modify( gpo, [&]( auto& gp ) {
-                  gp.proposed_schedule_block_num = optional<block_num_type>();
-                  gp.proposed_schedule_change.clear();
+               if( num_preactivated_features_that_have_activated == num_preactivated_protocol_features ) {
+                  handled_all_preactivated_features = true;
+               }
+            }
+
+            EOS_ASSERT( handled_all_preactivated_features, block_validate_exception,
+                        "There are pre-activated protocol features that were not activated at the start of this block"
+            );
+
+            if( new_protocol_feature_activations.size() > 0 ) {
+               db.modify( pso, [&]( auto& ps ) {
+                  ps.preactivated_protocol_features.clear();
+
+                  ps.activated_protocol_features.reserve( ps.activated_protocol_features.size()
+                                                            + new_protocol_feature_activations.size() );
+                  for( const auto& feature_digest : new_protocol_feature_activations ) {
+                     ps.activated_protocol_features.emplace_back( feature_digest, pbhs.block_num );
+                  }
                });
             }
 
-         }
+            const auto& gpo = db.get<global_property_object>();
 
-         try {
-            transaction_metadata_ptr onbtrx =
-                  transaction_metadata::create_no_recover_keys( packed_transaction( get_on_block_transaction() ), transaction_metadata::trx_type::implicit );
-            auto reset_in_trx_requiring_checks = fc::make_scoped_exit([old_value=in_trx_requiring_checks,this](){
-                  in_trx_requiring_checks = old_value;
+            if( gpo.proposed_schedule_block_num.valid() && // if there is a proposed schedule that was proposed in a block ...
+               ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) // ... that has now become irreversible ...
+            )
+            {
+               // Promote proposed schedule to pending schedule.
+               if( !replay_head_time ) {
+                  ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
+                        ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
+                        ("lib", pbhs.dpos_irreversible_blocknum)
+                        ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+               }
+
+               EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
+                           producer_schedule_exception, "wrong producer schedule version specified" );
+
+               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
+               db.modify( gpo, [&]( auto& gp ) {
+                  gp.proposed_schedule_block_num = optional<block_num_type>();
+                  gp.proposed_schedule.version=0;
+                  gp.proposed_schedule.producers.clear();
                });
-            in_trx_requiring_checks = true;
-            push_transaction( onbtrx, fc::time_point::maximum(), self.get_global_properties().configuration.min_transaction_cpu_usage, true, 0 );
-         } catch( const std::bad_alloc& e ) {
-            elog( "on block transaction failed due to a std::bad_alloc" );
-            throw;
-         } catch( const boost::interprocess::bad_alloc& e ) {
-            elog( "on block transaction failed due to a bad allocation" );
-            throw;
-         } catch( const fc::exception& e ) {
-            wlog( "on block transaction failed, but shouldn't impact block generation, system contract needs update" );
-            edump((e.to_detail_string()));
-         } catch( ... ) {
-            elog( "on block transaction failed due to unknown exception" );
+            }
+
+            try {
+               transaction_metadata_ptr onbtrx =
+                     transaction_metadata::create_no_recover_keys( packed_transaction( get_on_block_transaction() ), transaction_metadata::trx_type::implicit );
+               auto reset_in_trx_requiring_checks = fc::make_scoped_exit([old_value=in_trx_requiring_checks,this](){
+                     in_trx_requiring_checks = old_value;
+                  });
+               in_trx_requiring_checks = true;
+               push_transaction( onbtrx, fc::time_point::maximum(), self.get_global_properties().configuration.min_transaction_cpu_usage, true, 0 );
+            } catch( const std::bad_alloc& e ) {
+               elog( "on block transaction failed due to a std::bad_alloc" );
+               throw;
+            } catch( const boost::interprocess::bad_alloc& e ) {
+               elog( "on block transaction failed due to a bad allocation" );
+               throw;
+            } catch( const fc::exception& e ) {
+               wlog( "on block transaction failed, but shouldn't impact block generation, system contract needs update" );
+               edump((e.to_detail_string()));
+            } catch( ... ) {
+               elog( "on block transaction failed due to unknown exception" );
+            }
+
+            clear_expired_input_transactions();
+            update_producers_authority();
          }
-
-         clear_expired_input_transactions();
-         update_producers_authority();
       }
-
+       
+      //when function return from here , that normal logical
       guard_pending.cancel();
    } /// start_block
 
-   void finalize_block()
+   void finalize_block(bool is_backup)
    {
       EOS_ASSERT( pending, block_validate_exception, "it is not valid to finalize when there is no pending block");
       EOS_ASSERT( pending->_block_stage.contains<building_block>(), block_validate_exception, "already called finalize_block");
@@ -1717,6 +1710,50 @@ struct controller_impl {
          std::move( bb._new_protocol_feature_activations ),
          protocol_features.get_protocol_feature_set()
       ) );
+      
+      /** 
+      *@Description: when controller in backup mode, block should be backup block
+      */
+      if(is_backup){
+         //when backup producer producing
+         block_ptr->is_backup = true;
+         dlog("backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
+         dlog("backup block's previous main block num: ${mnum}",("mnum",head->block_num));
+         dlog("new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
+         //received backup block can not reach here!
+         //ilog("backup verify mode, block num: ${num}, producer: ${pb}",("num",block_ptr->block_num())("pb",block_ptr->producer));
+      }else{
+         //backup node receive main block will verify.
+         //main node produce also need composite.
+         dlog("main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
+         dlog("new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
+         if(prebackup_head != nullptr){
+            if(prebackup_head->block_num == head->block_num){
+               block_ptr->previous_backup = prebackup_head->block->id();
+               dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",prebackup_head->block_num)("mnum",head->block_num));
+               EOS_ASSERT(prebackup_head->block_num == head->block_num, block_validate_exception,
+                             "previous backup head is not par with main head at sequence NO.");
+            }else if(backup_head->block_num == head->block_num){
+               block_ptr->previous_backup = backup_head->block->id();
+                  dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
+                  EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
+                              "previous backup head is not par with main head at sequence NO.");
+            }
+            if(prebackup_head->block_num < backup_head->block_num){
+               dlog("current backup head num is: ${cbnum}",("cbnum",backup_head->block_num));
+               prebackup_head = backup_head;
+            }
+         }else{
+            if(backup_head != nullptr){
+               if(backup_head->block_num == head->block_num){
+                  block_ptr->previous_backup = backup_head->block->id();
+                  dlog("previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
+                  EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
+                              "previous backup head is not par with main head at sequence NO.");
+               }
+            }
+         }
+      }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
 
@@ -1751,7 +1788,7 @@ struct controller_impl {
    /**
     * @post regardless of the success of commit block there is no active pending block
     */
-   void commit_block( bool add_to_fork_db ) {
+   void commit_block( bool add_to_fork_db , bool is_backup) {
       auto reset_pending_on_exit = fc::make_scoped_exit([this]{
          pending.reset();
       });
@@ -1763,14 +1800,38 @@ struct controller_impl {
          auto bsp = pending->_block_stage.get<completed_block>()._block_state;
 
          if( add_to_fork_db ) {
+            dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} will be added",("backup",bsp->is_backup())
+            ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             fork_db.add( bsp );
+            dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be added",("backup",bsp->is_backup())
+            ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             fork_db.mark_valid( bsp );
+            dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be mark valid",("backup",bsp->is_backup())
+            ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             emit( self.accepted_block_header, bsp );
+            dlog("emit signal accepted_block_header ${hnum}",("hnum",bsp->block_num));
             head = fork_db.head();
-            EOS_ASSERT( bsp == head, fork_database_exception, "committed block did not become the new head in fork database");
+            dlog("after add/mark, new head block num: ${num}, new irreversible num ${inum}",("num",head->block_num)("inum",head->dpos_irreversible_blocknum));
+            if(bsp->is_backup()){
+               if(!prebackup_head && backup_head){
+                  ilog("initial prebackup num: ${num}",("num",backup_head->block_num));
+                  prebackup_head = backup_head;
+               }
+               backup_head = bsp;
+               
+               if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
+                  //prebackup_head = backup_head;
+               }
+               dlog("successfully create backup block ${num} id ${id} irreversible: ${inum}",("num",bsp->block_num)("id",bsp->block->id())("inum",bsp->dpos_irreversible_blocknum));
+               EOS_ASSERT( bsp->block_num == head->block_num + 1, block_validate_exception, "backup block num error, backup block num should == main head +1");
+            }else{
+               dlog("commited main block num: ${cnum} ,new head num: ${nnum}",("cnum",bsp->block_num)("nnum",head->block_num));
+               dlog("commited main block irreversible: ${inum}",("inum",bsp->dpos_irreversible_blocknum));
+               EOS_ASSERT( bsp == head, fork_database_exception, "committed block did not become the new head in fork database");
+            }
          }
 
-         if( !replay_head_time && read_mode != db_read_mode::IRREVERSIBLE ) {
+         if( !replay_head_time && read_mode != db_read_mode::IRREVERSIBLE && !bsp->is_backup()) {
             reversible_blocks.create<reversible_block_object>( [&]( auto& ubo ) {
                ubo.blocknum = bsp->block_num;
                ubo.set_block( bsp->block );
@@ -1779,7 +1840,7 @@ struct controller_impl {
 
          emit( self.accepted_block, bsp );
 
-         if( add_to_fork_db ) {
+         if( add_to_fork_db && !is_backup) {
             log_irreversible();
          }
       } catch (...) {
@@ -1789,8 +1850,13 @@ struct controller_impl {
          throw;
       }
 
-      // push the state for pending.
-      pending->push();
+      // push the state for pending except to backup mode.
+      //if backup produce mode, receive main block upset me.
+      if(is_backup){
+         pending->discard();
+      }else{
+         pending->push();
+      }
    }
 
    /**
@@ -1882,7 +1948,7 @@ struct controller_impl {
          const auto& new_protocol_feature_activations = bsp->get_new_protocol_feature_activations();
 
          auto producer_block_id = b->id();
-         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id);
+         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id,b->is_backup);
 
          const bool existing_trxs_metas = !bsp->trxs_metas().empty();
          const bool pub_keys_recovered = bsp->is_pub_keys_recovered();
@@ -1957,7 +2023,7 @@ struct controller_impl {
          // validated in create_block_state_future()
          pending->_block_stage.get<building_block>()._transaction_mroot = b->transaction_mroot;
 
-         finalize_block();
+         finalize_block(b->is_backup);
 
          auto& ab = pending->_block_stage.get<assembled_block>();
 
@@ -1975,7 +2041,7 @@ struct controller_impl {
          // create completed_block with the existing block_state as we just verified it is the same as assembled_block
          pending->_block_stage = completed_block{ bsp };
 
-         commit_block(false);
+         commit_block(false,b->is_backup);
          return;
       } catch ( const fc::exception& e ) {
          edump((e.to_detail_string()));
@@ -1996,6 +2062,11 @@ struct controller_impl {
       auto prev = fork_db.get_block_header( b->previous );
       EOS_ASSERT( prev, unlinkable_block_exception,
                   "unlinkable block ${id}", ("id", id)("previous", b->previous) );
+      //fix me
+      if(b->is_backup){
+         self.set_verify_mode(true);
+         prev->next_is_backup = true;
+      }
 
       return async_thread_pool( thread_pool.get_executor(), [b, prev, control=this]() {
          const bool skip_validate_signee = false;
@@ -2028,6 +2099,7 @@ struct controller_impl {
       });
       try {
          block_state_ptr bsp = block_state_future.get();
+   
          const auto& b = bsp->block;
 
          emit( self.pre_accepted_block, b );
@@ -2040,9 +2112,19 @@ struct controller_impl {
 
          emit( self.accepted_block_header, bsp );
 
-         if( read_mode != db_read_mode::IRREVERSIBLE ) {
+         if( read_mode != db_read_mode::IRREVERSIBLE && s==controller::block_status::complete) {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
-         } else {
+         } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
+            //main node receive backup block
+            dlog("main producer node receive backup block....");
+            //can not verify backup block in main node temporary.
+            //apply_block(bsp, s, trx_lookup);
+            if(!prebackup_head && backup_head){
+               dlog("initial prebackup num: ${num}",("num",backup_head->block_num));
+               prebackup_head = backup_head;
+            }
+            backup_head = bsp;
+         }else if(!bsp->is_backup()){
             log_irreversible();
          }
 
@@ -2169,9 +2251,10 @@ struct controller_impl {
          head_changed = false;
       }
 
-      if( head_changed )
+      if( head_changed ){
+         //only main block may come into 
          log_irreversible();
-
+      }
    } /// push_block
 
    vector<transaction_metadata_ptr> abort_block() {
@@ -2642,12 +2725,12 @@ void controller::start_block( block_timestamp_type when, uint16_t confirm_block_
    }
 
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
-                    block_status::incomplete, optional<block_id_type>() );
+                    block_status::incomplete, optional<block_id_type>(),false);
 }
 
 void controller::start_block( block_timestamp_type when,
                               uint16_t confirm_block_count,
-                              const vector<digest_type>& new_protocol_feature_activations )
+                              const vector<digest_type>& new_protocol_feature_activations, bool is_backup)
 {
    validate_db_available_size();
 
@@ -2656,13 +2739,14 @@ void controller::start_block( block_timestamp_type when,
    }
 
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
-                    block_status::incomplete, optional<block_id_type>() );
+               block_status::incomplete, optional<block_id_type>() ,is_backup);
+   
 }
 
-block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback ) {
+block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback,bool is_backup) {
    validate_db_available_size();
 
-   my->finalize_block();
+   my->finalize_block(is_backup);
 
    auto& ab = my->pending->_block_stage.get<assembled_block>();
 
@@ -2683,10 +2767,10 @@ block_state_ptr controller::finalize_block( const signer_callback_type& signer_c
    return bsp;
 }
 
-void controller::commit_block() {
+void controller::commit_block(bool is_backup) {
    validate_db_available_size();
    validate_reversible_available_size();
-   my->commit_block(true);
+   my->commit_block(true,is_backup);
 }
 
 vector<transaction_metadata_ptr> controller::abort_block() {
@@ -2783,6 +2867,7 @@ account_name  controller::head_block_producer()const {
 const block_header& controller::head_block_header()const {
    return my->head->header;
 }
+
 block_state_ptr controller::head_block_state()const {
    return my->head;
 }
@@ -3244,6 +3329,14 @@ bool controller::is_producing_block()const {
    return (my->pending->_block_status == block_status::incomplete);
 }
 
+bool controller::is_backup_produce()const{
+   return is_backup_mode;
+}
+
+bool controller::is_backup_verify()const{
+   return is_backup_verify_mode;
+}
+
 bool controller::is_ram_billing_in_notify_allowed()const {
    return my->conf.disable_all_subjective_mitigations || !is_producing_block() || my->conf.allow_ram_billing_in_notify;
 }
@@ -3270,11 +3363,16 @@ void controller::validate_expiration( const transaction& trx )const { try {
 
 void controller::validate_tapos( const transaction& trx )const { try {
    const auto& tapos_block_summary = db().get<block_summary_object>((uint16_t)trx.ref_block_num);
-
-   //Verify TaPoS block summary has correct ID prefix, and that this block's time is not past the expiration
-   EOS_ASSERT(trx.verify_reference_block(tapos_block_summary.block_id), invalid_ref_block_exception,
+   if(is_backup_produce() || is_backup_verify()){
+      dlog("backup produce? ${produce}, tapos verify",("produce",is_backup_produce()?"true":"false"));
+      dlog("backup verify? ${verify}, tapos verify",("verify",is_backup_verify()?"true":"false"));
+      return;
+   }else{
+       //Verify TaPoS block summary has correct ID prefix, and that this block's time is not past the expiration
+      EOS_ASSERT(trx.verify_reference_block(tapos_block_summary.block_id), invalid_ref_block_exception,
               "Transaction's reference block did not match. Is this transaction from a different fork?",
               ("tapos_summary", tapos_block_summary));
+   }
 } FC_CAPTURE_AND_RETHROW() }
 
 void controller::validate_db_available_size() const {

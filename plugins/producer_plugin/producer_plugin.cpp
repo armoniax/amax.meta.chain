@@ -42,6 +42,7 @@ using std::deque;
 using boost::signals2::scoped_connection;
 
 #undef FC_LOG_AND_DROP
+#define ACCEPT_BLOCK_ON_INCOMING
 #define LOG_AND_DROP()  \
    catch ( const guard_exception& e ) { \
       chain_plugin::handle_guard_exception(e); \
@@ -186,9 +187,9 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       optional<fc::time_point> calculate_next_block_time(const account_name& producer_name, const block_timestamp_type& current_block_time) const;
       void schedule_production_loop();
-      void schedule_maybe_produce_block( bool exhausted );
-      void produce_block();
-      bool maybe_produce_block();
+      void schedule_maybe_produce_block( bool exhausted ,bool is_backup);
+      void produce_block(bool is_backup);
+      bool maybe_produce_block(bool is_backup);
       bool block_is_exhausted() const;
       bool remove_expired_persisted_trxs( const fc::time_point& deadline );
       bool remove_expired_blacklisted_trxs( const fc::time_point& deadline );
@@ -318,15 +319,17 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       bool on_incoming_block(const signed_block_ptr& block, const std::optional<block_id_type>& block_id) {
          auto& chain = chain_plug->chain();
-         if ( _pending_block_mode == pending_block_mode::producing ) {
-            fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
+         #ifndef ACCEPT_BLOCK_ON_INCOMING
+            if ( _pending_block_mode == pending_block_mode::producing ) {
+               fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
                      ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
-            return false;
-         }
-
+               return false;
+            }
+         #endif
+         
          const auto& id = block_id ? *block_id : block->id();
          auto blk_num = block->block_num();
-
+         //_log.set_log_level(fc::log_level::debug);
          fc_dlog(_log, "received incoming block ${n} ${id}", ("n", blk_num)("id", id));
 
          EOS_ASSERT( block->timestamp < (fc::time_point::now() + fc::seconds( 7 )), block_from_the_future,
@@ -340,6 +343,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          auto bsf = chain.create_block_state_future( block );
 
          // abort the pending block
+         // here will reset pending_block if it exist.
          abort_block();
 
          // exceptions throw out, make sure we restart our loop
@@ -384,7 +388,12 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
             }
          }
-
+         /** 
+         *@Description: reset backup verify mode to main
+         */
+         if(chain.is_backup_verify()){
+            chain.set_verify_mode(false);
+         }
          return true;
       }
 
@@ -441,10 +450,10 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                 chain.get_chain_id(), fc::microseconds( max_trx_cpu_usage ), chain.configured_subjective_signature_length_limit() );
 
          boost::asio::post(_thread_pool->get_executor(), [self = this, future{std::move(future)}, persist_until_expired,
-                                                          next{std::move(next)}, trx]() mutable {
+                                                          next{std::move(next)}, trx,&chain]() mutable {
             if( future.valid() ) {
                future.wait();
-               app().post( priority::low, [self, future{std::move(future)}, persist_until_expired, next{std::move( next )}, trx{std::move(trx)}]() mutable {
+               app().post( priority::low, [self, future{std::move(future)}, persist_until_expired, next{std::move( next )}, trx{std::move(trx)},&chain]() mutable {
                   auto exception_handler = [&next, trx{std::move(trx)}](fc::exception_ptr ex) {
                      fc_dlog(_trx_successful_trace_log, "[TRX_TRACE] Speculative execution is REJECTING tx: ${txid}, auth: ${a} : ${why} ",
                             ("txid", trx->id())("a",trx->get_transaction().first_authorizer())("why",ex->what()));
@@ -456,7 +465,8 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                      auto result = future.get();
                      if( !self->process_incoming_transaction_async( result, persist_until_expired, next ) ) {
                         if( self->_pending_block_mode == pending_block_mode::producing ) {
-                           self->schedule_maybe_produce_block( true );
+                           //only main block ?
+                           self->schedule_maybe_produce_block( true , chain.is_backup_produce());
                         }
                      }
                   } CATCH_AND_CALL(exception_handler);
@@ -630,7 +640,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          exhausted
       };
 
-      start_block_result start_block();
+      start_block_result start_block(bool& is_backup);
 
       fc::time_point calculate_pending_block_time() const;
       fc::time_point calculate_block_deadline( const fc::time_point& ) const;
@@ -1418,61 +1428,120 @@ producer_plugin::get_account_ram_corrections( const get_account_ram_corrections_
 optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const account_name& producer_name, const block_timestamp_type& current_block_time) const {
    chain::controller& chain = chain_plug->chain();
    const auto& hbs = chain.head_block_state();
-   const auto& active_schedule = hbs->active_schedule.producers;
-
-   // determine if this producer is in the active schedule and if so, where
+   if(!hbs){
+      ilog("in special situation, head block state is null ptr.....");
+   }
+   auto active_schedule = hbs->active_schedule.producers;
+   auto schedule = hbs->active_backup_schedule.get_schedule();
+   flat_map<name, block_signing_authority>* backup_active_schedule = nullptr;
+   if(schedule){
+      backup_active_schedule = &(hbs->active_backup_schedule.get_schedule()->producers);
+   }
+   // determine if this producer is in the active schedule/backup active schedule and if so, where
    auto itr = std::find_if(active_schedule.begin(), active_schedule.end(), [&](const auto& asp){ return asp.producer_name == producer_name; });
-   if (itr == active_schedule.end()) {
-      // this producer is not in the active producer set
+   flat_map<name, block_signing_authority>::iterator itr_bak;
+
+   if(backup_active_schedule){
+      itr_bak = backup_active_schedule->find(producer_name);
+   }
+   if (itr == active_schedule.end() && backup_active_schedule && itr_bak == backup_active_schedule->end()) {
+      // this producer is neither in the active producer set nor in backup active producer set
+      return optional<fc::time_point>();
+   }else if(itr == active_schedule.end()){
       return optional<fc::time_point>();
    }
+   
+   if(itr != active_schedule.end()){
+      size_t producer_index = itr - active_schedule.begin();
+      uint32_t minimum_offset = 1; // must at least be the "next" block
 
-   size_t producer_index = itr - active_schedule.begin();
-   uint32_t minimum_offset = 1; // must at least be the "next" block
+      // account for a watermark in the future which is disqualifying this producer for now
+      // this is conservative assuming no blocks are dropped.  If blocks are dropped the watermark will
+      // disqualify this producer for longer but it is assumed they will wake up, determine that they
+      // are disqualified for longer due to skipped blocks and re-caculate their next block with better
+      // information then
+      auto current_watermark = get_watermark(producer_name);
+      if (current_watermark) {
+         const auto watermark = *current_watermark;
+         auto block_num = chain.head_block_state()->block_num;
+         if (chain.is_building_block()) {
+            ++block_num;
+         }
+         if (watermark.first > block_num) {
+            // if I have a watermark block number then I need to wait until after that watermark
+            minimum_offset = watermark.first - block_num + 1;
+         }
+         if (watermark.second > current_block_time) {
+            // if I have a watermark block timestamp then I need to wait until after that watermark timestamp
+            minimum_offset = std::max(minimum_offset, watermark.second.slot - current_block_time.slot + 1);
+         }
+      }
 
-   // account for a watermark in the future which is disqualifying this producer for now
-   // this is conservative assuming no blocks are dropped.  If blocks are dropped the watermark will
-   // disqualify this producer for longer but it is assumed they will wake up, determine that they
-   // are disqualified for longer due to skipped blocks and re-caculate their next block with better
-   // information then
-   auto current_watermark = get_watermark(producer_name);
-   if (current_watermark) {
-      const auto watermark = *current_watermark;
-      auto block_num = chain.head_block_state()->block_num;
-      if (chain.is_building_block()) {
-         ++block_num;
+      // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
+      uint32_t minimum_slot = current_block_time.slot + minimum_offset;
+      size_t minimum_slot_producer_index = (minimum_slot % (active_schedule.size() * config::producer_repetitions)) / config::producer_repetitions;
+      if ( producer_index == minimum_slot_producer_index ) {
+         // this is the producer for the minimum slot, go with that
+         return block_timestamp_type(minimum_slot).to_time_point();
+      } else {
+         // calculate how many rounds are between the minimum producer and the producer in question
+         size_t producer_distance = producer_index - minimum_slot_producer_index;
+         // check for unsigned underflow
+         if (producer_distance > producer_index) {
+            producer_distance += active_schedule.size();
+         }
+
+         // align the minimum slot to the first of its set of reps
+         uint32_t first_minimum_producer_slot = minimum_slot - (minimum_slot % config::producer_repetitions);
+
+         // offset the aligned minimum to the *earliest* next set of slots for this producer
+         uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::producer_repetitions);
+         return block_timestamp_type(next_block_slot).to_time_point();
       }
-      if (watermark.first > block_num) {
-         // if I have a watermark block number then I need to wait until after that watermark
-         minimum_offset = watermark.first - block_num + 1;
+   }else if(backup_active_schedule && itr_bak != backup_active_schedule->end()){
+      size_t producer_index = itr_bak - backup_active_schedule->begin();
+      uint32_t minimum_offset = 1; // must at least be the "next" block
+
+      auto current_watermark = get_watermark(producer_name);
+      if (current_watermark) {
+         const auto watermark = *current_watermark;
+         auto block_num = chain.head_block_state()->block_num;
+         if (chain.is_building_block()) {
+            ++block_num;
+         }
+         if (watermark.first > block_num) {
+            // if I have a watermark block number then I need to wait until after that watermark
+            minimum_offset = watermark.first - block_num + 1;
+         }
+         if (watermark.second > current_block_time) {
+            // if I have a watermark block timestamp then I need to wait until after that watermark timestamp
+            minimum_offset = std::max(minimum_offset, watermark.second.slot - current_block_time.slot + 1);
+         }
       }
-      if (watermark.second > current_block_time) {
-          // if I have a watermark block timestamp then I need to wait until after that watermark timestamp
-          minimum_offset = std::max(minimum_offset, watermark.second.slot - current_block_time.slot + 1);
+
+      // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
+      uint32_t minimum_slot = current_block_time.slot + minimum_offset;
+      size_t minimum_slot_producer_index = (minimum_slot % (backup_active_schedule->size() * config::backup_producer_repetitions)) / config::backup_producer_repetitions;
+      if ( producer_index == minimum_slot_producer_index ) {
+         // this is the producer for the minimum slot, go with that
+         return block_timestamp_type(minimum_slot).to_time_point();
+      } else {
+         // calculate how many rounds are between the minimum producer and the producer in question
+         size_t producer_distance = producer_index - minimum_slot_producer_index;
+         // check for unsigned underflow
+         if (producer_distance > producer_index) {
+            producer_distance += backup_active_schedule->size();
+         }
+
+         // align the minimum slot to the first of its set of reps
+         uint32_t first_minimum_producer_slot = minimum_slot - (minimum_slot % config::backup_producer_repetitions);
+
+         // offset the aligned minimum to the *earliest* next set of slots for this producer
+         uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::backup_producer_repetitions);
+         return block_timestamp_type(next_block_slot).to_time_point();
       }
    }
-
-   // this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
-   uint32_t minimum_slot = current_block_time.slot + minimum_offset;
-   size_t minimum_slot_producer_index = (minimum_slot % (active_schedule.size() * config::producer_repetitions)) / config::producer_repetitions;
-   if ( producer_index == minimum_slot_producer_index ) {
-      // this is the producer for the minimum slot, go with that
-      return block_timestamp_type(minimum_slot).to_time_point();
-   } else {
-      // calculate how many rounds are between the minimum producer and the producer in question
-      size_t producer_distance = producer_index - minimum_slot_producer_index;
-      // check for unsigned underflow
-      if (producer_distance > producer_index) {
-         producer_distance += active_schedule.size();
-      }
-
-      // align the minimum slot to the first of its set of reps
-      uint32_t first_minimum_producer_slot = minimum_slot - (minimum_slot % config::producer_repetitions);
-
-      // offset the aligned minimum to the *earliest* next set of slots for this producer
-      uint32_t next_block_slot = first_minimum_producer_slot  + (producer_distance * config::producer_repetitions);
-      return block_timestamp_type(next_block_slot).to_time_point();
-   }
+   return optional<fc::time_point>();
 }
 
 fc::time_point producer_plugin_impl::calculate_pending_block_time() const {
@@ -1489,13 +1558,21 @@ fc::time_point producer_plugin_impl::calculate_block_deadline( const fc::time_po
    return block_time + fc::microseconds(last_block ? _last_block_time_offset_us : _produce_time_offset_us);
 }
 
-producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
+producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool& is_backup_out) {
    chain::controller& chain = chain_plug->chain();
 
    if( !chain_plug->accept_transactions() )
       return start_block_result::waiting_for_block;
 
    const auto& hbs = chain.head_block_state();
+   /**
+    * @brief this method is trouble, is_backup in controller has a large scope that may effect 
+    * verify a main block in full duplex
+    * should accord to current producer is backup or not
+    * 
+    */
+   //chain.set_produce_mode(false);
+   bool is_backup = false;
 
    const fc::time_point now = fc::time_point::now();
    const fc::time_point block_time = calculate_pending_block_time();
@@ -1505,7 +1582,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
 
    // Not our turn
    const auto& scheduled_producer = hbs->get_scheduled_producer(block_time);
-
+   const auto& backup_scheduled_producer = hbs->get_backup_scheduled_producer(block_time);
    const auto current_watermark = get_watermark(scheduled_producer.producer_name);
 
    size_t num_relevant_signatures = 0;
@@ -1514,7 +1591,34 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       if(iter != _signature_providers.end()) {
          num_relevant_signatures++;
       }
+      /**
+      *@Description: for test 2 producing mode switch
+      */
+      if(num_relevant_signatures > 0){
+         dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
+         chain.set_produce_mode(false);
+         is_backup = false;
+      }
    });
+   
+   if(backup_scheduled_producer.valid()){
+      backup_scheduled_producer->for_each_key([&](const public_key_type& key){
+         const auto& iter = _signature_providers.find(key);
+         if(iter != _signature_providers.end()) {
+            num_relevant_signatures++;
+         }
+         /** 
+         *@Description: for test 2 producing mode switch
+         */
+         if(num_relevant_signatures > 0){
+            dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
+            chain.set_verify_mode(true);
+            is_backup = true;
+         }
+      });
+   }
+   
+   is_backup_out = is_backup;
 
    auto irreversible_block_age = get_irreversible_block_age();
 
@@ -1538,13 +1642,13 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       // determine if our watermark excludes us from producing at this point
       if (current_watermark) {
          const block_timestamp_type block_timestamp{block_time};
-         if (current_watermark->first > hbs->block_num) {
+         if (current_watermark->first > hbs->block_num && !is_backup) {
             elog("Not producing block because \"${producer}\" signed a block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
                  ("producer", scheduled_producer.producer_name)
                  ("watermark", current_watermark->first)
                  ("head_block_num", hbs->block_num));
             _pending_block_mode = pending_block_mode::speculating;
-         } else if (current_watermark->second >= block_timestamp) {
+         } else if (current_watermark->second >= block_timestamp && !is_backup) {
             elog("Not producing block because \"${producer}\" signed a block at the next block time or later (${watermark}) than the pending block time (${block_timestamp})",
                  ("producer", scheduled_producer.producer_name)
                  ("watermark", current_watermark->second)
@@ -1580,6 +1684,8 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
            ("n", hbs->block_num + 1)("time", now)("p", scheduled_producer.producer_name));
 
    try {
+      //                      ||
+      //setup watermark point \/
       uint16_t blocks_to_confirm = 0;
 
       if (_pending_block_mode == pending_block_mode::producing) {
@@ -1598,6 +1704,10 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
 
          // can not confirm irreversible blocks
          blocks_to_confirm = (uint16_t)(std::min<uint32_t>(blocks_to_confirm, (uint32_t)(hbs->block_num - hbs->dpos_irreversible_blocknum)));
+      }
+
+      if(is_backup){
+         blocks_to_confirm = 0;
       }
 
       abort_block();
@@ -1637,7 +1747,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          }
       }
 
-      chain.start_block( block_time, blocks_to_confirm, features_to_activate );
+      chain.start_block( block_time, blocks_to_confirm, features_to_activate ,is_backup);
    } LOG_AND_DROP();
 
    if( chain.is_building_block() ) {
@@ -2099,8 +2209,8 @@ bool producer_plugin_impl::block_is_exhausted() const {
 // --> Start block B (block time y.000) at time x.500
 void producer_plugin_impl::schedule_production_loop() {
    _timer.cancel();
-
-   auto result = start_block();
+   bool is_backup = false;
+   auto result = start_block(is_backup);
 
    if (result == start_block_result::failed) {
       elog("Failed to start a pending block, will try again later");
@@ -2127,7 +2237,7 @@ void producer_plugin_impl::schedule_production_loop() {
       // scheduled in start_block()
 
    } else if (_pending_block_mode == pending_block_mode::producing) {
-      schedule_maybe_produce_block( result == start_block_result::exhausted );
+      schedule_maybe_produce_block( result == start_block_result::exhausted,is_backup);
 
    } else if (_pending_block_mode == pending_block_mode::speculating && !_producers.empty() && !production_disabled_by_policy()){
       chain::controller& chain = chain_plug->chain();
@@ -2139,7 +2249,7 @@ void producer_plugin_impl::schedule_production_loop() {
    }
 }
 
-void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted ) {
+void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted,bool is_backup) {
    chain::controller& chain = chain_plug->chain();
 
    // we succeeded but block may be exhausted
@@ -2161,13 +2271,13 @@ void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted ) {
    }
 
    _timer.async_wait( app().get_priority_queue().wrap( priority::high,
-         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id](const boost::system::error_code& ec) {
+         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id,&is_backup](const boost::system::error_code& ec) {
             auto self = weak_this.lock();
             if( self && ec != boost::asio::error::operation_aborted && cid == self->_timer_corelation_id ) {
                // pending_block_state expected, but can't assert inside async_wait
                auto block_num = chain.is_building_block() ? chain.head_block_num() + 1 : 0;
                fc_dlog( _log, "Produce block timer for ${num} running at ${time}", ("num", block_num)("time", fc::time_point::now()) );
-               auto res = self->maybe_produce_block();
+               auto res = self->maybe_produce_block(is_backup);
                fc_dlog( _log, "Producing Block #${num} returned: ${res}", ("num", block_num)( "res", res ) );
             }
          } ) );
@@ -2178,6 +2288,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_producer_wake_up_time( 
    optional<fc::time_point> wake_up_time;
    for (const auto& p : _producers) {
       auto next_producer_block_time = calculate_next_block_time(p, ref_block_time);
+      ilog("next block time: ${nbt}, producer size: ${size}",("nbt",next_producer_block_time)("size",_producers.size()));
       if (next_producer_block_time) {
          auto producer_wake_up_time = *next_producer_block_time - fc::microseconds(config::block_interval_us);
          if (wake_up_time) {
@@ -2213,13 +2324,13 @@ void producer_plugin_impl::schedule_delayed_production_loop(const std::weak_ptr<
 }
 
 
-bool producer_plugin_impl::maybe_produce_block() {
+bool producer_plugin_impl::maybe_produce_block(bool is_backup) {
    auto reschedule = fc::make_scoped_exit([this]{
       schedule_production_loop();
    });
 
    try {
-      produce_block();
+      produce_block(is_backup);
       return true;
    } LOG_AND_DROP();
 
@@ -2243,7 +2354,7 @@ static auto maybe_make_debug_time_logger() -> fc::optional<decltype(make_debug_t
    }
 }
 
-void producer_plugin_impl::produce_block() {
+void producer_plugin_impl::produce_block(bool is_backup) {
    //ilog("produce_block ${t}", ("t", fc::time_point::now())); // for testing _produce_time_offset_us
    EOS_ASSERT(_pending_block_mode == pending_block_mode::producing, producer_exception, "called produce_block while not actually producing");
    chain::controller& chain = chain_plug->chain();
@@ -2281,9 +2392,9 @@ void producer_plugin_impl::produce_block() {
          sigs.emplace_back(p.get()(d));
       }
       return sigs;
-   } );
+   },is_backup);
 
-   chain.commit_block();
+   chain.commit_block(is_backup);
 
    block_state_ptr new_bs = chain.head_block_state();
 

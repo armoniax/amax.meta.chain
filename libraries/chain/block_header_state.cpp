@@ -122,7 +122,7 @@ namespace eosio { namespace chain {
    }
 
    pending_block_header_state  block_header_state::next( block_timestamp_type when,
-                                                         uint16_t num_prev_blocks_to_confirm )const
+                                                         uint16_t num_prev_blocks_to_confirm)const
    {
       pending_block_header_state result;
 
@@ -131,8 +131,14 @@ namespace eosio { namespace chain {
       } else {
         (when = header.timestamp).slot++;
       }
-
-      auto proauth = get_scheduled_producer(when);
+      producer_authority proauth;
+      if(!next_is_backup){
+         proauth = get_scheduled_producer(when);
+      }else if(next_is_backup){
+         auto temp = get_backup_scheduled_producer(when);
+         EOS_ASSERT(temp.valid(),block_validate_exception, "next backup block must has block BP");
+         proauth = *temp;
+      }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );
       if( itr != producer_to_last_produced.end() ) {
@@ -150,7 +156,8 @@ namespace eosio { namespace chain {
       result.prev_activated_protocol_features                = activated_protocol_features;
 
       result.valid_block_signing_authority                   = proauth.authority;
-      result.producer                                        = proauth.producer_name;
+      result.producer                                        = proauth.producer_name; 
+      ilog("next block producer is: ${bp} .....",("bp",proauth.producer_name));
 
       result.blockroot_merkle = blockroot_merkle;
       result.blockroot_merkle.append( id );
@@ -534,7 +541,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {
