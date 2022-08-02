@@ -321,7 +321,7 @@ namespace eosio
          // parts of the code which run asynchronously (e.g. mongo_db_plugin) may later expect it remain unmodified.
 
          my->root = new_root;
-      my->root->active_backup_schedule.ensure_persisted();
+         my->root->active_backup_schedule.ensure_persisted();
       }
 
       block_header_state_ptr fork_database::get_block_header(const block_id_type &id) const
@@ -353,6 +353,9 @@ namespace eosio
 
          EOS_ASSERT(prev_bh, unlinkable_block_exception,
                     "unlinkable block", ("id", n->id)("previous", n->header.previous));
+
+         // ensure backup active schedule is valid
+         n->active_backup_schedule.ensure_pre_schedule(prev_bh->active_backup_schedule);
 
          if (validate)
          {
