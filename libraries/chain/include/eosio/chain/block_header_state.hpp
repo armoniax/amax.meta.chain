@@ -178,7 +178,7 @@ struct block_header_state : public detail::block_header_state_common {
 
    explicit block_header_state( legacy::snapshot_block_header_state_v2&& snapshot );
 
-   pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm)const;
+   pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm )const;
 
    block_header_state   next( const signed_block_header& h,
                               vector<signature_type>&& additional_signatures,

@@ -28,7 +28,6 @@ namespace eosio { namespace chain {
    struct block_header
    {
       block_timestamp_type             timestamp;
-      //shared by main and backup
       account_name                     producer;
 
       /**
@@ -43,6 +42,7 @@ namespace eosio { namespace chain {
       uint16_t                         confirmed = 1;
 
       block_id_type                    previous;
+      // TODO: use header extendtion instead?
       //previous_backup block id
       block_id_type                    previous_backup = fc::sha256();
       //flag to main block or backup

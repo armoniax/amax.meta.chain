@@ -44,7 +44,7 @@ namespace eosio { namespace chain {
 
       bool is_valid()const { return validated; }
       bool is_pub_keys_recovered()const { return _pub_keys_recovered; }
-      
+
       vector<transaction_metadata_ptr> extract_trxs_metas() {
          _pub_keys_recovered = false;
          auto result = std::move( _cached_trxs );

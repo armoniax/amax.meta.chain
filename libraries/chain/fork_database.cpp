@@ -48,7 +48,7 @@ namespace eosio
               ordered_unique<tag<by_lib_block_num>,
                              composite_key<block_state,
                                            global_fun<const block_state &, bool, &block_state_is_valid>,
-                                           
+
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::dpos_irreversible_blocknum>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::block_num>,
                                            global_fun<const block_state &, bool, &block_state_is_main>,
@@ -172,7 +172,7 @@ namespace eosio
                              "head not set to best available option available; '${filename}' is likely corrupted",
                              ("filename", fork_db_dat.generic_string()));
                   }
-                  
+
                }
             }
             FC_CAPTURE_AND_RETHROW((fork_db_dat))
@@ -283,7 +283,7 @@ namespace eosio
          }
          my->head = my->root;
       }
-      
+
       void fork_database::advance_root(const block_id_type &id)
       {
          EOS_ASSERT(my->root, fork_database_exception, "root not yet set");
@@ -321,6 +321,7 @@ namespace eosio
          // parts of the code which run asynchronously (e.g. mongo_db_plugin) may later expect it remain unmodified.
 
          my->root = new_root;
+      my->root->active_backup_schedule.ensure_persisted();
       }
 
       block_header_state_ptr fork_database::get_block_header(const block_id_type &id) const
@@ -391,9 +392,9 @@ namespace eosio
          if ((*candidate)->is_valid() && (*candidate)->block_num <= n->block_num && !n->is_backup())
          {
             head = n;
-            dlog("same height candidate is backup.....");
+            dlog("same height candidate is backup....."); // TODO: remove??
          }
-         
+
       }
 
       void fork_database::add(const block_state_ptr &n, bool ignore_duplicate)

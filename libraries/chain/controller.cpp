@@ -671,8 +671,8 @@ struct controller_impl {
       // At this point head != nullptr && fork_db.head() != nullptr && fork_db.root() != nullptr.
       // Furthermore, fork_db.root()->block_num <= lib_num.
       // Also, even though blog.head() may still be nullptr, blog.first_block_num() is guaranteed to be lib_num + 1.
-      
-      EOS_ASSERT(db.revision() >= head->block_num, fork_database_exception,
+
+      EOS_ASSERT( db.revision() >= head->block_num, fork_database_exception,
                   "fork database head (${head}) is inconsistent with state (${db})",
                   ("db",db.revision())("head",head->block_num) );
 
@@ -1530,7 +1530,7 @@ struct controller_impl {
                      uint16_t confirm_block_count,
                      const vector<digest_type>& new_protocol_feature_activations,
                      controller::block_status s,
-                     const optional<block_id_type>& producer_block_id , bool is_backup)
+                     const optional<block_id_type>& producer_block_id , bool is_backup )
    {
       EOS_ASSERT( !pending, block_validate_exception, "pending block already exists" );
 
@@ -1629,26 +1629,44 @@ struct controller_impl {
             const auto& gpo = db.get<global_property_object>();
 
             if( gpo.proposed_schedule_block_num.valid() && // if there is a proposed schedule that was proposed in a block ...
-               ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) // ... that has now become irreversible ...
-            )
-            {
-               // Promote proposed schedule to pending schedule.
-               if( !replay_head_time ) {
-                  ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
-                        ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
-                        ("lib", pbhs.dpos_irreversible_blocknum)
-                        ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
-               }
+                  ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) ) { // ... that has now become irreversible ...
 
-               EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
-                           producer_schedule_exception, "wrong producer schedule version specified" );
+                  if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
+                  if (pbhs.prev_pending_schedule.data_empty()) { // ... and there was room for a new pending schedule prior to any possible promotion
 
-               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
-               db.modify( gpo, [&]( auto& gp ) {
-                  gp.proposed_schedule_block_num = optional<block_num_type>();
-                  gp.proposed_schedule.version=0;
-                  gp.proposed_schedule.producers.clear();
-               });
+                     // Promote proposed schedule to pending schedule.
+                     if( !replay_head_time ) {
+                        ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
+                              ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
+                              ("lib", pbhs.dpos_irreversible_blocknum)
+                              ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
+                     }
+
+
+                     EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
+                                 producer_schedule_exception, "wrong producer schedule version specified" );
+
+                     pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
+                     db.modify( gpo, [&]( auto& gp ) {
+                        gp.proposed_schedule_block_num = optional<block_num_type>();
+                        gp.proposed_schedule.version=0;
+                        gp.proposed_schedule.producers.clear();
+                        // gp.proposed_schedule_change.clear();
+                     });
+                  }
+                  } else {
+                     // TODO: if (!prev_pending_schedule_change.empty())
+                     // TODO: check version with active schedule change
+                     // if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
+                     EOS_ASSERT( gpo.proposed_schedule_change.version == pbhs.active_schedule_version + 1,
+                                 producer_schedule_exception, "wrong producer schedule version specified" );
+
+                     pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+                     db.modify( gpo, [&]( auto& gp ) {
+                        gp.proposed_schedule_block_num = optional<block_num_type>();
+                        gp.proposed_schedule_change.clear();
+                     });
+                  }
             }
 
             try {
@@ -1676,7 +1694,7 @@ struct controller_impl {
             update_producers_authority();
          }
       }
-       
+
       //when function return from here , that normal logical
       guard_pending.cancel();
    } /// start_block
@@ -1710,8 +1728,8 @@ struct controller_impl {
          std::move( bb._new_protocol_feature_activations ),
          protocol_features.get_protocol_feature_set()
       ) );
-      
-      /** 
+
+      /**
       *@Description: when controller in backup mode, block should be backup block
       */
       if(is_backup){
@@ -1818,7 +1836,7 @@ struct controller_impl {
                   prebackup_head = backup_head;
                }
                backup_head = bsp;
-               
+
                if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
                   //prebackup_head = backup_head;
                }
@@ -2099,7 +2117,7 @@ struct controller_impl {
       });
       try {
          block_state_ptr bsp = block_state_future.get();
-   
+
          const auto& b = bsp->block;
 
          emit( self.pre_accepted_block, b );
@@ -2252,7 +2270,7 @@ struct controller_impl {
       }
 
       if( head_changed ){
-         //only main block may come into 
+         //only main block may come into
          log_irreversible();
       }
    } /// push_block
@@ -2740,7 +2758,7 @@ void controller::start_block( block_timestamp_type when,
 
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
                block_status::incomplete, optional<block_id_type>() ,is_backup);
-   
+
 }
 
 block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback,bool is_backup) {

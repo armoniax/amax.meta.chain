@@ -42,7 +42,7 @@ using std::deque;
 using boost::signals2::scoped_connection;
 
 #undef FC_LOG_AND_DROP
-#define ACCEPT_BLOCK_ON_INCOMING
+#define ACCEPT_BLOCK_IN_PRODUCING // TODO: remove?
 #define LOG_AND_DROP()  \
    catch ( const guard_exception& e ) { \
       chain_plugin::handle_guard_exception(e); \
@@ -319,7 +319,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       bool on_incoming_block(const signed_block_ptr& block, const std::optional<block_id_type>& block_id) {
          auto& chain = chain_plug->chain();
-         #ifndef ACCEPT_BLOCK_ON_INCOMING
+         #ifndef ACCEPT_BLOCK_IN_PRODUCING
             if ( _pending_block_mode == pending_block_mode::producing ) {
                fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
                      ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
@@ -329,7 +329,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          
          const auto& id = block_id ? *block_id : block->id();
          auto blk_num = block->block_num();
-         //_log.set_log_level(fc::log_level::debug);
+
          fc_dlog(_log, "received incoming block ${n} ${id}", ("n", blk_num)("id", id));
 
          EOS_ASSERT( block->timestamp < (fc::time_point::now() + fc::seconds( 7 )), block_from_the_future,
@@ -343,7 +343,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          auto bsf = chain.create_block_state_future( block );
 
          // abort the pending block
-         // here will reset pending_block if it exist.
          abort_block();
 
          // exceptions throw out, make sure we restart our loop
@@ -1565,13 +1564,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
       return start_block_result::waiting_for_block;
 
    const auto& hbs = chain.head_block_state();
-   /**
-    * @brief this method is trouble, is_backup in controller has a large scope that may effect 
-    * verify a main block in full duplex
-    * should accord to current producer is backup or not
-    * 
-    */
-   //chain.set_produce_mode(false);
    bool is_backup = false;
 
    const fc::time_point now = fc::time_point::now();
@@ -1592,7 +1584,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
          num_relevant_signatures++;
       }
       /**
-      *@Description: for test 2 producing mode switch
+      *@Description: process producing mode switching
       */
       if(num_relevant_signatures > 0){
          dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
@@ -1601,6 +1593,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
       }
    });
    
+   // TODO: should not enter backup producing mode when main producer is valid
    if(backup_scheduled_producer.valid()){
       backup_scheduled_producer->for_each_key([&](const public_key_type& key){
          const auto& iter = _signature_providers.find(key);
