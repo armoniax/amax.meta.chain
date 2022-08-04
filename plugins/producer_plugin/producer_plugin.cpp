@@ -1446,9 +1446,10 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
    if (itr == active_schedule.end() && backup_active_schedule && itr_bak == backup_active_schedule->end()) {
       // this producer is neither in the active producer set nor in backup active producer set
       return optional<fc::time_point>();
-   }else if(itr == active_schedule.end()){
-      return optional<fc::time_point>();
    }
+   // else if(itr == active_schedule.end()){
+   //    return optional<fc::time_point>();
+   // }
    
    if(itr != active_schedule.end()){
       size_t producer_index = itr - active_schedule.begin();
@@ -1503,6 +1504,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
 
       auto current_watermark = get_watermark(producer_name);
       if (current_watermark) {
+         dlog("current watermark is not null");
          const auto watermark = *current_watermark;
          auto block_num = chain.head_block_state()->block_num;
          if (chain.is_building_block()) {
@@ -1578,6 +1580,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
    const auto current_watermark = get_watermark(scheduled_producer.producer_name);
 
    size_t num_relevant_signatures = 0;
+   dlog("num_relevant_signatures 1st: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
    scheduled_producer.for_each_key([&](const public_key_type& key){
       const auto& iter = _signature_providers.find(key);
       if(iter != _signature_providers.end()) {
@@ -1592,9 +1595,12 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
          is_backup = false;
       }
    });
-   
+    dlog("num_relevant_signatures 2nd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
+    dlog("backup_scheduled_producer: ${backup_scheduled_producer}",("backup_scheduled_producer",backup_scheduled_producer));
+    dlog("backup_scheduled_producer is valid ?: ${valid}",("valid",backup_scheduled_producer.valid()));
    // TODO: should not enter backup producing mode when main producer is valid
-   if(backup_scheduled_producer.valid()){
+   if(num_relevant_signatures == 0 && backup_scheduled_producer.valid()){
+      dlog("num_relevant_signatures 3rd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
       backup_scheduled_producer->for_each_key([&](const public_key_type& key){
          const auto& iter = _signature_providers.find(key);
          if(iter != _signature_providers.end()) {
@@ -1618,7 +1624,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled ) {
       _pending_block_mode = pending_block_mode::speculating;
-   } else if( _producers.find(scheduled_producer.producer_name) == _producers.end()) {
+   } else if(!is_backup && _producers.find(scheduled_producer.producer_name) == _producers.end()) {
       _pending_block_mode = pending_block_mode::speculating;
    } else if (num_relevant_signatures == 0) {
       elog("Not producing block because I don't have any private keys relevant to authority: ${authority}", ("authority", scheduled_producer.authority));
@@ -1672,10 +1678,14 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
       schedule_delayed_production_loop( weak_from_this(), start_block_time);
       return start_block_result::waiting_for_production;
    }
-
-   fc_dlog(_log, "Starting block #${n} at ${time} producer ${p}",
+   if(!is_backup){
+       fc_dlog(_log, "Starting block #${n} at ${time} producer ${p}",
            ("n", hbs->block_num + 1)("time", now)("p", scheduled_producer.producer_name));
-
+   }else{
+      fc_dlog(_log, "Starting backup block #${n} at ${time} producer ${p}",
+           ("n", hbs->block_num + 1)("time", now)("p", backup_scheduled_producer->producer_name));
+   }
+   
    try {
       //                      ||
       //setup watermark point \/
@@ -1747,10 +1757,10 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
       const auto& pending_block_signing_authority = chain.pending_block_signing_authority();
       const fc::time_point preprocess_deadline = calculate_block_deadline(block_time);
 
-      if (_pending_block_mode == pending_block_mode::producing && pending_block_signing_authority != scheduled_producer.authority) {
-         elog("Unexpected block signing authority, reverting to speculative mode! [expected: \"${expected}\", actual: \"${actual\"", ("expected", scheduled_producer.authority)("actual", pending_block_signing_authority));
-         _pending_block_mode = pending_block_mode::speculating;
-      }
+      // if (_pending_block_mode == pending_block_mode::producing && pending_block_signing_authority != scheduled_producer.authority) {
+      //    elog("Unexpected block signing authority, reverting to speculative mode! [expected: \"${expected}\", actual: \"${actual\"", ("expected", scheduled_producer.authority)("actual", pending_block_signing_authority));
+      //    _pending_block_mode = pending_block_mode::speculating;
+      // }
 
       try {
          if( !remove_expired_persisted_trxs( preprocess_deadline ) )
@@ -2208,7 +2218,11 @@ void producer_plugin_impl::schedule_production_loop() {
    if (result == start_block_result::failed) {
       elog("Failed to start a pending block, will try again later");
       _timer.expires_from_now( boost::posix_time::microseconds( config::block_interval_us  / 10 ));
-
+      if(is_backup){
+         chain::controller& chain = chain_plug->chain();
+         const auto& hbs = chain.head_block_state();
+         hbs->next_is_backup = false;
+      }
       // we failed to start a block, so try again later?
       _timer.async_wait( app().get_priority_queue().wrap( priority::high,
           [weak_this = weak_from_this(), cid = ++_timer_corelation_id]( const boost::system::error_code& ec ) {
@@ -2218,6 +2232,12 @@ void producer_plugin_impl::schedule_production_loop() {
              }
           } ) );
    } else if (result == start_block_result::waiting_for_block){
+      if(is_backup){
+         chain::controller& chain = chain_plug->chain();
+         const auto& hbs = chain.head_block_state();
+         hbs->next_is_backup = false;
+      }
+
       if (!_producers.empty() && !production_disabled_by_policy()) {
          fc_dlog(_log, "Waiting till another block is received and scheduling Speculative/Production Change");
          schedule_delayed_production_loop(weak_from_this(), calculate_producer_wake_up_time(calculate_pending_block_time()));
@@ -2234,6 +2254,10 @@ void producer_plugin_impl::schedule_production_loop() {
 
    } else if (_pending_block_mode == pending_block_mode::speculating && !_producers.empty() && !production_disabled_by_policy()){
       chain::controller& chain = chain_plug->chain();
+      if(is_backup){
+         const auto& hbs = chain.head_block_state();
+         hbs->next_is_backup = false;
+      }
       fc_dlog(_log, "Speculative Block Created; Scheduling Speculative/Production Change");
       EOS_ASSERT( chain.is_building_block(), missing_pending_block_state, "speculating without pending_block_state" );
       schedule_delayed_production_loop(weak_from_this(), calculate_producer_wake_up_time(chain.pending_block_time()));
@@ -2264,13 +2288,14 @@ void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted,bool is_
    }
 
    _timer.async_wait( app().get_priority_queue().wrap( priority::high,
-         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id,&is_backup](const boost::system::error_code& ec) {
+         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id,is_backup_temp=is_backup](const boost::system::error_code& ec) {
             auto self = weak_this.lock();
             if( self && ec != boost::asio::error::operation_aborted && cid == self->_timer_corelation_id ) {
                // pending_block_state expected, but can't assert inside async_wait
                auto block_num = chain.is_building_block() ? chain.head_block_num() + 1 : 0;
                fc_dlog( _log, "Produce block timer for ${num} running at ${time}", ("num", block_num)("time", fc::time_point::now()) );
-               auto res = self->maybe_produce_block(is_backup);
+               fc_dlog( _log, "Produce backup block ? ${backup}....", ("backup",is_backup_temp));
+               auto res = self->maybe_produce_block(is_backup_temp);
                fc_dlog( _log, "Producing Block #${num} returned: ${res}", ("num", block_num)( "res", res ) );
             }
          } ) );

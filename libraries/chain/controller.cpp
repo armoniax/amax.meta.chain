@@ -2082,8 +2082,13 @@ struct controller_impl {
                   "unlinkable block ${id}", ("id", id)("previous", b->previous) );
       //fix me
       if(b->is_backup){
+         dlog("received block is backup block, producer: ${bp}",("bp",b->producer));
          self.set_verify_mode(true);
          prev->next_is_backup = true;
+      }else{
+         dlog("received block is main block, producer: ${bp}",("bp",b->producer));
+         self.set_verify_mode(false);
+         prev->next_is_backup = false;
       }
 
       return async_thread_pool( thread_pool.get_executor(), [b, prev, control=this]() {
@@ -2130,7 +2135,7 @@ struct controller_impl {
 
          emit( self.accepted_block_header, bsp );
 
-         if( read_mode != db_read_mode::IRREVERSIBLE && s==controller::block_status::complete) {
+         if( read_mode != db_read_mode::IRREVERSIBLE && !bsp->is_backup()) {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block

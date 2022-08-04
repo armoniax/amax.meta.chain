@@ -133,11 +133,15 @@ namespace eosio { namespace chain {
       }
       producer_authority proauth;
       if(!next_is_backup){
+         dlog("next is main block......");
          proauth = get_scheduled_producer(when);
+         dlog("get_schedule_producer: ${bp}",("bp",proauth.producer_name));
       }else if(next_is_backup){
+         dlog("next is backup block......");
          auto temp = get_backup_scheduled_producer(when);
          EOS_ASSERT(temp.valid(),block_validate_exception, "next backup block must has block BP");
          proauth = *temp;
+         dlog("get_backup_schedule_producer: ${bp}",("bp",proauth.producer_name));
       }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );
