@@ -1823,7 +1823,9 @@ struct controller_impl {
             fork_db.add( bsp );
             dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be added",("backup",bsp->is_backup())
             ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
-            fork_db.mark_valid( bsp );
+            if (!bsp->is_backup()) {
+               fork_db.mark_valid( bsp );
+            }
             dlog("block is backup: ${backup} ,is validated: ${validated},irreversible num: ${inum}, block num: ${bnum} has be mark valid",("backup",bsp->is_backup())
             ("validated",bsp->is_valid())("inum",bsp->dpos_irreversible_blocknum)("bnum",bsp->block_num));
             emit( self.accepted_block_header, bsp );

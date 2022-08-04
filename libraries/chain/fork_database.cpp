@@ -28,10 +28,11 @@ namespace eosio
          return bs.is_valid();
       }
 
-      inline bool block_state_is_main(const block_state &bs)
-      {
-         return !bs.is_backup();
-      }
+      // TODO: remove??
+      // inline bool block_state_is_main(const block_state &bs)
+      // {
+      //    return !bs.is_backup();
+      // }
       /**
        * History:
        * Version 1: initial version of the new refactored fork database portable format
@@ -48,16 +49,15 @@ namespace eosio
               ordered_unique<tag<by_lib_block_num>,
                              composite_key<block_state,
                                            global_fun<const block_state &, bool, &block_state_is_valid>,
-
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::dpos_irreversible_blocknum>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::block_num>,
-                                           global_fun<const block_state &, bool, &block_state_is_main>,
+                                          //  global_fun<const block_state &, bool, &block_state_is_main>,
                                            member<block_header_state, block_id_type, &block_header_state::id>>,
                              composite_key_compare<
                                  std::greater<bool>,
                                  std::greater<uint32_t>,
                                  std::greater<uint32_t>,
-                                 std::greater<bool>,
+                                 // std::greater<bool>,
                                  sha256_less>>>>
           fork_multi_index_type;
 
@@ -390,12 +390,6 @@ namespace eosio
          if ((*candidate)->is_valid() && !(*candidate)->is_backup())
          {
             head = *candidate;
-         }
-
-         if ((*candidate)->is_valid() && (*candidate)->block_num <= n->block_num && !n->is_backup())
-         {
-            head = n;
-            dlog("same height candidate is backup....."); // TODO: remove??
          }
 
       }
