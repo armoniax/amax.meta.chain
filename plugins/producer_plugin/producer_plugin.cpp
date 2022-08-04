@@ -1618,13 +1618,20 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
    }
    
    is_backup_out = is_backup;
+   
+   producer_authority check_producer;
+   if(!is_backup){
+      check_producer = scheduled_producer;
+   }else{
+      check_producer = *backup_scheduled_producer;
+   }
 
    auto irreversible_block_age = get_irreversible_block_age();
 
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled ) {
       _pending_block_mode = pending_block_mode::speculating;
-   } else if(!is_backup && _producers.find(scheduled_producer.producer_name) == _producers.end()) {
+   } else if( _producers.find(check_producer.producer_name) == _producers.end()) {
       _pending_block_mode = pending_block_mode::speculating;
    } else if (num_relevant_signatures == 0) {
       elog("Not producing block because I don't have any private keys relevant to authority: ${authority}", ("authority", scheduled_producer.authority));
@@ -2288,14 +2295,14 @@ void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted,bool is_
    }
 
    _timer.async_wait( app().get_priority_queue().wrap( priority::high,
-         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id,is_backup_temp=is_backup](const boost::system::error_code& ec) {
+         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id,is_backup](const boost::system::error_code& ec) {
             auto self = weak_this.lock();
             if( self && ec != boost::asio::error::operation_aborted && cid == self->_timer_corelation_id ) {
                // pending_block_state expected, but can't assert inside async_wait
                auto block_num = chain.is_building_block() ? chain.head_block_num() + 1 : 0;
                fc_dlog( _log, "Produce block timer for ${num} running at ${time}", ("num", block_num)("time", fc::time_point::now()) );
-               fc_dlog( _log, "Produce backup block ? ${backup}....", ("backup",is_backup_temp));
-               auto res = self->maybe_produce_block(is_backup_temp);
+               fc_dlog( _log, "Produce backup block ? ${backup}....", ("backup",is_backup));
+               auto res = self->maybe_produce_block(is_backup);
                fc_dlog( _log, "Producing Block #${num} returned: ${res}", ("num", block_num)( "res", res ) );
             }
          } ) );

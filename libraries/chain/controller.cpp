@@ -1699,7 +1699,7 @@ struct controller_impl {
       guard_pending.cancel();
    } /// start_block
 
-   void finalize_block(bool is_backup)
+   void finalize_block( bool is_backup )
    {
       EOS_ASSERT( pending, block_validate_exception, "it is not valid to finalize when there is no pending block");
       EOS_ASSERT( pending->_block_stage.contains<building_block>(), block_validate_exception, "already called finalize_block");
@@ -1806,7 +1806,7 @@ struct controller_impl {
    /**
     * @post regardless of the success of commit block there is no active pending block
     */
-   void commit_block( bool add_to_fork_db , bool is_backup) {
+   void commit_block( bool add_to_fork_db , bool is_backup ) {
       auto reset_pending_on_exit = fc::make_scoped_exit([this]{
          pending.reset();
       });
@@ -1968,7 +1968,7 @@ struct controller_impl {
          const auto& new_protocol_feature_activations = bsp->get_new_protocol_feature_activations();
 
          auto producer_block_id = b->id();
-         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id,b->is_backup);
+         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup );
 
          const bool existing_trxs_metas = !bsp->trxs_metas().empty();
          const bool pub_keys_recovered = bsp->is_pub_keys_recovered();
@@ -2043,7 +2043,7 @@ struct controller_impl {
          // validated in create_block_state_future()
          pending->_block_stage.get<building_block>()._transaction_mroot = b->transaction_mroot;
 
-         finalize_block(b->is_backup);
+         finalize_block( b->is_backup );
 
          auto& ab = pending->_block_stage.get<assembled_block>();
 
@@ -2061,7 +2061,7 @@ struct controller_impl {
          // create completed_block with the existing block_state as we just verified it is the same as assembled_block
          pending->_block_stage = completed_block{ bsp };
 
-         commit_block(false,b->is_backup);
+         commit_block( false, b->is_backup );
          return;
       } catch ( const fc::exception& e ) {
          edump((e.to_detail_string()));
@@ -2750,12 +2750,12 @@ void controller::start_block( block_timestamp_type when, uint16_t confirm_block_
    }
 
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
-                    block_status::incomplete, optional<block_id_type>(),false);
+                    block_status::incomplete, optional<block_id_type>(), false );
 }
 
 void controller::start_block( block_timestamp_type when,
                               uint16_t confirm_block_count,
-                              const vector<digest_type>& new_protocol_feature_activations, bool is_backup)
+                              const vector<digest_type>& new_protocol_feature_activations, bool is_backup )
 {
    validate_db_available_size();
 
@@ -2764,14 +2764,14 @@ void controller::start_block( block_timestamp_type when,
    }
 
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
-               block_status::incomplete, optional<block_id_type>() ,is_backup);
+               block_status::incomplete, optional<block_id_type>() , is_backup);
 
 }
 
-block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback,bool is_backup) {
+block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback, bool is_backup ) {
    validate_db_available_size();
 
-   my->finalize_block(is_backup);
+   my->finalize_block( is_backup );
 
    auto& ab = my->pending->_block_stage.get<assembled_block>();
 
@@ -2792,10 +2792,10 @@ block_state_ptr controller::finalize_block( const signer_callback_type& signer_c
    return bsp;
 }
 
-void controller::commit_block(bool is_backup) {
+void controller::commit_block( bool is_backup ) {
    validate_db_available_size();
    validate_reversible_available_size();
-   my->commit_block(true,is_backup);
+   my->commit_block( true, is_backup );
 }
 
 vector<transaction_metadata_ptr> controller::abort_block() {
