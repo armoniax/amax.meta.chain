@@ -1838,7 +1838,7 @@ struct controller_impl {
                   prebackup_head = backup_head;
                }
                backup_head = bsp;
-
+               fork_db.add( bsp );
                if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
                   //prebackup_head = backup_head;
                }
@@ -1862,6 +1862,20 @@ struct controller_impl {
 
          if( add_to_fork_db && !is_backup) {
             log_irreversible();
+         }else if( add_to_fork_db && is_backup ){
+            dlog("backup block: ${hash}, NO. ${num}",("hash",bsp->id)("num",bsp->block_num));
+            if(backup_log.first_block_num() == 0){
+               dlog("backup log begin reset...");
+               backup_log.reset( chain_id, bsp->block_num );
+               backup_log.append( bsp->block );
+               dlog("backup log reset successfully...");
+            }else{
+               dlog("backup block begin append...");
+               if( backup_log.head()->block_num() < bsp->block_num ){
+                  backup_log.append( bsp->block );
+                  dlog("backup block append successfully...");
+               }
+            }
          }
       } catch (...) {
          // dont bother resetting pending, instead abort the block
@@ -2149,6 +2163,20 @@ struct controller_impl {
                prebackup_head = backup_head;
             }
             backup_head = bsp;
+            fork_db.add( bsp );
+
+            dlog("backup block: ${hash}, NO. ${num}",("hash",bsp->id)("num",bsp->block_num));
+            if(backup_log.first_block_num() == 0){
+               dlog("backup log begin reset...");
+               backup_log.reset( chain_id, bsp->block_num );
+               backup_log.append( bsp->block );
+               dlog("backup log reset successfully...");
+            }else{
+               dlog("backup block begin append...");
+               backup_log.append( bsp->block );
+               dlog("backup block append successfully...");
+            }
+            
          }else if(!bsp->is_backup()){
             log_irreversible();
          }
@@ -2992,7 +3020,14 @@ signed_block_ptr controller::fetch_block_by_id( block_id_type id )const {
    auto state = my->fork_db.get_block(id);
    if( state && state->block ) return state->block;
    auto bptr = fetch_block_by_number( block_header::num_from_id(id) );
-   if( bptr && bptr->id() == id ) return bptr;
+   if( bptr && bptr->id() == id ){
+      return bptr;
+   }
+   bptr = my->backup_log.read_block_by_num( block_header::num_from_id(id) );
+   if( bptr && bptr->id() == id ){
+      return bptr;
+   }
+
    return signed_block_ptr();
 }
 
@@ -3001,8 +3036,12 @@ signed_block_ptr controller::fetch_block_by_number( uint32_t block_num )const  {
    if( blk_state ) {
       return blk_state->block;
    }
-
-   return my->blog.read_block_by_num(block_num);
+   signed_block_ptr candinate = my->blog.read_block_by_num(block_num);
+   if(!candinate){
+      dlog("read backup block from backup log....");
+      candinate = my->backup_log.read_block_by_num(block_num);
+   }
+   return candinate;
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_state_ptr controller::fetch_block_state_by_id( block_id_type id )const {

@@ -308,7 +308,7 @@ namespace eosio { namespace chain {
       auto index_size = fc::file_size( my->index_file.get_file_path() );
 
       if (log_size) {
-         ilog("Log is nonempty");
+         ilog("backup Log is nonempty");
          my->block_file.seek( 0 );
          my->version = 0;
          my->block_file.read( (char*)&my->version, sizeof(my->version) );
