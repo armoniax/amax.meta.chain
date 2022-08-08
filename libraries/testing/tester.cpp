@@ -387,7 +387,7 @@ namespace eosio { namespace testing {
          preactivated_protocol_features.end()
       );
 
-      control->start_block( block_time, head_block_number - last_produced_block_num, feature_to_be_activated );
+      control->start_block( block_time, head_block_number - last_produced_block_num, feature_to_be_activated, is_backup_block_mode );
 
       // Clear the list, if start block finishes successfuly, the protocol features should be assumed to be activated
       protocol_features_to_be_activated_wo_preactivation.clear();
@@ -396,9 +396,16 @@ namespace eosio { namespace testing {
    signed_block_ptr base_tester::_finish_block() {
       FC_ASSERT( control->is_building_block(), "must first start a block before it can be finished" );
 
-      auto producer = control->head_block_state()->get_scheduled_producer( control->pending_block_time() );
-      vector<private_key_type> signing_keys;
+      producer_authority producer;
+      if (!is_backup_block_mode) {
+         producer = control->head_block_state()->get_scheduled_producer( control->pending_block_time() );
+      } else {
+         auto bp = control->head_block_state()->get_backup_scheduled_producer( control->pending_block_time() );
+         FC_ASSERT( bp, "no backup producer found" );
+         producer = *bp;
+      }
 
+      vector<private_key_type> signing_keys;
       auto default_active_key = get_public_key( producer.producer_name, "active");
       producer.for_each_key([&](const public_key_type& key){
          const auto& iter = block_signing_private_keys.find(key);
@@ -416,9 +423,9 @@ namespace eosio { namespace testing {
              result.emplace_back(k.sign(d));
 
          return result;
-      } ,false);
+      } , is_backup_block_mode);
 
-      control->commit_block(false);
+      control->commit_block(is_backup_block_mode);
       last_produced_block[control->head_block_state()->header.producer] = control->head_block_state()->id;
 
       return control->head_block_state()->block;

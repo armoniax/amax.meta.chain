@@ -447,6 +447,7 @@ namespace eosio { namespace testing {
 
       public:
          vector<digest_type>                           protocol_features_to_be_activated_wo_preactivation;
+         bool                                          is_backup_block_mode = false; // if true, producing backup block
    };
 
    class tester : public base_tester {
