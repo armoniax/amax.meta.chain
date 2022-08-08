@@ -444,6 +444,7 @@ namespace eosio { namespace testing {
          map<transaction_id_type, transaction_receipt> chain_transactions;
          map<account_name, block_id_type>              last_produced_block;
          unapplied_transaction_queue                   unapplied_transactions;
+         signed_block_ptr                              last_accept_block;
 
       public:
          vector<digest_type>                           protocol_features_to_be_activated_wo_preactivation;
@@ -648,6 +649,72 @@ namespace eosio { namespace testing {
       unique_ptr<controller>   validating_node;
       uint32_t                 num_blocks_to_producer_before_shutdown = 0;
       bool                     skip_validate = false;
+   };
+
+   class backup_block_tester : public base_tester {
+      public:
+         backup_block_tester(db_read_mode read_mode = db_read_mode::SPECULATIVE, optional<uint32_t> genesis_max_inline_action_size = optional<uint32_t>{}, optional<uint32_t> config_max_nonprivileged_inline_action_size = optional<uint32_t>{}) {
+            is_backup_block_mode = true;
+            init(setup_policy::none, read_mode, genesis_max_inline_action_size, config_max_nonprivileged_inline_action_size);
+         }
+         backup_block_tester(controller::config config, const genesis_state& genesis) {
+            is_backup_block_mode = true;
+            init(config, genesis);
+         }
+
+         backup_block_tester(controller::config config) {
+            is_backup_block_mode = true;
+            init(config);
+         }
+
+         backup_block_tester(controller::config config, protocol_feature_set&& pfs, const genesis_state& genesis) {
+            is_backup_block_mode = true;
+            init(config, std::move(pfs), genesis);
+         }
+
+         backup_block_tester(const fc::temp_directory& tempdir, bool use_genesis) {
+            is_backup_block_mode = true;
+            auto def_conf = default_config(tempdir);
+            cfg = def_conf.first;
+
+            if (use_genesis) {
+               init(cfg, def_conf.second);
+            }
+            else {
+               init(cfg);
+            }
+         }
+
+         template <typename Lambda>
+         backup_block_tester(const fc::temp_directory& tempdir, Lambda conf_edit, bool use_genesis) {
+            auto def_conf = default_config(tempdir);
+            cfg = def_conf.first;
+            conf_edit(cfg);
+
+            if (use_genesis) {
+               init(cfg, def_conf.second);
+            }
+            else {
+               init(cfg);
+            }
+         }
+
+         using base_tester::produce_block;
+
+         signed_block_ptr produce_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
+            return _produce_block(skip_time, false);
+         }
+
+         signed_block_ptr produce_empty_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
+            unapplied_transactions.add_aborted( control->abort_block() );
+            return _produce_block(skip_time, true);
+         }
+
+         signed_block_ptr finish_block()override {
+            return _finish_block();
+         }
+
+         bool validate() { return true; }
    };
 
    /**
