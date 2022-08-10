@@ -76,6 +76,7 @@ namespace eosio
          fork_database &self;
          fork_multi_index_type index;
          block_state_ptr root; // Only uses the block_header_state portion
+         block_state_ptr backup_root;  //point to backup block root(only exist in memory not in index)
          block_state_ptr head;
          fc::path datadir;
 
@@ -519,13 +520,17 @@ namespace eosio
              *@Description: would return lower bound iterater of a element in index set ,for example
              * block num set {10,11,12,15,16,......}==>lower_bound(15)
              *                         ^
-             *                         |   {15,16,......}
+             *                         |   {16,......}
              * this will add all forks extended from this index i (including i) into remove queue.
              */
             auto previtr = previdx.lower_bound(remove_queue[i]);
             while (previtr != previdx.end() && (*previtr)->header.previous == remove_queue[i])
             {
+
                remove_queue.push_back((*previtr)->id);
+               if( (*previtr)->block->is_backup && (*previtr)->block->block_num() == my->root->block->block_num() + 1 ){
+                  my->backup_root = *previtr;
+               }
                ++previtr;
             }
          }
@@ -570,6 +575,9 @@ namespace eosio
          auto itr = my->index.find(id);
          if (itr != my->index.end())
             return *itr;
+         if (itr == my->index.end() && my->backup_root != nullptr && my->backup_root->block->id() == id)
+            return my->backup_root;
+
          return block_state_ptr();
       }
 

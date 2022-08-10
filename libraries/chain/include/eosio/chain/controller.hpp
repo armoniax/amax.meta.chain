@@ -11,6 +11,9 @@
 #include <eosio/chain/protocol_feature_manager.hpp>
 #include <eosio/chain/webassembly/eos-vm-oc/config.hpp>
 
+extern const fc::string backup_block_trace_logger_name;
+extern fc::logger _backup_block_trace_log;
+
 namespace chainbase {
    class database;
 }

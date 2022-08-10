@@ -1085,6 +1085,7 @@ void producer_plugin::handle_sighup() {
    fc::logger::update( logger_name, _log );
    fc::logger::update(trx_successful_trace_logger_name, _trx_successful_trace_log);
    fc::logger::update(trx_failed_trace_logger_name, _trx_failed_trace_log);
+   fc::logger::update(backup_block_trace_logger_name, _backup_block_trace_log);
 }
 
 void producer_plugin::pause() {

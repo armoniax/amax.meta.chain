@@ -34,6 +34,9 @@
 
 #include <new>
 
+const fc::string backup_block_trace_logger_name("backup_block_tracing");
+fc::logger _backup_block_trace_log;
+
 namespace eosio { namespace chain {
 
 using resource_limits::resource_limits_manager;
@@ -392,6 +395,26 @@ struct controller_impl {
       }
    }
 
+   void log_backup_irreversible( std::reverse_iterator<eosio::chain::branch_type::const_iterator> it ) {
+      block_id_type backup_id = (*it)->block->previous_backup;
+      if( backup_id != sha256() ){
+         block_state_ptr backup_block = fork_db.get_block(backup_id);
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         if(backup_log.first_block_num() == 0){
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log begin reset...");
+            backup_log.reset( chain_id, backup_block->block_num );
+            backup_log.append( backup_block->block );
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log reset successfully...");
+         }else{
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
+            if( backup_log.head()->block_num() < backup_block->block_num ){
+               backup_log.append( backup_block->block );
+               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block append successfully...");
+            }
+         }
+      }
+   }
+
    void log_irreversible() {
       EOS_ASSERT( fork_db.root(), fork_database_exception, "fork database not properly initialized" );
 
@@ -431,6 +454,8 @@ struct controller_impl {
             root_id = (*bitr)->id;
 
             blog.append( (*bitr)->block );
+            
+            log_backup_irreversible(bitr);
 
             auto rbitr = rbi.begin();
             while( rbitr != rbi.end() && rbitr->blocknum <= (*bitr)->block_num ) {
@@ -1838,7 +1863,6 @@ struct controller_impl {
                   prebackup_head = backup_head;
                }
                backup_head = bsp;
-               fork_db.add( bsp );
                if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
                   //prebackup_head = backup_head;
                }
@@ -1862,21 +1886,8 @@ struct controller_impl {
 
          if( add_to_fork_db && !is_backup) {
             log_irreversible();
-         }else if( add_to_fork_db && is_backup ){
-            dlog("backup block: ${hash}, NO. ${num}",("hash",bsp->id)("num",bsp->block_num));
-            if(backup_log.first_block_num() == 0){
-               dlog("backup log begin reset...");
-               backup_log.reset( chain_id, bsp->block_num );
-               backup_log.append( bsp->block );
-               dlog("backup log reset successfully...");
-            }else{
-               dlog("backup block begin append...");
-               if( backup_log.head()->block_num() < bsp->block_num ){
-                  backup_log.append( bsp->block );
-                  dlog("backup block append successfully...");
-               }
-            }
          }
+
       } catch (...) {
          // dont bother resetting pending, instead abort the block
          reset_pending_on_exit.cancel();
@@ -2162,21 +2173,7 @@ struct controller_impl {
                dlog("initial prebackup num: ${num}",("num",backup_head->block_num));
                prebackup_head = backup_head;
             }
-            backup_head = bsp;
-            fork_db.add( bsp );
-
-            dlog("backup block: ${hash}, NO. ${num}",("hash",bsp->id)("num",bsp->block_num));
-            if(backup_log.first_block_num() == 0){
-               dlog("backup log begin reset...");
-               backup_log.reset( chain_id, bsp->block_num );
-               backup_log.append( bsp->block );
-               dlog("backup log reset successfully...");
-            }else{
-               dlog("backup block begin append...");
-               backup_log.append( bsp->block );
-               dlog("backup block append successfully...");
-            }
-            
+            backup_head = bsp;   
          }else if(!bsp->is_backup()){
             log_irreversible();
          }
