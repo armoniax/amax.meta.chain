@@ -1581,7 +1581,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
    const auto current_watermark = get_watermark(scheduled_producer.producer_name);
 
    size_t num_relevant_signatures = 0;
-   dlog("num_relevant_signatures 1st: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
+   fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 1st: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
    scheduled_producer.for_each_key([&](const public_key_type& key){
       const auto& iter = _signature_providers.find(key);
       if(iter != _signature_providers.end()) {
@@ -1591,17 +1591,17 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
       *@Description: process producing mode switching
       */
       if(num_relevant_signatures > 0){
-         dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
          chain.set_produce_mode(false);
          is_backup = false;
       }
    });
-    dlog("num_relevant_signatures 2nd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
-    dlog("backup_scheduled_producer: ${backup_scheduled_producer}",("backup_scheduled_producer",backup_scheduled_producer));
-    dlog("backup_scheduled_producer is valid ?: ${valid}",("valid",backup_scheduled_producer.valid()));
+    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 2nd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
+    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup_scheduled_producer: ${backup_scheduled_producer}",("backup_scheduled_producer",backup_scheduled_producer));
+    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup_scheduled_producer is valid ?: ${valid}",("valid",backup_scheduled_producer.valid()));
    // TODO: should not enter backup producing mode when main producer is valid
    if(num_relevant_signatures == 0 && backup_scheduled_producer.valid()){
-      dlog("num_relevant_signatures 3rd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
+      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 3rd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
       backup_scheduled_producer->for_each_key([&](const public_key_type& key){
          const auto& iter = _signature_providers.find(key);
          if(iter != _signature_providers.end()) {
@@ -1611,7 +1611,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
          *@Description: for test 2 producing mode switch
          */
          if(num_relevant_signatures > 0){
-            dlog("producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
             chain.set_verify_mode(true);
             is_backup = true;
          }

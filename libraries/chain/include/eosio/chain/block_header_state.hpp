@@ -5,6 +5,8 @@
 #include <eosio/chain/chain_snapshot.hpp>
 #include <future>
 
+extern const fc::string backup_block_trace_logger_name;
+extern fc::logger _backup_block_trace_log;
 namespace eosio { namespace chain {
 
 namespace legacy {

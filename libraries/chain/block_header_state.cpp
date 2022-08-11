@@ -2,6 +2,8 @@
 #include <eosio/chain/exceptions.hpp>
 #include <limits>
 
+const fc::string backup_block_trace_logger_name("backup_block_tracing");
+fc::logger _backup_block_trace_log;
 namespace eosio { namespace chain {
 
    namespace detail {
@@ -133,15 +135,15 @@ namespace eosio { namespace chain {
       }
       producer_authority proauth;
       if(!next_is_backup){
-         dlog("next is main block......");
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is main block......");
          proauth = get_scheduled_producer(when);
-         dlog("get_schedule_producer: ${bp}",("bp",proauth.producer_name));
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_schedule_producer: ${bp}",("bp",proauth.producer_name));
       }else if(next_is_backup){
-         dlog("next is backup block......");
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is backup block......");
          auto temp = get_backup_scheduled_producer(when);
          EOS_ASSERT(temp.valid(),block_validate_exception, "next backup block must has block BP");
          proauth = *temp;
-         dlog("get_backup_schedule_producer: ${bp}",("bp",proauth.producer_name));
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_backup_schedule_producer: ${bp}",("bp",proauth.producer_name));
       }
 
       auto itr = producer_to_last_produced.find( proauth.producer_name );
@@ -161,7 +163,7 @@ namespace eosio { namespace chain {
 
       result.valid_block_signing_authority                   = proauth.authority;
       result.producer                                        = proauth.producer_name;
-      ilog("next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
+      fc_ilog(_backup_block_trace_log,"[BACKUP_TRACE] next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
 
       result.blockroot_merkle = blockroot_merkle;
       result.blockroot_merkle.append( id );
