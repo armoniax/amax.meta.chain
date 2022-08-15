@@ -110,6 +110,24 @@ namespace eosio { namespace chain {
       signature_type  sig;
    };
 
+   struct full_signed_block {
+      signed_block main_block;
+      signed_block_ptr backup_block;
+   };
+
+   namespace full_signed_block_packer {
+
+      inline static auto make_packer( const signed_block& main_block, const signed_block_ptr& backup_block_ptr) {
+         return std::pair<const signed_block&, const signed_block_ptr&>(main_block, backup_block_ptr);
+      }
+
+      template<typename Stream>
+      inline static void unpack( Stream& s, signed_block &main_block, signed_block_ptr &backup_block_ptr) {
+         fc::raw::unpack( s, main_block);
+         fc::raw::unpack( s, backup_block_ptr);
+      }
+   };
+
 } } /// eosio::chain
 
 FC_REFLECT_ENUM( eosio::chain::transaction_receipt::status_enum,
@@ -119,3 +137,4 @@ FC_REFLECT(eosio::chain::transaction_receipt_header, (status)(cpu_usage_us)(net_
 FC_REFLECT_DERIVED(eosio::chain::transaction_receipt, (eosio::chain::transaction_receipt_header), (trx) )
 FC_REFLECT(eosio::chain::additional_block_signatures_extension, (signatures));
 FC_REFLECT_DERIVED(eosio::chain::signed_block, (eosio::chain::signed_block_header), (transactions)(block_extensions) )
+FC_REFLECT(eosio::chain::full_signed_block, (main_block)(backup_block));

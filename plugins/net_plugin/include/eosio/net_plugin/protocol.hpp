@@ -143,7 +143,8 @@ namespace eosio {
                                       request_message,
                                       sync_request_message,
                                       signed_block,         // which = 7
-                                      packed_transaction>;  // which = 8
+                                      packed_transaction,   // which = 8
+                                      full_signed_block>;   // which = 9
 
 } // namespace eosio
 
