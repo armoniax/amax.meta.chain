@@ -110,6 +110,17 @@ namespace eosio { namespace chain {
       signature_type  sig;
    };
 
+   struct full_block {
+      signed_block_ptr main_block;
+      signed_block_ptr backup_block;
+      full_block()=default;
+      full_block(signed_block_ptr main_block, signed_block_ptr backup_block)
+      :main_block(main_block), backup_block(backup_block){}
+      uint32_t block_num(){ return main_block->block_num(); }
+      block_id_type id(){ return main_block->id(); }
+   };
+   using full_block_ptr = std::shared_ptr<full_block>;
+
 } } /// eosio::chain
 
 FC_REFLECT_ENUM( eosio::chain::transaction_receipt::status_enum,
@@ -118,4 +129,5 @@ FC_REFLECT_ENUM( eosio::chain::transaction_receipt::status_enum,
 FC_REFLECT(eosio::chain::transaction_receipt_header, (status)(cpu_usage_us)(net_usage_words) )
 FC_REFLECT_DERIVED(eosio::chain::transaction_receipt, (eosio::chain::transaction_receipt_header), (trx) )
 FC_REFLECT(eosio::chain::additional_block_signatures_extension, (signatures));
+FC_REFLECT(eosio::chain::full_block, (main_block)(backup_block));
 FC_REFLECT_DERIVED(eosio::chain::signed_block, (eosio::chain::signed_block_header), (transactions)(block_extensions) )

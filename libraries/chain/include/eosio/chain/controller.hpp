@@ -235,7 +235,7 @@ namespace eosio { namespace chain {
          block_id_type last_irreversible_block_id() const;
          time_point last_irreversible_block_time() const;
 
-         signed_block_ptr fetch_block_by_number( uint32_t block_num )const;
+         signed_block_ptr fetch_block_by_number( uint32_t block_num , bool is_backup = false )const;
          signed_block_ptr fetch_block_by_id( block_id_type id )const;
 
          block_state_ptr fetch_block_state_by_number( uint32_t block_num )const;

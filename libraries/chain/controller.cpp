@@ -393,23 +393,27 @@ struct controller_impl {
       }
    }
 
-   void log_backup_irreversible( std::reverse_iterator<eosio::chain::branch_type::const_iterator> it ) {
+   void log_full_irreversible( std::reverse_iterator<eosio::chain::branch_type::const_iterator> it ) {
       block_id_type backup_id = (*it)->block->previous_backup;
+      full_block_ptr fptr;
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
+         EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
+         fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
-         if(backup_log.first_block_num() == 0){
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log begin reset...");
-            backup_log.reset( chain_id, backup_block->block_num );
-            backup_log.append( backup_block->block );
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log reset successfully...");
-         }else{
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
-            if( backup_log.head()->block_num() < backup_block->block_num ){
-               backup_log.append( backup_block->block );
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block append successfully...");
-            }
-         }
+      }else{
+         fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
+      }
+      
+      if(blog.first_block_num() == 0){
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log begin reset...");
+         blog.reset( chain_id, fptr->block_num() );
+         blog.append( fptr );
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log reset successfully...");
+      }else{
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
+         blog.append( fptr );
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block append successfully...");
       }
    }
 
@@ -450,10 +454,8 @@ struct controller_impl {
             db.commit( (*bitr)->block_num );
 
             root_id = (*bitr)->id;
-
-            blog.append( (*bitr)->block );
             
-            log_backup_irreversible(bitr);
+            log_full_irreversible(bitr);
 
             auto rbitr = rbi.begin();
             while( rbitr != rbi.end() && rbitr->blocknum <= (*bitr)->block_num ) {
@@ -623,7 +625,9 @@ struct controller_impl {
                      "block log does not start with genesis block"
          );
       } else {
-         blog.reset( genesis, head->block );
+         full_block_ptr fptr;
+         fptr = std::make_shared<full_block>(head->block, signed_block_ptr());
+         blog.reset( genesis, fptr );
       }
       init(shutdown);
    }
@@ -3017,25 +3021,25 @@ signed_block_ptr controller::fetch_block_by_id( block_id_type id )const {
    auto bptr = fetch_block_by_number( block_header::num_from_id(id) );
    if( bptr && bptr->id() == id ){
       return bptr;
+   }else{
+      bptr = fetch_block_by_number( block_header::num_from_id(id) + 1 , true );
+      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] fetch backup block by id in controller, find: ${found}",("found",bptr != nullptr? true: false));
+      if( bptr ){
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] found id: ${fid}: wanted: ${wid}",("fid",bptr->id())("wid",id));
+         if( bptr->id() == id ){
+            return bptr;
+         }
+      }
    }
-   bptr = my->backup_log.read_block_by_num( block_header::num_from_id(id) );
-   if( bptr && bptr->id() == id ){
-      return bptr;
-   }
-
    return signed_block_ptr();
 }
 
-signed_block_ptr controller::fetch_block_by_number( uint32_t block_num )const  { try {
+signed_block_ptr controller::fetch_block_by_number( uint32_t block_num , bool is_backup)const  { try {
    auto blk_state = fetch_block_state_by_number( block_num );
-   if( blk_state ) {
+   if( blk_state && !is_backup ) {
       return blk_state->block;
    }
-   signed_block_ptr candinate = my->blog.read_block_by_num(block_num);
-   if(!candinate){
-      dlog("read backup block from backup log....");
-      candinate = my->backup_log.read_block_by_num(block_num);
-   }
+   signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
    return candinate;
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
