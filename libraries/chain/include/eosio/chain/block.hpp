@@ -110,6 +110,24 @@ namespace eosio { namespace chain {
       signature_type  sig;
    };
 
+   struct full_signed_block {
+      signed_block main_block;
+      signed_block_ptr backup_block;
+   };
+
+   namespace full_signed_block_packer {
+
+      inline static auto make_packer( const signed_block& main_block, const signed_block_ptr& backup_block_ptr) {
+         return std::pair<const signed_block&, const signed_block_ptr&>(main_block, backup_block_ptr);
+      }
+
+      template<typename Stream>
+      inline static void unpack( Stream& s, signed_block &main_block, signed_block_ptr &backup_block_ptr) {
+         fc::raw::unpack( s, main_block);
+         fc::raw::unpack( s, backup_block_ptr);
+      }
+   };
+   
    struct full_block {
       signed_block_ptr main_block;
       signed_block_ptr backup_block;
@@ -118,7 +136,25 @@ namespace eosio { namespace chain {
       :main_block(main_block), backup_block(backup_block){}
       uint32_t block_num(){ return main_block->block_num(); }
       block_id_type id(){ return main_block->id(); }
+      std::vector<char> pack() const{
+         EOS_ASSERT( main_block, pack_exception,"main block cann't be nullptr");
+         const uint32_t payload_size = fc::raw::pack_size( *main_block ) + fc::raw::pack_size( backup_block );
+         std::vector<char> vec(payload_size);
+         fc::datastream<char*>  ds( vec.data(), size_t(vec.size()) );
+         fc::raw::pack(ds,*main_block);
+         fc::raw::pack(ds,backup_block);
+         return vec;
+      }
+
+      template<typename Stream>
+      void unpack(Stream& s){
+         main_block = std::make_shared<signed_block>();
+         fc::raw::unpack(s,*main_block);
+         backup_block.reset();
+         fc::raw::unpack(s,backup_block);
+      }
    };
+   
    using full_block_ptr = std::shared_ptr<full_block>;
 
 } } /// eosio::chain
@@ -129,5 +165,6 @@ FC_REFLECT_ENUM( eosio::chain::transaction_receipt::status_enum,
 FC_REFLECT(eosio::chain::transaction_receipt_header, (status)(cpu_usage_us)(net_usage_words) )
 FC_REFLECT_DERIVED(eosio::chain::transaction_receipt, (eosio::chain::transaction_receipt_header), (trx) )
 FC_REFLECT(eosio::chain::additional_block_signatures_extension, (signatures));
-FC_REFLECT(eosio::chain::full_block, (main_block)(backup_block));
+//FC_REFLECT(eosio::chain::full_block, (main_block)(backup_block));
 FC_REFLECT_DERIVED(eosio::chain::signed_block, (eosio::chain::signed_block_header), (transactions)(block_extensions) )
+FC_REFLECT(eosio::chain::full_signed_block, (main_block)(backup_block));

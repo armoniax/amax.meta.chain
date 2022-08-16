@@ -268,6 +268,7 @@ namespace eosio { namespace testing {
       chain_transactions.clear();
       control->accepted_block.connect([this]( const block_state_ptr& block_state ){
         FC_ASSERT( block_state->block );
+        this->last_accept_block = block_state->block;
           for( const auto& receipt : block_state->block->transactions ) {
               if( receipt.trx.contains<packed_transaction>() ) {
                   auto &pt = receipt.trx.get<packed_transaction>();
@@ -387,7 +388,8 @@ namespace eosio { namespace testing {
          preactivated_protocol_features.end()
       );
 
-      control->start_block( block_time, head_block_number - last_produced_block_num, feature_to_be_activated );
+      uint32_t confirms = is_backup_block_mode ? 0 : head_block_number - last_produced_block_num;
+      control->start_block( block_time, confirms, feature_to_be_activated, is_backup_block_mode );
 
       // Clear the list, if start block finishes successfuly, the protocol features should be assumed to be activated
       protocol_features_to_be_activated_wo_preactivation.clear();
@@ -396,9 +398,16 @@ namespace eosio { namespace testing {
    signed_block_ptr base_tester::_finish_block() {
       FC_ASSERT( control->is_building_block(), "must first start a block before it can be finished" );
 
-      auto producer = control->head_block_state()->get_scheduled_producer( control->pending_block_time() );
-      vector<private_key_type> signing_keys;
+      producer_authority producer;
+      if (!is_backup_block_mode) {
+         producer = control->head_block_state()->get_scheduled_producer( control->pending_block_time() );
+      } else {
+         auto bp = control->head_block_state()->get_backup_scheduled_producer( control->pending_block_time() );
+         FC_ASSERT( bp, "no backup producer found" );
+         producer = *bp;
+      }
 
+      vector<private_key_type> signing_keys;
       auto default_active_key = get_public_key( producer.producer_name, "active");
       producer.for_each_key([&](const public_key_type& key){
          const auto& iter = block_signing_private_keys.find(key);
@@ -416,12 +425,20 @@ namespace eosio { namespace testing {
              result.emplace_back(k.sign(d));
 
          return result;
-      } ,false);
+      } , is_backup_block_mode);
 
-      control->commit_block(false);
-      last_produced_block[control->head_block_state()->header.producer] = control->head_block_state()->id;
+      auto producing_block_id = control->pending_producer_block_id();
+      control->commit_block(is_backup_block_mode);
+      signed_block_ptr new_block = this->last_accept_block;
+      if (!is_backup_block_mode) {
+         FC_ASSERT( new_block->id() == control->head_block_state()->id, "new main block is not head" );
+      } else {
+         FC_ASSERT( new_block->previous == control->head_block_state()->id, "previous of new main block is not head" );
+      }
 
-      return control->head_block_state()->block;
+      last_produced_block[control->head_block_state()->header.producer] = new_block->id();
+
+      return new_block;
    }
 
    signed_block_ptr base_tester::produce_block( std::vector<transaction_trace_ptr>& traces ) {
@@ -1025,7 +1042,26 @@ namespace eosio { namespace testing {
          return other.sync_with(*this);
 
       auto sync_dbs = [](base_tester& a, base_tester& b) {
-         for( uint32_t i = 1; i <= a.control->head_block_num(); ++i ) {
+
+         auto hs_a = a.control->head_block_state();
+         auto hs_b = b.control->head_block_state();
+         auto min_head_num = std::min(hs_a->block_num, hs_b->block_num);
+         FC_ASSERT( min_head_num > 0, "check `min_head_num > 1` failed" );
+         auto head_id_a = a.control->get_block_id_for_num(min_head_num);
+         auto head_id_b = b.control->get_block_id_for_num(min_head_num);
+         uint32_t sync_num_start = 0;
+         if (head_id_a == head_id_b) {
+            sync_num_start = min_head_num + 1;
+         } else {
+            auto min_lib_num = std::min(hs_a->dpos_irreversible_blocknum, hs_b->dpos_irreversible_blocknum);
+            FC_ASSERT( min_lib_num > 0, "check `min_lib_num > 1` failed" );
+            auto lib_block_a = a.control->get_block_id_for_num(min_lib_num);
+            auto lib_block_b = b.control->get_block_id_for_num(min_lib_num);
+            FC_ASSERT( lib_block_a == lib_block_b, "block id of min_lib_num mismatch" );
+            sync_num_start = min_lib_num;
+         }
+
+         for( uint32_t i = sync_num_start; i <= a.control->head_block_num(); ++i ) {
 
             auto block = a.control->fetch_block_by_number(i);
             if( block ) { //&& !b.control->is_known_block(block->id()) ) {

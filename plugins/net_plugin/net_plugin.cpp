@@ -59,6 +59,18 @@ namespace eosio {
       }
    }
 
+   static signed_block_ptr fetch_backup_block_by_main(controller& cc, const signed_block_ptr& main_block) {
+      if (main_block && !main_block->is_backup) {
+         if (main_block->previous_backup != block_id_type()) {
+            auto backup_block = cc.fetch_block_by_id( main_block->previous_backup );
+            // TODO: backup_block_not_found_exception
+            EOS_ASSERT( backup_block, plugin_exception, "backup block ${bb} not found by main block ${mb}", ("bb", main_block->previous_backup)("mb", main_block->id()));
+            return backup_block;
+         }
+      }
+      return nullptr;
+   }
+
    struct node_transaction_state {
       transaction_id_type id;
       time_point_sec  expires;        /// time after which this may be purged.
@@ -391,6 +403,7 @@ namespace eosio {
    constexpr auto     message_header_size = 4;
    constexpr uint32_t signed_block_which = 7;        // see protocol net_message
    constexpr uint32_t packed_transaction_which = 8;  // see protocol net_message
+   constexpr uint32_t full_signed_block_which = 9;   // see protocol net_message
 
    /**
     *  For a while, network version was a 16 bit value equal to the second set of 16 bits
@@ -536,7 +549,7 @@ namespace eosio {
       fc::time_point   window_start_;              ///< The start of the recent rbw (0 implies not started)
       uint32_t         events_{0};                 ///< The number of consecutive rbws
       const uint32_t   max_consecutive_rejected_windows_{13};
-      
+
    public:
       /// ctor
       ///
@@ -705,7 +718,7 @@ namespace eosio {
       void stop_send();
 
       void enqueue( const net_message &msg );
-      void enqueue_block( const signed_block_ptr& sb, bool to_sync_queue = false);
+      void enqueue_block( const signed_block_ptr& sb, bool to_sync_queue = false, const signed_block_ptr& backup_block = nullptr);
       void enqueue_buffer( const std::shared_ptr<std::vector<char>>& send_buffer,
                            go_away_reason close_after_send,
                            bool to_sync_queue = false);
@@ -749,7 +762,7 @@ namespace eosio {
       void handle_message( const request_message& msg );
       void handle_message( const sync_request_message& msg );
       void handle_message( const signed_block& msg ) = delete; // signed_block_ptr overload used instead
-      void handle_message( const block_id_type& id, signed_block_ptr msg );
+      bool handle_message( const block_id_type& id, signed_block_ptr msg );
       void handle_message( const packed_transaction& msg ) = delete; // packed_transaction_ptr overload used instead
       void handle_message( packed_transaction_ptr msg );
 
@@ -1072,9 +1085,10 @@ namespace eosio {
             signed_block_ptr b = cc.fetch_block_by_id( blkid );
             if( b ) {
                fc_dlog( logger, "found block for id at num ${n}", ("n", b->block_num()) );
+               signed_block_ptr bb = fetch_backup_block_by_main(cc, b);
                my_impl->dispatcher->add_peer_block( blkid, c->connection_id );
-               c->strand.post( [c, b{std::move(b)}]() {
-                  c->enqueue_block( b );
+               c->strand.post( [c, b{std::move(b)}, bb{std::move(bb)}]() {
+                  c->enqueue_block( b, false, bb );
                } );
             } else {
                fc_ilog( logger, "fetch block by id returned null, id ${id} for ${p}",
@@ -1226,8 +1240,9 @@ namespace eosio {
             sb = cc.fetch_block_by_number( num );
          } FC_LOG_AND_DROP();
          if( sb ) {
-            c->strand.post( [c, sb{std::move(sb)}]() {
-               c->enqueue_block( sb, true );
+            auto sbb = fetch_backup_block_by_main(cc, sb);
+            c->strand.post( [c, sb{std::move(sb)}, sbb{std::move(sbb)}]() {
+               c->enqueue_block( sb, true, sbb );
             });
          } else {
             c->strand.post( [c, num]() {
@@ -1289,16 +1304,26 @@ namespace eosio {
       return create_send_buffer( signed_block_which, *sb );
    }
 
+   static std::shared_ptr<std::vector<char>> create_send_buffer( const signed_block_ptr& sb, const signed_block_ptr& backup_block ) {
+      // this implementation is to avoid copy of full_signed_block to net_message
+      // matches which of net_message for full_signed_block
+      if (!backup_block) {
+         return create_send_buffer(sb);
+      }
+      fc_dlog( logger, "sending block ${bn} and previous backup block", ("bn", sb->block_num()) );
+      return create_send_buffer( full_signed_block_which, full_signed_block_packer::make_packer(*sb, backup_block) );
+   }
+
    static std::shared_ptr<std::vector<char>> create_send_buffer( const packed_transaction& trx ) {
       // this implementation is to avoid copy of packed_transaction to net_message
       // matches which of net_message for packed_transaction
       return create_send_buffer( packed_transaction_which, trx );
    }
 
-   void connection::enqueue_block( const signed_block_ptr& sb, bool to_sync_queue) {
+   void connection::enqueue_block( const signed_block_ptr& sb, bool to_sync_queue, const signed_block_ptr& backup_block) {
       fc_dlog( logger, "enqueue block ${num}", ("num", sb->block_num()) );
       verify_strand_in_this_thread( strand, __func__, __LINE__ );
-      enqueue_buffer( create_send_buffer( sb ), no_reason, to_sync_queue);
+      enqueue_buffer( create_send_buffer( sb, backup_block ), no_reason, to_sync_queue);
    }
 
    void connection::enqueue_buffer( const std::shared_ptr<std::vector<char>>& send_buffer,
@@ -2008,7 +2033,7 @@ namespace eosio {
       fc_dlog( logger, "bcast block ${b}", ("b", b->block_num()) );
 
       if( my_impl->sync_master->syncing_with_peer() ) return;
-      
+
       bool have_connection = false;
       for_each_block_connection( [&have_connection]( auto& cp ) {
          peer_dlog( cp, "socket_is_open ${s}, connecting ${c}, syncing ${ss}",
@@ -2023,6 +2048,7 @@ namespace eosio {
 
       if( !have_connection ) return;
       std::shared_ptr<std::vector<char>> send_buffer = create_send_buffer( b );
+      // TODO: need to broadcast backup block??
 
       for_each_block_connection( [this, &id, bnum = b->block_num(), &send_buffer]( auto& cp ) {
          if( !cp->current() ) {
@@ -2444,6 +2470,7 @@ namespace eosio {
       }
    }
 
+
    // called from connection strand
    bool connection::process_next_message( uint32_t message_length ) {
       try {
@@ -2451,7 +2478,7 @@ namespace eosio {
          auto peek_ds = pending_message_buffer.create_peek_datastream();
          unsigned_int which{};
          fc::raw::unpack( peek_ds, which );
-         if( which == signed_block_which ) {
+         if( which == signed_block_which || which == full_signed_block_which ) {
             block_header bh;
             fc::raw::unpack( peek_ds, bh );
 
@@ -2493,29 +2520,53 @@ namespace eosio {
 
             auto ds = pending_message_buffer.create_datastream();
             fc::raw::unpack( ds, which ); // throw away
-            shared_ptr<signed_block> ptr = std::make_shared<signed_block>();
-            fc::raw::unpack( ds, *ptr );
+            shared_ptr<signed_block> main_block = std::make_shared<signed_block>();
+            if( which == signed_block_which ) {
+               fc::raw::unpack( ds, *main_block );
+               return handle_message( blk_id, std::move( main_block ) );
+            } else { // which == full_signed_block_which
+               signed_block_ptr backup_block;
+               full_signed_block_packer::unpack(ds, *main_block, backup_block);
 
-            auto is_webauthn_sig = []( const fc::crypto::signature& s ) {
-               return s.which() == fc::crypto::signature::storage_type::position<fc::crypto::webauthn::signature>();
-            };
-            bool has_webauthn_sig = is_webauthn_sig( ptr->producer_signature );
+               if (backup_block) {
+                  auto received_backup_id = backup_block->id();
+                  auto backup_blk_num = backup_block->block_num();
+                  if (main_block->previous_backup != received_backup_id) {
+                     fc_ilog( logger, "backup block id mismatched, received block id:${id}",
+                              ("id", blk_id)
+                              ("previous_backup", main_block->previous_backup)
+                              ("received_backup", received_backup_id) );
+                     close();
+                     return false;
+                  }
+                  if (blk_num != backup_blk_num + 1) {
+                     fc_ilog( logger, "backup block num mismatched, received block ${n}",
+                              ("n", blk_num)
+                              ("received_backup_num", backup_blk_num) );
+                     close();
+                     return false;
+                  }
+                  if( my_impl->dispatcher->have_block( blk_id ) ) {
+                     fc_dlog( logger, "peer ${p}, already received backup block ${num}, id ${id}...",
+                              ("p", peer_name())("num", backup_blk_num)("id", received_backup_id.str().substr(8,16)) );
+                     my_impl->sync_master->sync_recv_block( shared_from_this(), received_backup_id, backup_blk_num, false );
+                  } else {
+                     if ( !handle_message(received_backup_id, std::move( backup_block ))) {
+                        return false;
+                     }
+                  }
+               } else {
+                  if (main_block->previous_backup != block_id_type()) {
+                     fc_ilog( logger, "received block id:${id} contained previous_backup:${previous_backup}, but receved backup block is empty",
+                              ("id", blk_id)
+                              ("previous_backup", main_block->previous_backup));
+                     close();
+                     return false;
+                  }
+               }
 
-            constexpr auto additional_sigs_eid = additional_block_signatures_extension::extension_id();
-            auto exts = ptr->validate_and_extract_extensions();
-            if( exts.count( additional_sigs_eid ) ) {
-               const auto &additional_sigs = exts.lower_bound( additional_sigs_eid )->second.get<additional_block_signatures_extension>().signatures;
-               has_webauthn_sig |= std::any_of( additional_sigs.begin(), additional_sigs.end(), is_webauthn_sig );
+               return handle_message( blk_id, std::move( main_block ) );
             }
-
-            if( has_webauthn_sig ) {
-               fc_dlog( logger, "WebAuthn signed block received from ${p}, closing connection", ("p", peer_name()));
-               close();
-               return false;
-            }
-
-            handle_message( blk_id, std::move( ptr ) );
-
          } else if( which == packed_transaction_which ) {
             if( !my_impl->p2p_accept_transactions ) {
                fc_dlog( logger, "p2p-accept-transaction=false - dropping txn" );
@@ -2967,12 +3018,33 @@ namespace eosio {
    }
 
    // called from connection strand
-   void connection::handle_message( const block_id_type& id, signed_block_ptr ptr ) {
+   bool connection::handle_message( const block_id_type& id, signed_block_ptr ptr ) {
+
+      auto is_webauthn_sig = []( const fc::crypto::signature& s ) {
+         return s.which() == fc::crypto::signature::storage_type::position<fc::crypto::webauthn::signature>();
+      };
+      bool has_webauthn_sig = is_webauthn_sig( ptr->producer_signature );
+
+      constexpr auto additional_sigs_eid = additional_block_signatures_extension::extension_id();
+      auto exts = ptr->validate_and_extract_extensions();
+      if( exts.count( additional_sigs_eid ) ) {
+         const auto &additional_sigs = exts.lower_bound( additional_sigs_eid )->second.get<additional_block_signatures_extension>().signatures;
+         has_webauthn_sig |= std::any_of( additional_sigs.begin(), additional_sigs.end(), is_webauthn_sig );
+      }
+
+      if( has_webauthn_sig ) {
+         fc_dlog( logger, "WebAuthn signed block received from ${p}, closing connection", ("p", peer_name()));
+         close();
+         return false;
+      }
+
+      // handle_message( blk_id, std::move( ptr ) );
       peer_dlog( this, "received signed_block ${id}", ("id", ptr->block_num() ) );
       //description: here will post to main thread amnod.
       app().post(priority::medium, [ptr{std::move(ptr)}, id, c = shared_from_this()]() mutable {
          c->process_signed_block( id, std::move( ptr ) );
       });
+      return true;
    }
 
    // called from application thread

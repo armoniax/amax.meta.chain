@@ -381,7 +381,7 @@ namespace eosio { namespace chain {
                    "Append to index file occuring at wrong position.",
                    ("position", (uint64_t) index_file.tellp())
                    ("expected", (b->block_num() - first_block_num) * sizeof(uint64_t)));
-         auto data = fc::raw::pack(*b);
+         auto data = b->pack();
          block_file.write(data.data(), data.size());
          block_file.write((char*)&pos, sizeof(pos));
          index_file.write((char*)&pos, sizeof(pos));
@@ -471,7 +471,7 @@ namespace eosio { namespace chain {
       my->block_file.seek(pos);
       full_block_ptr result = std::make_shared<full_block>();
       auto ds = my->block_file.create_datastream();
-      fc::raw::unpack(ds, *result);
+      result->unpack(ds);
       return result;
    }
 
