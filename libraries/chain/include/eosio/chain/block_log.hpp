@@ -39,14 +39,14 @@ namespace eosio { namespace chain {
          block_log(const fc::path& data_dir,const string block_file);
          ~block_log();
 
-         uint64_t append(const signed_block_ptr& b);
+         uint64_t append(const full_block_ptr& b);
          void flush();
-         void reset( const genesis_state& gs, const signed_block_ptr& genesis_block );
-         void reset( const chain_id_type& chain_id, uint32_t first_block_num );
+         void reset( const genesis_state& gs, const full_block_ptr& genesis_block);
+         void reset( const chain_id_type& chain_id, uint32_t first_block_num);
 
-         signed_block_ptr read_block(uint64_t file_pos)const;
+         full_block_ptr   read_block(uint64_t file_pos)const;
          void             read_block_header(block_header& bh, uint64_t file_pos)const;
-         signed_block_ptr read_block_by_num(uint32_t block_num)const;
+         signed_block_ptr read_block_by_num(uint32_t block_num , bool is_backup = false)const;
          block_id_type    read_block_id_by_num(uint32_t block_num)const;
          signed_block_ptr read_block_by_id(const block_id_type& id)const {
             return read_block_by_num(block_header::num_from_id(id));
@@ -84,7 +84,6 @@ namespace eosio { namespace chain {
 
    private:
          void open(const fc::path& data_dir);
-         void open(const fc::path& data_dir, string block_file);
          void construct_index();
 
          std::unique_ptr<detail::block_log_impl> my;

@@ -64,7 +64,7 @@ namespace eosio { namespace chain {
             }
 
             template<typename T>
-            void reset( const T& t, const signed_block_ptr& genesis_block, uint32_t first_block_num );
+            void reset( const T& t, const full_block_ptr& genesis_block, uint32_t first_block_num );
 
             void write( const genesis_state& gs );
 
@@ -72,7 +72,7 @@ namespace eosio { namespace chain {
 
             void flush();
 
-            uint64_t append(const signed_block_ptr& b);
+            uint64_t append(const full_block_ptr& b);
 
             template <typename ChainContext, typename Lambda>
             static fc::optional<ChainContext> extract_chain_context( const fc::path& data_dir, Lambda&& lambda );
@@ -189,11 +189,6 @@ namespace eosio { namespace chain {
    block_log::block_log(block_log&& other) {
       my = std::move(other.my);
    }
-   
-   block_log::block_log(const fc::path& data_dir,const string block_file)
-   :my(new detail::block_log_impl()){
-      open(data_dir,block_file);
-   }
 
    block_log::~block_log() {
       if (my) {
@@ -290,84 +285,12 @@ namespace eosio { namespace chain {
          my->reopen();
       }
    }
-   
-   void block_log::open(const fc::path& data_dir, const string block_file){
-      my->close();
 
-      if (!fc::is_directory(data_dir))
-         fc::create_directories(data_dir);
-
-      string block_name = block_file +".log";
-      string index_name = block_file +".index";
-      my->block_file.set_file_path( data_dir /block_name );
-      my->index_file.set_file_path( data_dir /index_name );
-
-      my->reopen();
-
-      auto log_size = fc::file_size( my->block_file.get_file_path() );
-      auto index_size = fc::file_size( my->index_file.get_file_path() );
-
-      if (log_size) {
-         ilog("Log is nonempty");
-         my->block_file.seek( 0 );
-         my->version = 0;
-         my->block_file.read( (char*)&my->version, sizeof(my->version) );
-         EOS_ASSERT( my->version > 0, block_log_exception, "Block log was not setup properly" );
-         EOS_ASSERT( is_supported_version(my->version), block_log_unsupported_version,
-                     "Unsupported version of block log. Block log version is ${version} while code supports version(s) [${min},${max}]",
-                     ("version", my->version)("min", block_log::min_supported_version)("max", block_log::max_supported_version) );
-
-
-         my->genesis_written_to_block_log = true; // Assume it was constructed properly.
-         if (my->version > 1){
-            my->first_block_num = 0;
-            my->block_file.read( (char*)&my->first_block_num, sizeof(my->first_block_num) );
-            EOS_ASSERT(my->first_block_num > 0, block_log_exception, "Block log is malformed, first recorded block number is 0 but must be greater than or equal to 1");
-         } else {
-            my->first_block_num = 1;
-         }
-
-         my->head = read_head();
-         if( my->head ) {
-            my->head_id = my->head->id();
-         } else {
-            my->head_id = {};
-         }
-
-         if (index_size) {
-            ilog("Index is nonempty");
-            uint64_t block_pos;
-            my->block_file.seek_end(-sizeof(uint64_t));
-            my->block_file.read((char*)&block_pos, sizeof(block_pos));
-
-            uint64_t index_pos;
-            my->index_file.seek_end(-sizeof(uint64_t));
-            my->index_file.read((char*)&index_pos, sizeof(index_pos));
-
-            if (block_pos < index_pos) {
-               ilog("block_pos < index_pos, close and reopen index_file");
-               construct_index();
-            } else if (block_pos > index_pos) {
-               ilog("Index is incomplete");
-               construct_index();
-            }
-         } else {
-            ilog("Index is empty");
-            construct_index();
-         }
-      } else if (index_size) {
-         ilog("Index is nonempty, remove and recreate it");
-         my->close();
-         fc::remove_all( my->index_file.get_file_path() );
-         my->reopen();
-      }
-   }
-
-   uint64_t block_log::append(const signed_block_ptr& b) {
+   uint64_t block_log::append(const full_block_ptr& b) {
       return my->append(b);
    }
 
-   uint64_t detail::block_log_impl::append(const signed_block_ptr& b) {
+   uint64_t detail::block_log_impl::append(const full_block_ptr& b) {
       try {
          EOS_ASSERT( genesis_written_to_block_log, block_log_append_fail, "Cannot append to block log until the genesis is first written" );
 
@@ -381,11 +304,11 @@ namespace eosio { namespace chain {
                    "Append to index file occuring at wrong position.",
                    ("position", (uint64_t) index_file.tellp())
                    ("expected", (b->block_num() - first_block_num) * sizeof(uint64_t)));
-         auto data = fc::raw::pack(*b);
+         auto data = b->pack();
          block_file.write(data.data(), data.size());
          block_file.write((char*)&pos, sizeof(pos));
          index_file.write((char*)&pos, sizeof(pos));
-         head = b;
+         head = b->main_block;
          head_id = b->id();
 
          flush();
@@ -405,7 +328,7 @@ namespace eosio { namespace chain {
    }
 
    template<typename T>
-   void detail::block_log_impl::reset( const T& t, const signed_block_ptr& first_block, uint32_t first_bnum ) {
+   void detail::block_log_impl::reset( const T& t, const full_block_ptr& first_block, uint32_t first_bnum ) {
       close();
 
       fc::remove_all( block_file.get_file_path() );
@@ -446,14 +369,14 @@ namespace eosio { namespace chain {
       flush();
    }
 
-   void block_log::reset( const genesis_state& gs, const signed_block_ptr& first_block ) {
+   void block_log::reset( const genesis_state& gs, const full_block_ptr& first_block ) {
       my->reset(gs, first_block, 1);
    }
 
    void block_log::reset( const chain_id_type& chain_id, uint32_t first_block_num ) {
       EOS_ASSERT( first_block_num > 1, block_log_exception,
                   "Block log version ${ver} needs to be created with a genesis state if starting from block number 1." );
-      my->reset(chain_id, signed_block_ptr(), first_block_num);
+      my->reset(chain_id, full_block_ptr(), first_block_num);
    }
 
    void detail::block_log_impl::write( const genesis_state& gs ) {
@@ -465,13 +388,13 @@ namespace eosio { namespace chain {
       block_file << chain_id;
    }
 
-   signed_block_ptr block_log::read_block(uint64_t pos)const {
+   full_block_ptr block_log::read_block(uint64_t pos)const {
       my->check_open_files();
 
       my->block_file.seek(pos);
-      signed_block_ptr result = std::make_shared<signed_block>();
+      full_block_ptr result = std::make_shared<full_block>();
       auto ds = my->block_file.create_datastream();
-      fc::raw::unpack(ds, *result);
+      result->unpack(ds);
       return result;
    }
 
@@ -483,16 +406,23 @@ namespace eosio { namespace chain {
       fc::raw::unpack(ds, bh);
    }
 
-   signed_block_ptr block_log::read_block_by_num(uint32_t block_num)const {
+   signed_block_ptr block_log::read_block_by_num(uint32_t block_num ,bool is_backup)const {
       try {
-         signed_block_ptr b;
+         full_block_ptr b;
          uint64_t pos = get_block_pos(block_num);
          if (pos != npos) {
             b = read_block(pos);
             EOS_ASSERT(b->block_num() == block_num, reversible_blocks_exception,
                       "Wrong block was read from block log.", ("returned", b->block_num())("expected", block_num));
          }
-         return b;
+         if(b){
+            if(is_backup){
+               return b->backup_block;
+            }else{
+               return b->main_block;
+            }
+         }
+         return signed_block_ptr();
       } FC_LOG_AND_RETHROW()
    }
 
@@ -533,7 +463,7 @@ namespace eosio { namespace chain {
       my->block_file.seek_end(-sizeof(pos));
       my->block_file.read((char*)&pos, sizeof(pos));
       if (pos != npos) {
-         return read_block(pos);
+         return read_block(pos)->main_block;
       } else {
          return {};
       }
