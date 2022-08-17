@@ -233,7 +233,6 @@ struct controller_impl {
    chainbase::database            db;
    chainbase::database            reversible_blocks; ///< a special database to persist blocks that have successfully been applied but are still reversible
    block_log                      blog;
-   block_log                      backup_log;
    optional<pending_state>        pending;
    block_state_ptr                head;
    block_state_ptr                prebackup_head;
@@ -314,7 +313,6 @@ struct controller_impl {
         cfg.read_only ? database::read_only : database::read_write,
         cfg.reversible_cache_size, false, cfg.db_map_mode, cfg.db_hugepage_paths ),
     blog( cfg.blocks_dir ),
-    backup_log(cfg.blocks_dir, "backup_blocks"),
     fork_db( cfg.state_dir ),
     wasmif( cfg.wasm_runtime, cfg.eosvmoc_tierup, db, cfg.state_dir, cfg.eosvmoc_config ),
     resource_limits( db ),
@@ -405,19 +403,12 @@ struct controller_impl {
          fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
       }
       
-      if(blog.first_block_num() == 0){
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log begin reset...");
-         blog.reset( chain_id, fptr->block_num() );
-         blog.append( fptr );
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup log reset successfully...");
-      }else{
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
-         blog.append( fptr );
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block append successfully...");
-      }
+      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
+      blog.append( fptr );
+      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block append successfully...");
    }
 
-   void log_irreversible() {
+   void log_irreversibles() {
       EOS_ASSERT( fork_db.root(), fork_database_exception, "fork database not properly initialized" );
 
       const auto& log_head = blog.head();
@@ -1887,7 +1878,7 @@ struct controller_impl {
          emit( self.accepted_block, bsp );
 
          if( add_to_fork_db && !is_backup) {
-            log_irreversible();
+            log_irreversibles();
          }
 
       } catch (...) {
@@ -2177,7 +2168,7 @@ struct controller_impl {
             }
             backup_head = bsp;   
          }else if(!bsp->is_backup()){
-            log_irreversible();
+            log_irreversibles();
          }
 
       } FC_LOG_AND_RETHROW( )
@@ -2305,7 +2296,7 @@ struct controller_impl {
 
       if( head_changed ){
          //only main block may come into
-         log_irreversible();
+         log_irreversibles();
       }
    } /// push_block
 
@@ -3022,7 +3013,7 @@ signed_block_ptr controller::fetch_block_by_id( block_id_type id )const {
    if( bptr && bptr->id() == id ){
       return bptr;
    }else{
-      bptr = fetch_block_by_number( block_header::num_from_id(id) + 1 , true );
+      bptr = fetch_block_by_number( block_header::num_from_id(id) , true );
       fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] fetch backup block by id in controller, find: ${found}",("found",bptr != nullptr? true: false));
       if( bptr ){
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] found id: ${fid}: wanted: ${wid}",("fid",bptr->id())("wid",id));
@@ -3039,6 +3030,7 @@ signed_block_ptr controller::fetch_block_by_number( uint32_t block_num , bool is
    if( blk_state && !is_backup ) {
       return blk_state->block;
    }
+   if( is_backup ) ++block_num;
    signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
    return candinate;
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }

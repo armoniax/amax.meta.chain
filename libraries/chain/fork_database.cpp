@@ -528,7 +528,7 @@ namespace eosio
             {
 
                remove_queue.push_back((*previtr)->id);
-               if( (*previtr)->block->is_backup && (*previtr)->block->block_num() == my->root->block->block_num() + 1 ){
+               if( (*previtr)->block->is_backup && (*previtr)->block->block_num() == my->root->block_num + 1 ){
                   my->backup_root = *previtr;
                }
                ++previtr;

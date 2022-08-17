@@ -84,7 +84,6 @@ namespace eosio { namespace chain {
 
    private:
          void open(const fc::path& data_dir);
-         void open(const fc::path& data_dir, string block_file);
          void construct_index();
 
          std::unique_ptr<detail::block_log_impl> my;
