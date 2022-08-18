@@ -76,7 +76,7 @@ namespace eosio
          fork_database &self;
          fork_multi_index_type index;
          block_state_ptr root; // Only uses the block_header_state portion
-         std::vector<block_state_ptr> backup_siblings;  //point to backup block root(only exist in memory not in index)
+         std::map<block_id_type, block_state_ptr> backup_siblings_to_root; //point to backup blocks to root(only exist in memory not in index, same block num with root)
          block_state_ptr head;
          fc::path datadir;
 
@@ -302,7 +302,14 @@ namespace eosio
             b = get_block(blocks_to_remove.back());
             EOS_ASSERT(b || blocks_to_remove.back() == my->root->id, fork_database_exception, "invariant violation: orphaned branch was present in forked database");
          }
-
+         const auto &previdx = my->index.get<by_prev>();
+         auto previtr = previdx.lower_bound(new_root->header.previous);
+         while (previtr != previdx.end()){
+             if( (*previtr)->block->is_backup && (*previtr)->header.previous == new_root->header.previous ) {
+                 my->backup_siblings_to_root.insert(std::pair((*previtr)->block->id(),(*previtr)));
+             }
+             ++previtr;
+         }
          // The new root block should be erased from the fork database index individually rather than with the remove method,
          // because we do not want the blocks branching off of it to be removed from the fork database.
 
@@ -528,9 +535,6 @@ namespace eosio
             {
 
                remove_queue.push_back((*previtr)->id);
-               if( (*previtr)->block->is_backup && (*previtr)->block->block_num() == my->root->block_num + 1 ){
-                  my->backup_siblings.push_back( *previtr );
-               }
                ++previtr;
             }
          }
@@ -575,15 +579,8 @@ namespace eosio
          auto itr = my->index.find(id);
          if (itr != my->index.end())
             return *itr;
-         if (itr == my->index.end()){
-            std::vector<block_state_ptr>::iterator it = my->backup_siblings.begin();
-            while( it != my->backup_siblings.end()){
-               if ( *it != nullptr && (*it)->block->id() == id)
-                  return *it;
-               it++;
-            }
-         }
-         return block_state_ptr();
+         std::map<block_id_type,block_state_ptr>::iterator it = my->backup_siblings_to_root.find(id);
+         return it==my->backup_siblings_to_root.end() ? block_state_ptr() : it->second;
       }
 
    }

@@ -37,7 +37,7 @@ namespace eosio { namespace chain {
          return h.id();
       }
 
-      block_id_type get_backup_block_id()const {
+      block_id_type get_previous_backup_id()const {
          fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
          block_header h;
          fc::raw::unpack( ds, h );

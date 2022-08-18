@@ -3052,7 +3052,7 @@ block_state_ptr controller::fetch_block_state_by_number( uint32_t block_num , bo
       }
    }
 
-   return is_backup? my->fork_db.get_block( objitr->get_backup_block_id() ) : my->fork_db.get_block( objitr->get_block_id() );
+   return is_backup? my->fork_db.get_block( objitr->get_previous_backup_id() ) : my->fork_db.get_block( objitr->get_block_id() );
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_id_type controller::get_block_id_for_num( uint32_t block_num )const { try {
