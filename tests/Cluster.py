@@ -421,10 +421,9 @@ class Cluster(object):
             Utils.Print("ERROR: Cluster doesn't seem to be in sync. Some nodes missing block 1")
             return False
 
-        # no need now
-        # if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-        #     Utils.Print("Activate Preactivate Feature.")
-        #     biosNode.activatePreactivateFeature()
+        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
+            Utils.Print("Activate Preactivate Feature.")
+            biosNode.activatePreactivateFeature()
 
         if dontBootstrap:
             Utils.Print("Skipping bootstrap.")
@@ -577,7 +576,7 @@ class Cluster(object):
     @staticmethod
     def getClientVersion(verbose=False):
         """Returns client version (string)"""
-        p = re.compile(r'^Build version:\s(\w+)\n$')
+        # p = re.compile(r'^v(\w+)\n$')
         try:
             cmd="%s version client" % (Utils.AmaxClientPath)
             if verbose: Utils.Print("cmd: %s" % (cmd))
@@ -585,13 +584,14 @@ class Cluster(object):
             assert(response)
             assert(isinstance(response, str))
             if verbose: Utils.Print("response: <%s>" % (response))
-            m=p.match(response)
-            if m is None:
-                Utils.Print("ERROR: client version regex mismatch")
-                return None
+            # m=p.match(response)
+            # if m is None:
+            #     Utils.Print("ERROR: client version regex mismatch")
+            #     return None
 
-            verStr=m.group(1)
-            return verStr
+            # verStr=m.group(1)
+            # return verStr
+            return response
         except subprocess.CalledProcessError as ex:
             msg=ex.output.decode("utf-8")
             Utils.Print("ERROR: Exception during client version query. %s" % (msg))
@@ -1325,7 +1325,7 @@ class Cluster(object):
     @staticmethod
     def pgrepEosServerPattern(nodeInstance):
         dataLocation=Utils.getNodeDataDir(nodeInstance)
-        return r"[\n]?(\d+) (.* --data-dir %s .*)\n" % (dataLocation)
+        return r"[\n]?(\d+) (.* --data-dir %s(?: .*)?)\n" % (dataLocation)
 
     # Populates list of EosInstanceInfo objects, matched to actual running instances
     def discoverLocalNodes(self, totalNodes, timeout=None):
