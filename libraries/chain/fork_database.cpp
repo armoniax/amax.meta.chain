@@ -76,7 +76,7 @@ namespace eosio
          fork_database &self;
          fork_multi_index_type index;
          block_state_ptr root; // Only uses the block_header_state portion
-         block_state_ptr backup_root;  //point to backup block root(only exist in memory not in index)
+         std::vector<block_state_ptr> backup_siblings;  //point to backup block root(only exist in memory not in index)
          block_state_ptr head;
          fc::path datadir;
 
@@ -529,7 +529,7 @@ namespace eosio
 
                remove_queue.push_back((*previtr)->id);
                if( (*previtr)->block->is_backup && (*previtr)->block->block_num() == my->root->block_num + 1 ){
-                  my->backup_root = *previtr;
+                  my->backup_siblings.push_back( *previtr );
                }
                ++previtr;
             }
@@ -575,9 +575,14 @@ namespace eosio
          auto itr = my->index.find(id);
          if (itr != my->index.end())
             return *itr;
-         if (itr == my->index.end() && my->backup_root != nullptr && my->backup_root->block->id() == id)
-            return my->backup_root;
-
+         if (itr == my->index.end()){
+            std::vector<block_state_ptr>::iterator it = my->backup_siblings.begin();
+            while( it != my->backup_siblings.end()){
+               if ( *it != nullptr && (*it)->block->id() == id)
+                  return *it;
+               it++;
+            }
+         }
          return block_state_ptr();
       }
 

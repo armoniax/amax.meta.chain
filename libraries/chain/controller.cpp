@@ -3026,11 +3026,10 @@ signed_block_ptr controller::fetch_block_by_id( block_id_type id )const {
 }
 
 signed_block_ptr controller::fetch_block_by_number( uint32_t block_num , bool is_backup)const  { try {
-   auto blk_state = fetch_block_state_by_number( block_num );
-   if( blk_state && !is_backup ) {
+   auto blk_state = fetch_block_state_by_number( block_num, is_backup );
+   if( blk_state ) {
       return blk_state->block;
    }
-   if( is_backup ) ++block_num;
    signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
    return candinate;
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
@@ -3040,8 +3039,9 @@ block_state_ptr controller::fetch_block_state_by_id( block_id_type id )const {
    return state;
 }
 
-block_state_ptr controller::fetch_block_state_by_number( uint32_t block_num )const  { try {
+block_state_ptr controller::fetch_block_state_by_number( uint32_t block_num , bool is_backup )const  { try {
    const auto& rev_blocks = my->reversible_blocks.get_index<reversible_block_index,by_num>();
+   if( is_backup ) block_num++;
    auto objitr = rev_blocks.find(block_num);
 
    if( objitr == rev_blocks.end() ) {
@@ -3052,7 +3052,7 @@ block_state_ptr controller::fetch_block_state_by_number( uint32_t block_num )con
       }
    }
 
-   return my->fork_db.get_block( objitr->get_block_id() );
+   return is_backup? my->fork_db.get_block( objitr->get_backup_block_id() ) : my->fork_db.get_block( objitr->get_block_id() );
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_id_type controller::get_block_id_for_num( uint32_t block_num )const { try {
