@@ -583,5 +583,16 @@ namespace eosio
          return it==my->backup_siblings_to_root.end() ? block_state_ptr() : it->second;
       }
 
+      block_state_ptr fork_database::get_backup_head_block( const block_id_type head_prev) const
+      {
+         const auto &previdx = my->index.get<by_prev>();
+         auto previtr = previdx.lower_bound( head_prev );
+         while(previtr != previdx.end()){
+            if((*previtr)->header.is_backup)
+               return *previtr;
+            ++previtr;
+         }
+         return block_state_ptr();
+      }
    }
 } /// eosio::chain

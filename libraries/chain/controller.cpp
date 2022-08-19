@@ -235,8 +235,6 @@ struct controller_impl {
    block_log                      blog;
    optional<pending_state>        pending;
    block_state_ptr                head;
-   block_state_ptr                prebackup_head;
-   block_state_ptr                backup_head;
    fork_database                  fork_db;
    wasm_interface                 wasmif;
    resource_limits_manager        resource_limits;
@@ -396,9 +394,14 @@ struct controller_impl {
       full_block_ptr fptr;
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
-         EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
-         fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         //EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
+         if( backup_block != nullptr ){
+            fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         }else{
+            //need to sync by net plugin.
+            fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
+         }   
       }else{
          fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
       }
@@ -1763,29 +1766,37 @@ struct controller_impl {
          //main node produce also need composite.
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-         if(prebackup_head != nullptr){
-            if(prebackup_head->block_num == head->block_num){
-               block_ptr->previous_backup = prebackup_head->block->id();
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",prebackup_head->block_num)("mnum",head->block_num));
-               EOS_ASSERT(prebackup_head->block_num == head->block_num, block_validate_exception,
-                             "previous backup head is not par with main head at sequence NO.");
-            }else if(backup_head->block_num == head->block_num){
-               block_ptr->previous_backup = backup_head->block->id();
-                  fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
-                  EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
-                              "previous backup head is not par with main head at sequence NO.");
+         if(block_ptr->previous_backup == sha256()){
+            block_state_ptr  temp = fork_db.get_backup_head_block( head->prev());
+            signed_block_ptr pre_backup;
+            if(!temp){
+               pre_backup = self.fetch_block_by_number( head->block_num , true );
+               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] can not find from fork db");
+            }else{
+               pre_backup = temp->block;
             }
-            if(prebackup_head->block_num < backup_head->block_num){
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] current backup head num is: ${cbnum}",("cbnum",backup_head->block_num));
-               prebackup_head = backup_head;
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] pre_backup is null? ${empty}",("empty",pre_backup == nullptr ? true:false));
+            if( pre_backup && pre_backup->block_num() == head->block_num){
+               block_ptr->previous_backup = pre_backup->id();
+               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",pre_backup->block_num())("mnum",head->block_num));
+               EOS_ASSERT(pre_backup->block_num() == head->block_num, block_validate_exception,
+                             "previous backup head is not par with main head at sequence NO.");
             }
          }else{
-            if(backup_head != nullptr){
-               if(backup_head->block_num == head->block_num){
-                  block_ptr->previous_backup = backup_head->block->id();
-                  fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
-                  EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
-                              "previous backup head is not par with main head at sequence NO.");
+            block_state_ptr  temp = fork_db.get_backup_head_block( head->prev());
+            signed_block_ptr pre_backup;
+            if(!temp){
+               pre_backup = self.fetch_block_by_number( head->block_num , true );
+            }else{
+               pre_backup = temp->block;
+            }
+            
+            if( pre_backup != nullptr ){
+               if(pre_backup->block_num() == head->block_num){
+                  block_ptr->previous_backup = pre_backup->id();
+                  fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",pre_backup->block_num())("mnum",head->block_num));
+                  EOS_ASSERT(pre_backup->block_num() == head->block_num, block_validate_exception,
+                               "previous backup head is not par with main head at sequence NO.");
                }
             }
          }
@@ -1851,14 +1862,6 @@ struct controller_impl {
             head = fork_db.head();
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] after add/mark, new head block num: ${num}, new irreversible num ${inum}",("num",head->block_num)("inum",head->dpos_irreversible_blocknum));
             if(bsp->is_backup()){
-               if(!prebackup_head && backup_head){
-                  fc_ilog(_backup_block_trace_log,"[BACKUP_TRACE] initial prebackup num: ${num}",("num",backup_head->block_num));
-                  prebackup_head = backup_head;
-               }
-               backup_head = bsp;
-               if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
-                  //prebackup_head = backup_head;
-               }
                fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] successfully create backup block ${num} id ${id} irreversible: ${inum}",("num",bsp->block_num)("id",bsp->block->id())("inum",bsp->dpos_irreversible_blocknum));
                EOS_ASSERT( bsp->block_num == head->block_num + 1, block_validate_exception, "backup block num error, backup block num should == main head +1");
             }else{
@@ -2161,12 +2164,7 @@ struct controller_impl {
             //main node receive backup block
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
             //can not verify backup block in main node temporary.
-            //apply_block(bsp, s, trx_lookup);
-            if(!prebackup_head && backup_head){
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] initial prebackup num: ${num}",("num",backup_head->block_num));
-               prebackup_head = backup_head;
-            }
-            backup_head = bsp;   
+            //apply_block(bsp, s, trx_lookup);   
          }else if(!bsp->is_backup()){
             log_irreversibles();
          }
