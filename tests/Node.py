@@ -1493,6 +1493,12 @@ class Node(object):
         res = self.processCurlCmd("producer", "get_supported_protocol_features", json.dumps(param))
         return res
 
+    # Require chain_plugin
+    def getActivatedProtocolFeatures(self):
+        param = {}
+        res = self.processCurlCmd("chain", "get_activated_protocol_features", json.dumps(param))
+        return res
+
     # This will return supported protocol features in a dict (feature codename as the key), i.e.
     # {
     #   "PREACTIVATE_FEATURE": {...},
@@ -1590,3 +1596,33 @@ class Node(object):
     def createSnapshot(self):
         param = { }
         return self.processCurlCmd("producer", "create_snapshot", json.dumps(param))
+
+
+    def makeProducerAuth(self, producer_name, pubkey):
+            return '''{
+                    "producer_name": "%s",
+                    "authority": [ "block_signing_authority_v0", {
+                        "threshold": 1,
+                        "keys": [
+                            {
+                                "key": "%s",
+                                "weight": 1
+                            }
+                        ]
+                    }]
+                }''' % (producer_name, pubkey)
+
+    def setProducers(self, producers):
+        prodsStr=""
+        prodNames=[]
+        for producer in producers:
+            if prodsStr != "":
+                prodsStr += ','
+
+            prodsStr += self.makeProducerAuth(producer["name"], producer["public"])
+            prodNames.append(producer["name"])
+        setProdsStr = '{"schedule": [%s] }' % (prodsStr)
+        if Utils.Debug: Utils.Print("setprods: %s" % (setProdsStr))
+        Utils.Print("Setting producers: %s." % (", ".join(prodNames)))
+        opts="--permission amax@active"
+        return self.pushMessage("amax", "setprods", setProdsStr, opts)

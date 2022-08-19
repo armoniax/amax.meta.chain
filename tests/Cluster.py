@@ -421,9 +421,9 @@ class Cluster(object):
             Utils.Print("ERROR: Cluster doesn't seem to be in sync. Some nodes missing block 1")
             return False
 
-        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-            Utils.Print("Activate Preactivate Feature.")
-            biosNode.activatePreactivateFeature()
+        # if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
+        #     Utils.Print("Activate Preactivate Feature.")
+        #     biosNode.activatePreactivateFeature()
 
         if dontBootstrap:
             Utils.Print("Skipping bootstrap.")
@@ -1071,12 +1071,11 @@ class Cluster(object):
             Utils.Print("ERROR: Failed to import %s account keys into ignition wallet." % (amaxName))
             return None
 
+        if pfSetupPolicy == PFSetupPolicy.FULL:
+            biosNode.preactivateAllBuiltinProtocolFeature()
+
         contract="amax.bios"
         contractDir="unittests/contracts/%s" % (contract)
-        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-            contractDir="unittests/contracts/old_versions/v1.7.0-develop-preactivate_feature/%s" % (contract)
-        else:
-            contractDir="unittests/contracts/old_versions/v1.6.0-rc3/%s" % (contract)
         wasmFile="%s.wasm" % (contract)
         abiFile="%s.abi" % (contract)
         Utils.Print("Publish %s contract" % (contract))
@@ -1084,9 +1083,6 @@ class Cluster(object):
         if trans is None:
             Utils.Print("ERROR: Failed to publish contract %s." % (contract))
             return None
-
-        if pfSetupPolicy == PFSetupPolicy.FULL:
-            biosNode.preactivateAllBuiltinProtocolFeature()
 
         Node.validateTransaction(trans)
 
@@ -1133,24 +1129,13 @@ class Cluster(object):
                 setProdsStr='{"schedule": ['
                 firstTime=True
                 prodNames=[]
+                producers=[]
                 for name, keys in producerKeys.items():
                     if counts[keys["node"]] >= prodCount:
                         continue
-                    if firstTime:
-                        firstTime = False
-                    else:
-                        setProdsStr += ','
-
-                    setProdsStr += ' { "producer_name": "%s", "block_signing_key": "%s" }' % (keys["name"], keys["public"])
-                    prodNames.append(keys["name"])
+                    producers.append(keys)
                     counts[keys["node"]] += 1
-
-                setProdsStr += ' ] }'
-                if Utils.Debug: Utils.Print("setprods: %s" % (setProdsStr))
-                Utils.Print("Setting producers: %s." % (", ".join(prodNames)))
-                opts="--permission amax@active"
-                # pylint: disable=redefined-variable-type
-                trans=biosNode.pushMessage("amax", "setprods", setProdsStr, opts)
+                trans = biosNode.setProducers(producers)
                 if trans is None or not trans[0]:
                     Utils.Print("ERROR: Failed to set producer %s." % (keys["name"]))
                     return None
