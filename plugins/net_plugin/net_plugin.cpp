@@ -64,7 +64,7 @@ namespace eosio {
          if (main_block->previous_backup != block_id_type()) {
             auto backup_block = cc.fetch_block_by_id( main_block->previous_backup );
             // TODO: backup_block_not_found_exception
-            EOS_ASSERT( backup_block, plugin_exception, "backup block ${bb} not found by main block ${mb}", ("bb", main_block->previous_backup)("mb", main_block->id()));
+            //EOS_ASSERT( backup_block, plugin_exception, "backup block ${bb} not found by main block ${mb}", ("bb", main_block->previous_backup)("mb", main_block->id()));
             return backup_block;
          }
       }

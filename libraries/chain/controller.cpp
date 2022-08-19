@@ -1720,7 +1720,7 @@ struct controller_impl {
       guard_pending.cancel();
    } /// start_block
 
-   void finalize_block( bool is_backup )
+   void finalize_block( bool is_backup)
    {
       EOS_ASSERT( pending, block_validate_exception, "it is not valid to finalize when there is no pending block");
       EOS_ASSERT( pending->_block_stage.contains<building_block>(), block_validate_exception, "already called finalize_block");
@@ -1766,23 +1766,6 @@ struct controller_impl {
          //main node produce also need composite.
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-         if(block_ptr->previous_backup == sha256()){
-            block_state_ptr  temp = fork_db.get_backup_head_block( head->prev());
-            signed_block_ptr pre_backup;
-            if(!temp){
-               pre_backup = self.fetch_block_by_number( head->block_num , true );
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] can not find from fork db");
-            }else{
-               pre_backup = temp->block;
-            }
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] pre_backup is null? ${empty}",("empty",pre_backup == nullptr ? true:false));
-            if( pre_backup && pre_backup->block_num() == head->block_num){
-               block_ptr->previous_backup = pre_backup->id();
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",pre_backup->block_num())("mnum",head->block_num));
-               EOS_ASSERT(pre_backup->block_num() == head->block_num, block_validate_exception,
-                             "previous backup head is not par with main head at sequence NO.");
-            }
-         }else{
             block_state_ptr  temp = fork_db.get_backup_head_block( head->prev());
             signed_block_ptr pre_backup;
             if(!temp){
@@ -1792,14 +1775,13 @@ struct controller_impl {
             }
             
             if( pre_backup != nullptr ){
-               if(pre_backup->block_num() == head->block_num){
+               if(pre_backup->block_num() == head->block_num ){
                   block_ptr->previous_backup = pre_backup->id();
                   fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",pre_backup->block_num())("mnum",head->block_num));
                   EOS_ASSERT(pre_backup->block_num() == head->block_num, block_validate_exception,
                                "previous backup head is not par with main head at sequence NO.");
                }
             }
-         }
       }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
@@ -1809,19 +1791,51 @@ struct controller_impl {
       // Update TaPoS table:
       create_block_summary( id );
 
-      /*
-      ilog( "finalized block ${n} (${id}) at ${t} by ${p} (${signing_key}); schedule_version: ${v} lib: ${lib} #dtrxs: ${ndtrxs} ${np}",
-            ("n",pbhs.block_num)
-            ("id",id)
-            ("t",pbhs.timestamp)
-            ("p",pbhs.producer)
-            ("signing_key", pbhs.block_signing_key)
-            ("v",pbhs.active_schedule_version)
-            ("lib",pbhs.dpos_irreversible_blocknum)
-            ("ndtrxs",db.get_index<generated_transaction_multi_index,by_trx_id>().size())
-            ("np",block_ptr->new_producers)
+      pending->_block_stage = assembled_block{
+                                 id,
+                                 std::move( bb._pending_block_header_state ),
+                                 std::move( bb._pending_trx_metas ),
+                                 std::move( block_ptr ),
+                                 std::move( bb._new_pending_producer_schedule )
+                              };
+   } FC_CAPTURE_AND_RETHROW() } /// finalize_block
+
+   void finalize_main_block()
+   {
+      EOS_ASSERT( pending, block_validate_exception, "it is not valid to finalize when there is no pending block");
+      EOS_ASSERT( pending->_block_stage.contains<building_block>(), block_validate_exception, "already called finalize_block");
+
+      try {
+
+      auto& pbhs = pending->get_pending_block_header_state();
+
+      // Update resource limits:
+      resource_limits.process_account_limit_updates();
+      const auto& chain_config = self.get_global_properties().configuration;
+      uint64_t CPU_TARGET = EOS_PERCENT(chain_config.max_block_cpu_usage, chain_config.target_block_cpu_usage_pct);
+      resource_limits.set_block_parameters(
+         { CPU_TARGET, chain_config.max_block_cpu_usage, config::block_cpu_usage_average_window_ms / config::block_interval_ms, config::maximum_elastic_resource_multiplier, {99, 100}, {1000, 999}},
+         {EOS_PERCENT(chain_config.max_block_net_usage, chain_config.target_block_net_usage_pct), chain_config.max_block_net_usage, config::block_size_average_window_ms / config::block_interval_ms, config::maximum_elastic_resource_multiplier, {99, 100}, {1000, 999}}
       );
-      */
+      resource_limits.process_block_usage(pbhs.block_num);
+
+      auto& bb = pending->_block_stage.get<building_block>();
+
+      // Create (unsigned) block:
+      auto block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
+         bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
+         calculate_action_merkle(),
+         bb._new_pending_producer_schedule,
+         std::move( bb._new_protocol_feature_activations ),
+         protocol_features.get_protocol_feature_set()
+      ) );
+
+      block_ptr->transactions = std::move( bb._pending_trx_receipts );
+
+      auto id = block_ptr->id();
+
+      // Update TaPoS table:
+      create_block_summary( id );
 
       pending->_block_stage = assembled_block{
                                  id,
@@ -2063,8 +2077,11 @@ struct controller_impl {
 
          // validated in create_block_state_future()
          pending->_block_stage.get<building_block>()._transaction_mroot = b->transaction_mroot;
-
-         finalize_block( b->is_backup );
+         if(b->previous_backup != block_id_type()){
+            finalize_block( b->is_backup );
+         }else{
+            finalize_main_block();
+         }
 
          auto& ab = pending->_block_stage.get<assembled_block>();
 
