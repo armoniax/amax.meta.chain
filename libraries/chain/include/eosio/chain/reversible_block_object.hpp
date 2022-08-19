@@ -36,6 +36,13 @@ namespace eosio { namespace chain {
          // Avoid calling get_block() since that constructs a new signed_block in heap memory and unpacks the full signed_block from the stored packed data.
          return h.id();
       }
+
+      block_id_type get_previous_backup_id()const {
+         fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
+         block_header h;
+         fc::raw::unpack( ds, h );
+         return h.previous_backup;
+      }
    };
 
    struct by_num;

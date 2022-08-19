@@ -408,6 +408,7 @@ namespace eosio { namespace chain {
 
    signed_block_ptr block_log::read_block_by_num(uint32_t block_num ,bool is_backup)const {
       try {
+         if( is_backup ) ++block_num;
          full_block_ptr b;
          uint64_t pos = get_block_pos(block_num);
          if (pos != npos) {
