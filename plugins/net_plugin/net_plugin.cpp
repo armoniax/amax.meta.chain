@@ -2048,17 +2048,27 @@ namespace eosio {
 
       if( !have_connection ) return;
       std::shared_ptr<std::vector<char>> send_buffer = create_send_buffer( b );
-      // TODO: need to broadcast backup block??
 
-      for_each_block_connection( [this, &id, bnum = b->block_num(), &send_buffer]( auto& cp ) {
+      optional<block_id_type> previous_backup = !b->is_backup && b->previous_backup != block_id_type() ? b->previous_backup : optional<block_id_type>();
+
+      for_each_block_connection( [this, &id, bnum = b->block_num(), &send_buffer, &previous_backup]( auto& cp ) {
          if( !cp->current() ) {
             return true;
          }
-         cp->strand.post( [this, cp, id, bnum, send_buffer]() {
+         cp->strand.post( [this, cp, id, bnum, send_buffer, previous_backup]() {
             std::unique_lock<std::mutex> g_conn( cp->conn_mtx );
             bool has_block = cp->last_handshake_recv.last_irreversible_block_num >= bnum;
             g_conn.unlock();
             if( !has_block ) {
+               if (previous_backup) {
+                  if( !peer_has_block( *previous_backup, cp->connection_id ) ) {
+                     fc_dlog( logger, "not bcast block ${bn} to ${p} because it lacks previous backup block ${pbb}",
+                                      ("bn", bnum)("p", cp->peer_name())("pbb", *previous_backup) );
+                     // TODO: need to send prevous backup block to peer?
+                     return;
+                  }
+               }
+               cp->enqueue_buffer( send_buffer, no_reason );
                if( !add_peer_block( id, cp->connection_id ) ) {
                   fc_dlog( logger, "not bcast block ${b} to ${p}", ("b", bnum)("p", cp->peer_name()) );
                   return;
