@@ -951,12 +951,10 @@ class Cluster(object):
         cmd="bash bios_boot.sh"
         if Utils.Debug: Utils.Print("cmd: %s" % (cmd))
         env = {
-            "BIOS_CONTRACT_PATH": "unittests/contracts/old_versions/v1.6.0-rc3/amax.bios",
+            "BIOS_CONTRACT_PATH": "unittests/contracts/amax.bios",
             "BIOS_CURRENCY_SYMBOL": CORE_SYMBOL,
             "FEATURE_DIGESTS": ""
         }
-        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-            env["BIOS_CONTRACT_PATH"] = "unittests/contracts/old_versions/v1.7.0-develop-preactivate_feature/amax.bios"
 
         if pfSetupPolicy == PFSetupPolicy.FULL:
             allBuiltinProtocolFeatureDigests = biosNode.getAllBuiltinFeatureDigestsToPreactivate()

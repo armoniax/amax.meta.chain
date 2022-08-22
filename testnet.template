@@ -13,11 +13,6 @@ if [ -z "$biosport" ]; then
 fi
 
 bioscontractpath=$BIOS_CONTRACT_PATH
-if [ -z "$bioscontractpath" ]; then
-    # this is defaulted to the version of bios that only requires the preactivate_feature
-    # newer versions may require
-    bioscontractpath="unittests/contracts/old_versions/v1.7.0-develop-preactivate_feature/amax.bios"
-fi
 
 bioscurrencysymbol=$BIOS_CURRENCY_SYMBOL
 if [ -z "$bioscurrencysymbol" ]; then
@@ -96,6 +91,9 @@ for digest in $FEATURE_DIGESTS;
 do
 ecmd system activate $digest -p amax
 done
+
+# set amax contract with amax.bios
+ecmd set contract amax $bioscontractpath amax.bios.wasm amax.bios.abi
 
 # Create required system accounts
 ecmd create key --to-console
