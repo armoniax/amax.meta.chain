@@ -155,9 +155,9 @@ namespace eosio { namespace chain {
          transaction_trace_ptr push_scheduled_transaction( const transaction_id_type& scheduled, fc::time_point deadline,
                                                            uint32_t billed_cpu_time_us, bool explicit_billed_cpu_time );
 
-         block_state_ptr finalize_block( const signer_callback_type& signer_callback ,bool is_backup);
+         block_state_ptr finalize_block( const signer_callback_type& signer_callback);
          void sign_block( const signer_callback_type& signer_callback );
-         void commit_block(bool is_backup);
+         void commit_block();
 
          std::future<block_state_ptr> create_block_state_future( const signed_block_ptr& b );
 
@@ -185,6 +185,7 @@ namespace eosio { namespace chain {
          authorization_manager&                get_mutable_authorization_manager();
          const protocol_feature_manager&       get_protocol_feature_manager()const;
          uint32_t                              get_max_nonprivileged_inline_action_size()const;
+         const block_id_type                   get_previous_backup_id()const;
 
          const flat_set<account_name>&   get_actor_whitelist() const;
          const flat_set<account_name>&   get_actor_blacklist() const;

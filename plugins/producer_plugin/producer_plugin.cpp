@@ -187,9 +187,9 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       optional<fc::time_point> calculate_next_block_time(const account_name& producer_name, const block_timestamp_type& current_block_time) const;
       void schedule_production_loop();
-      void schedule_maybe_produce_block( bool exhausted ,bool is_backup);
-      void produce_block(bool is_backup);
-      bool maybe_produce_block(bool is_backup);
+      void schedule_maybe_produce_block( bool exhausted);
+      void produce_block();
+      bool maybe_produce_block();
       bool block_is_exhausted() const;
       bool remove_expired_persisted_trxs( const fc::time_point& deadline );
       bool remove_expired_blacklisted_trxs( const fc::time_point& deadline );
@@ -449,10 +449,10 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                 chain.get_chain_id(), fc::microseconds( max_trx_cpu_usage ), chain.configured_subjective_signature_length_limit() );
 
          boost::asio::post(_thread_pool->get_executor(), [self = this, future{std::move(future)}, persist_until_expired,
-                                                          next{std::move(next)}, trx,&chain]() mutable {
+                                                          next{std::move(next)}, trx]() mutable {
             if( future.valid() ) {
                future.wait();
-               app().post( priority::low, [self, future{std::move(future)}, persist_until_expired, next{std::move( next )}, trx{std::move(trx)},&chain]() mutable {
+               app().post( priority::low, [self, future{std::move(future)}, persist_until_expired, next{std::move( next )}, trx{std::move(trx)}]() mutable {
                   auto exception_handler = [&next, trx{std::move(trx)}](fc::exception_ptr ex) {
                      fc_dlog(_trx_successful_trace_log, "[TRX_TRACE] Speculative execution is REJECTING tx: ${txid}, auth: ${a} : ${why} ",
                             ("txid", trx->id())("a",trx->get_transaction().first_authorizer())("why",ex->what()));
@@ -465,7 +465,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                      if( !self->process_incoming_transaction_async( result, persist_until_expired, next ) ) {
                         if( self->_pending_block_mode == pending_block_mode::producing ) {
                            //only main block ?
-                           self->schedule_maybe_produce_block( true , chain.is_backup_produce());
+                           self->schedule_maybe_produce_block( true );
                         }
                      }
                   } CATCH_AND_CALL(exception_handler);
@@ -639,7 +639,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          exhausted
       };
 
-      start_block_result start_block(bool& is_backup);
+      start_block_result start_block();
 
       fc::time_point calculate_pending_block_time() const;
       fc::time_point calculate_block_deadline( const fc::time_point& ) const;
@@ -1560,7 +1560,7 @@ fc::time_point producer_plugin_impl::calculate_block_deadline( const fc::time_po
    return block_time + fc::microseconds(last_block ? _last_block_time_offset_us : _produce_time_offset_us);
 }
 
-producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool& is_backup_out) {
+producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
    chain::controller& chain = chain_plug->chain();
 
    if( !chain_plug->accept_transactions() )
@@ -1617,8 +1617,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
          }
       });
    }
-   
-   is_backup_out = is_backup;
    
    producer_authority check_producer;
    if(!is_backup){
@@ -1757,7 +1755,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block(bool&
                   ("num", hbs->block_num + 1)("features_to_activate", features_to_activate) );
          }
       }
-
       chain.start_block( block_time, blocks_to_confirm, features_to_activate ,is_backup);
    } LOG_AND_DROP();
 
@@ -2220,17 +2217,11 @@ bool producer_plugin_impl::block_is_exhausted() const {
 // --> Start block B (block time y.000) at time x.500
 void producer_plugin_impl::schedule_production_loop() {
    _timer.cancel();
-   bool is_backup = false;
-   auto result = start_block(is_backup);
+   auto result = start_block();
 
    if (result == start_block_result::failed) {
       elog("Failed to start a pending block, will try again later");
       _timer.expires_from_now( boost::posix_time::microseconds( config::block_interval_us  / 10 ));
-      if(is_backup){
-         chain::controller& chain = chain_plug->chain();
-         const auto& hbs = chain.head_block_state();
-         hbs->next_is_backup = false;
-      }
       // we failed to start a block, so try again later?
       _timer.async_wait( app().get_priority_queue().wrap( priority::high,
           [weak_this = weak_from_this(), cid = ++_timer_corelation_id]( const boost::system::error_code& ec ) {
@@ -2240,11 +2231,6 @@ void producer_plugin_impl::schedule_production_loop() {
              }
           } ) );
    } else if (result == start_block_result::waiting_for_block){
-      if(is_backup){
-         chain::controller& chain = chain_plug->chain();
-         const auto& hbs = chain.head_block_state();
-         hbs->next_is_backup = false;
-      }
 
       if (!_producers.empty() && !production_disabled_by_policy()) {
          fc_dlog(_log, "Waiting till another block is received and scheduling Speculative/Production Change");
@@ -2258,14 +2244,10 @@ void producer_plugin_impl::schedule_production_loop() {
       // scheduled in start_block()
 
    } else if (_pending_block_mode == pending_block_mode::producing) {
-      schedule_maybe_produce_block( result == start_block_result::exhausted,is_backup);
+      schedule_maybe_produce_block( result == start_block_result::exhausted);
 
    } else if (_pending_block_mode == pending_block_mode::speculating && !_producers.empty() && !production_disabled_by_policy()){
       chain::controller& chain = chain_plug->chain();
-      if(is_backup){
-         const auto& hbs = chain.head_block_state();
-         hbs->next_is_backup = false;
-      }
       fc_dlog(_log, "Speculative Block Created; Scheduling Speculative/Production Change");
       EOS_ASSERT( chain.is_building_block(), missing_pending_block_state, "speculating without pending_block_state" );
       schedule_delayed_production_loop(weak_from_this(), calculate_producer_wake_up_time(chain.pending_block_time()));
@@ -2274,7 +2256,7 @@ void producer_plugin_impl::schedule_production_loop() {
    }
 }
 
-void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted,bool is_backup) {
+void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted ) {
    chain::controller& chain = chain_plug->chain();
 
    // we succeeded but block may be exhausted
@@ -2296,14 +2278,14 @@ void producer_plugin_impl::schedule_maybe_produce_block( bool exhausted,bool is_
    }
 
    _timer.async_wait( app().get_priority_queue().wrap( priority::high,
-         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id,is_backup](const boost::system::error_code& ec) {
+         [&chain, weak_this = weak_from_this(), cid=++_timer_corelation_id](const boost::system::error_code& ec) {
             auto self = weak_this.lock();
             if( self && ec != boost::asio::error::operation_aborted && cid == self->_timer_corelation_id ) {
                // pending_block_state expected, but can't assert inside async_wait
                auto block_num = chain.is_building_block() ? chain.head_block_num() + 1 : 0;
                fc_dlog( _log, "Produce block timer for ${num} running at ${time}", ("num", block_num)("time", fc::time_point::now()) );
-               fc_dlog( _log, "Produce backup block ? ${backup}....", ("backup",is_backup));
-               auto res = self->maybe_produce_block(is_backup);
+               //fc_dlog( _log, "Produce backup block ? ${backup}....", ("backup",is_backup));
+               auto res = self->maybe_produce_block();
                fc_dlog( _log, "Producing Block #${num} returned: ${res}", ("num", block_num)( "res", res ) );
             }
          } ) );
@@ -2350,13 +2332,13 @@ void producer_plugin_impl::schedule_delayed_production_loop(const std::weak_ptr<
 }
 
 
-bool producer_plugin_impl::maybe_produce_block(bool is_backup) {
+bool producer_plugin_impl::maybe_produce_block() {
    auto reschedule = fc::make_scoped_exit([this]{
       schedule_production_loop();
    });
 
    try {
-      produce_block(is_backup);
+      produce_block();
       return true;
    } LOG_AND_DROP();
 
@@ -2380,7 +2362,7 @@ static auto maybe_make_debug_time_logger() -> fc::optional<decltype(make_debug_t
    }
 }
 
-void producer_plugin_impl::produce_block(bool is_backup) {
+void producer_plugin_impl::produce_block() {
    //ilog("produce_block ${t}", ("t", fc::time_point::now())); // for testing _produce_time_offset_us
    EOS_ASSERT(_pending_block_mode == pending_block_mode::producing, producer_exception, "called produce_block while not actually producing");
    chain::controller& chain = chain_plug->chain();
@@ -2418,9 +2400,9 @@ void producer_plugin_impl::produce_block(bool is_backup) {
          sigs.emplace_back(p.get()(d));
       }
       return sigs;
-   },is_backup);
+   });
 
-   chain.commit_block(is_backup);
+   chain.commit_block();
 
    block_state_ptr new_bs = chain.head_block_state();
 

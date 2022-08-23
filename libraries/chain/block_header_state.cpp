@@ -124,7 +124,7 @@ namespace eosio { namespace chain {
    }
 
    pending_block_header_state  block_header_state::next( block_timestamp_type when,
-                                                         uint16_t num_prev_blocks_to_confirm )const
+                                                         uint16_t num_prev_blocks_to_confirm ,bool is_backup, block_id_type pre_backup)const
    {
       pending_block_header_state result;
 
@@ -134,11 +134,11 @@ namespace eosio { namespace chain {
         (when = header.timestamp).slot++;
       }
       producer_authority proauth;
-      if(!next_is_backup){
+      if(!is_backup){
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is main block......");
          proauth = get_scheduled_producer(when);
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_schedule_producer: ${bp}",("bp",proauth.producer_name));
-      }else if(next_is_backup){
+      }else if(is_backup){
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is backup block......");
          auto temp = get_backup_scheduled_producer(when);
          EOS_ASSERT(temp.valid(),block_validate_exception, "next backup block must has block BP");
@@ -163,6 +163,8 @@ namespace eosio { namespace chain {
 
       result.valid_block_signing_authority                   = proauth.authority;
       result.producer                                        = proauth.producer_name;
+      result.is_backup                                       = is_backup;
+      result.previous_backup                                 = pre_backup;
       fc_ilog(_backup_block_trace_log,"[BACKUP_TRACE] next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
 
       result.blockroot_merkle = blockroot_merkle;
@@ -547,7 +549,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed, h.is_backup, h.previous_backup ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {
