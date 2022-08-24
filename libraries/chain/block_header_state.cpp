@@ -316,7 +316,7 @@ namespace eosio { namespace chain {
                                                       const checksum256_type& action_mroot,
                                                       const block_producer_schedule_change& producer_schedule_change,
                                                       vector<digest_type>&& new_protocol_feature_activations,
-                                                      const protocol_feature_set& pfs
+                                                      const protocol_feature_set& pfs, bool is_backup, block_id_type pre_backup
    )const
    {
       signed_block_header h;
@@ -325,6 +325,8 @@ namespace eosio { namespace chain {
       h.producer          = producer;
       h.confirmed         = confirmed;
       h.previous          = previous;
+      h.previous_backup   = pre_backup;
+      h.is_backup         = is_backup;
       h.transaction_mroot = transaction_mroot;
       h.action_mroot      = action_mroot;
       h.schedule_version  = active_schedule_version;
