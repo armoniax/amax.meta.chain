@@ -134,7 +134,7 @@ struct pending_block_header_state : public detail::block_header_state_common {
                                           const checksum256_type& action_mroot,
                                           const block_producer_schedule_change& producer_schedule_change,
                                           vector<digest_type>&& new_protocol_feature_activations,
-                                          const protocol_feature_set& pfs,bool is_backup = false, block_id_type pre_backup = block_id_type())const;
+                                          const protocol_feature_set& pfs, bool is_backup = false, block_id_type pre_backup = block_id_type())const;
 
    block_header_state  finish_next( const signed_block_header& h,
                                     vector<signature_type>&& additional_signatures,

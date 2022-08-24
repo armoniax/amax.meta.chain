@@ -2546,14 +2546,14 @@ uint32_t controller::get_max_nonprivileged_inline_action_size()const
 {
    return my->conf.max_nonprivileged_inline_action_size;
 }
-
+/**
+*when produce block backup head block may only exist in fork db.
+*/
 const block_id_type controller::get_backup_head_id()const
 {
    block_state_ptr  temp = my->fork_db.get_backup_head_block( my->head->prev());
    signed_block_ptr pre_backup;
-   if(!temp){
-      pre_backup = fetch_block_by_number( my->head->block_num , true );
-   }else{
+   if(temp){
       pre_backup = temp->block;
    }
    return pre_backup ? pre_backup->id() : block_id_type();
@@ -2756,7 +2756,7 @@ void controller::start_block( block_timestamp_type when,
    }
    
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
-               block_status::incomplete, optional<block_id_type>() , is_backup,pre_backup);
+               block_status::incomplete, optional<block_id_type>() , is_backup, pre_backup);
 
 }
 

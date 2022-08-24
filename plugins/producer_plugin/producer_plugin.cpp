@@ -1759,7 +1759,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       if(!is_backup){
          previous_backup = chain.get_backup_head_id();
       }
-      chain.start_block( block_time, blocks_to_confirm, features_to_activate ,is_backup,previous_backup);
+      chain.start_block( block_time, blocks_to_confirm, features_to_activate , is_backup, previous_backup);
    } LOG_AND_DROP();
 
    if( chain.is_building_block() ) {
