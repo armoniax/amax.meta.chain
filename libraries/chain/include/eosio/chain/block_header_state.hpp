@@ -123,6 +123,8 @@ struct pending_block_header_state : public detail::block_header_state_common {
    detail::schedule_info                prev_pending_schedule;
    bool                                 was_pending_promoted = false;
    block_id_type                        previous;
+   block_id_type                        previous_backup;
+   bool                                 is_backup = false;
    account_name                         producer;
    block_timestamp_type                 timestamp;
    uint32_t                             active_schedule_version = 0;
@@ -132,7 +134,7 @@ struct pending_block_header_state : public detail::block_header_state_common {
                                           const checksum256_type& action_mroot,
                                           const block_producer_schedule_change& producer_schedule_change,
                                           vector<digest_type>&& new_protocol_feature_activations,
-                                          const protocol_feature_set& pfs)const;
+                                          const protocol_feature_set& pfs, bool is_backup = false, block_id_type pre_backup = block_id_type())const;
 
    block_header_state  finish_next( const signed_block_header& h,
                                     vector<signature_type>&& additional_signatures,
@@ -167,7 +169,8 @@ struct block_header_state : public detail::block_header_state_common {
    detail::schedule_info                pending_schedule;
    protocol_feature_activation_set_ptr  activated_protocol_features;
    vector<signature_type>               additional_signatures;
-
+   bool                                 is_backup = false;
+   block_id_type                        pre_backup;
    /// this data is redundant with the data stored in header, but it acts as a cache that avoids
    /// duplication of work
    flat_multimap<uint16_t, block_header_extension> header_exts;
@@ -180,7 +183,7 @@ struct block_header_state : public detail::block_header_state_common {
 
    explicit block_header_state( legacy::snapshot_block_header_state_v2&& snapshot );
 
-   pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm )const;
+   pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm,bool is_backup = false, block_id_type pre_backup = block_id_type())const;
 
    block_header_state   next( const signed_block_header& h,
                               vector<signature_type>&& additional_signatures,
@@ -199,7 +202,7 @@ struct block_header_state : public detail::block_header_state_common {
    digest_type            sig_digest()const;
    void                   sign( const signer_callback_type& signer );
    void                   verify_signee()const;
-
+   bool                   is_header_backup()const{return is_backup;}
    const vector<digest_type>& get_new_protocol_feature_activations()const;
 };
 

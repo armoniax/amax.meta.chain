@@ -112,8 +112,8 @@ struct building_block {
    building_block( const block_header_state& prev,
                    block_timestamp_type when,
                    uint16_t num_prev_blocks_to_confirm,
-                   const vector<digest_type>& new_protocol_feature_activations )
-   :_pending_block_header_state( prev.next( when, num_prev_blocks_to_confirm ) )
+                   const vector<digest_type>& new_protocol_feature_activations , bool is_backup, block_id_type& pre_backup)
+   :_pending_block_header_state( prev.next( when, num_prev_blocks_to_confirm , is_backup, pre_backup) )
    ,_new_protocol_feature_activations( new_protocol_feature_activations )
    {}
 
@@ -147,9 +147,9 @@ struct pending_state {
    pending_state( maybe_session&& s, const block_header_state& prev,
                   block_timestamp_type when,
                   uint16_t num_prev_blocks_to_confirm,
-                  const vector<digest_type>& new_protocol_feature_activations )
+                  const vector<digest_type>& new_protocol_feature_activations, bool is_backup = false, block_id_type pre_backup = block_id_type())
    :_db_session( move(s) )
-   ,_block_stage( building_block( prev, when, num_prev_blocks_to_confirm, new_protocol_feature_activations ) )
+   ,_block_stage( building_block( prev, when, num_prev_blocks_to_confirm, new_protocol_feature_activations , is_backup, pre_backup) )
    {}
 
    maybe_session                      _db_session;
@@ -235,8 +235,6 @@ struct controller_impl {
    block_log                      blog;
    optional<pending_state>        pending;
    block_state_ptr                head;
-   block_state_ptr                prebackup_head;
-   block_state_ptr                backup_head;
    fork_database                  fork_db;
    wasm_interface                 wasmif;
    resource_limits_manager        resource_limits;
@@ -399,6 +397,13 @@ struct controller_impl {
          EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
          fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         // if( backup_block != nullptr ){
+         //    fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
+         //    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         // }else{
+            //need to sync by net plugin.
+         //    fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
+         // }   
       }else{
          fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
       }
@@ -1548,7 +1553,7 @@ struct controller_impl {
                      uint16_t confirm_block_count,
                      const vector<digest_type>& new_protocol_feature_activations,
                      controller::block_status s,
-                     const optional<block_id_type>& producer_block_id , bool is_backup )
+                     const optional<block_id_type>& producer_block_id , bool is_backup ,block_id_type pre_backup = block_id_type())
    {
       EOS_ASSERT( !pending, block_validate_exception, "pending block already exists" );
 
@@ -1558,16 +1563,15 @@ struct controller_impl {
          protocol_features.popped_blocks_to( head_block_num );
          pending.reset();
       });
+
       if(is_backup){
-         //testing backup mode producer session production!
-         head->next_is_backup = true;
-         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
+         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations, true );
       }else if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
                      ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
-         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations );
+         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations, false, pre_backup);
       } else {
-         pending.emplace( maybe_session(), *head, when, confirm_block_count, new_protocol_feature_activations );
+         pending.emplace( maybe_session(), *head, when, confirm_block_count, new_protocol_feature_activations, false, pre_backup);
       }
 
       pending->_block_status = s;
@@ -1717,7 +1721,7 @@ struct controller_impl {
       guard_pending.cancel();
    } /// start_block
 
-   void finalize_block( bool is_backup )
+   void finalize_block()
    {
       EOS_ASSERT( pending, block_validate_exception, "it is not valid to finalize when there is no pending block");
       EOS_ASSERT( pending->_block_stage.contains<building_block>(), block_validate_exception, "already called finalize_block");
@@ -1737,58 +1741,30 @@ struct controller_impl {
       resource_limits.process_block_usage(pbhs.block_num);
 
       auto& bb = pending->_block_stage.get<building_block>();
-
       // Create (unsigned) block:
-      auto block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
-         bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
-         calculate_action_merkle(),
-         bb._new_pending_producer_schedule,
-         std::move( bb._new_protocol_feature_activations ),
-         protocol_features.get_protocol_feature_set()
-      ) );
-
-      /**
-      *@Description: when controller in backup mode, block should be backup block
-      */
-      if(is_backup){
-         //when backup producer producing
-         block_ptr->is_backup = true;
+      signed_block_ptr block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
+            bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
+            calculate_action_merkle(),
+            bb._new_pending_producer_schedule,
+            std::move( bb._new_protocol_feature_activations ),
+            protocol_features.get_protocol_feature_set(),
+            pbhs.is_backup,
+            pbhs.previous_backup
+         ) );
+      
+      if( pbhs.is_backup ){
+         /**
+         *@Description: when controller in backup mode, block should be backup block
+         */
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block's previous main block num: ${mnum}",("mnum",head->block_num));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-         //received backup block can not reach here!
-         //ilog("backup verify mode, block num: ${num}, producer: ${pb}",("num",block_ptr->block_num())("pb",block_ptr->producer));
-      }else{
+      }else if( !pbhs.is_backup && pbhs.previous_backup != block_id_type() ){
          //backup node receive main block will verify.
          //main node produce also need composite.
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-         if(prebackup_head != nullptr){
-            if(prebackup_head->block_num == head->block_num){
-               block_ptr->previous_backup = prebackup_head->block->id();
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",prebackup_head->block_num)("mnum",head->block_num));
-               EOS_ASSERT(prebackup_head->block_num == head->block_num, block_validate_exception,
-                             "previous backup head is not par with main head at sequence NO.");
-            }else if(backup_head->block_num == head->block_num){
-               block_ptr->previous_backup = backup_head->block->id();
-                  fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
-                  EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
-                              "previous backup head is not par with main head at sequence NO.");
-            }
-            if(prebackup_head->block_num < backup_head->block_num){
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] current backup head num is: ${cbnum}",("cbnum",backup_head->block_num));
-               prebackup_head = backup_head;
-            }
-         }else{
-            if(backup_head != nullptr){
-               if(backup_head->block_num == head->block_num){
-                  block_ptr->previous_backup = backup_head->block->id();
-                  fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previos backup num ${prenum},previous main head ${mnum}",("prenum",backup_head->block_num)("mnum",head->block_num));
-                  EOS_ASSERT(backup_head->block_num == head->block_num, block_validate_exception,
-                              "previous backup head is not par with main head at sequence NO.");
-               }
-            }
-         }
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previous_backup id: ${id}",("id",pbhs.previous_backup));
       }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
@@ -1798,20 +1774,6 @@ struct controller_impl {
       // Update TaPoS table:
       create_block_summary( id );
 
-      /*
-      ilog( "finalized block ${n} (${id}) at ${t} by ${p} (${signing_key}); schedule_version: ${v} lib: ${lib} #dtrxs: ${ndtrxs} ${np}",
-            ("n",pbhs.block_num)
-            ("id",id)
-            ("t",pbhs.timestamp)
-            ("p",pbhs.producer)
-            ("signing_key", pbhs.block_signing_key)
-            ("v",pbhs.active_schedule_version)
-            ("lib",pbhs.dpos_irreversible_blocknum)
-            ("ndtrxs",db.get_index<generated_transaction_multi_index,by_trx_id>().size())
-            ("np",block_ptr->new_producers)
-      );
-      */
-
       pending->_block_stage = assembled_block{
                                  id,
                                  std::move( bb._pending_block_header_state ),
@@ -1820,15 +1782,14 @@ struct controller_impl {
                                  std::move( bb._new_pending_producer_schedule )
                               };
    } FC_CAPTURE_AND_RETHROW() } /// finalize_block
-
+   
    /**
     * @post regardless of the success of commit block there is no active pending block
     */
-   void commit_block( bool add_to_fork_db , bool is_backup ) {
+   void commit_block( bool add_to_fork_db) {
       auto reset_pending_on_exit = fc::make_scoped_exit([this]{
          pending.reset();
       });
-
       try {
          EOS_ASSERT( pending->_block_stage.contains<completed_block>(), block_validate_exception,
                      "cannot call commit_block until pending block is completed" );
@@ -1851,14 +1812,6 @@ struct controller_impl {
             head = fork_db.head();
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] after add/mark, new head block num: ${num}, new irreversible num ${inum}",("num",head->block_num)("inum",head->dpos_irreversible_blocknum));
             if(bsp->is_backup()){
-               if(!prebackup_head && backup_head){
-                  fc_ilog(_backup_block_trace_log,"[BACKUP_TRACE] initial prebackup num: ${num}",("num",backup_head->block_num));
-                  prebackup_head = backup_head;
-               }
-               backup_head = bsp;
-               if(prebackup_head && prebackup_head->block_num == backup_head->block_num -1){
-                  //prebackup_head = backup_head;
-               }
                fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] successfully create backup block ${num} id ${id} irreversible: ${inum}",("num",bsp->block_num)("id",bsp->block->id())("inum",bsp->dpos_irreversible_blocknum));
                EOS_ASSERT( bsp->block_num == head->block_num + 1, block_validate_exception, "backup block num error, backup block num should == main head +1");
             }else{
@@ -1877,7 +1830,7 @@ struct controller_impl {
 
          emit( self.accepted_block, bsp );
 
-         if( add_to_fork_db && !is_backup) {
+         if( add_to_fork_db && !bsp->is_backup()) {
             log_irreversibles();
          }
 
@@ -1890,7 +1843,8 @@ struct controller_impl {
 
       // push the state for pending except to backup mode.
       //if backup produce mode, receive main block upset me.
-      if(is_backup){
+      auto bsp = pending->_block_stage.get<completed_block>()._block_state;
+      if(bsp->is_backup()){
          pending->discard();
       }else{
          pending->push();
@@ -1986,7 +1940,7 @@ struct controller_impl {
          const auto& new_protocol_feature_activations = bsp->get_new_protocol_feature_activations();
 
          auto producer_block_id = b->id();
-         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup );
+         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup, b->previous_backup);
 
          const bool existing_trxs_metas = !bsp->trxs_metas().empty();
          const bool pub_keys_recovered = bsp->is_pub_keys_recovered();
@@ -2060,8 +2014,7 @@ struct controller_impl {
 
          // validated in create_block_state_future()
          pending->_block_stage.get<building_block>()._transaction_mroot = b->transaction_mroot;
-
-         finalize_block( b->is_backup );
+         finalize_block();
 
          auto& ab = pending->_block_stage.get<assembled_block>();
 
@@ -2079,7 +2032,7 @@ struct controller_impl {
          // create completed_block with the existing block_state as we just verified it is the same as assembled_block
          pending->_block_stage = completed_block{ bsp };
 
-         commit_block( false, b->is_backup );
+         commit_block( false );
          return;
       } catch ( const fc::exception& e ) {
          edump((e.to_detail_string()));
@@ -2159,14 +2112,7 @@ struct controller_impl {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
-            //can not verify backup block in main node temporary.
-            //apply_block(bsp, s, trx_lookup);
-            if(!prebackup_head && backup_head){
-               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] initial prebackup num: ${num}",("num",backup_head->block_num));
-               prebackup_head = backup_head;
-            }
-            backup_head = bsp;   
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");   
          }else if(!bsp->is_backup()){
             log_irreversibles();
          }
@@ -2583,7 +2529,14 @@ uint32_t controller::get_max_nonprivileged_inline_action_size()const
 {
    return my->conf.max_nonprivileged_inline_action_size;
 }
-
+/**
+*when produce block backup head block may only exist in fork db.
+*/
+const block_id_type controller::get_backup_head_id()const
+{
+   block_state_ptr  temp = my->fork_db.get_backup_head_block( my->head->prev());
+   return temp ? temp->block->id() : block_id_type();
+}
 controller::controller( const controller::config& cfg, const chain_id_type& chain_id )
 :my( new controller_impl( cfg, *this, protocol_feature_set{}, chain_id ) )
 {
@@ -2773,23 +2726,23 @@ void controller::start_block( block_timestamp_type when, uint16_t confirm_block_
 
 void controller::start_block( block_timestamp_type when,
                               uint16_t confirm_block_count,
-                              const vector<digest_type>& new_protocol_feature_activations, bool is_backup )
+                              const vector<digest_type>& new_protocol_feature_activations, bool is_backup , block_id_type pre_backup)
 {
    validate_db_available_size();
 
    if( new_protocol_feature_activations.size() > 0 ) {
       validate_protocol_features( new_protocol_feature_activations );
    }
-
+   
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
-               block_status::incomplete, optional<block_id_type>() , is_backup);
+               block_status::incomplete, optional<block_id_type>() , is_backup, pre_backup);
 
 }
 
-block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback, bool is_backup ) {
+block_state_ptr controller::finalize_block( const signer_callback_type& signer_callback ) {
    validate_db_available_size();
 
-   my->finalize_block( is_backup );
+   my->finalize_block();
 
    auto& ab = my->pending->_block_stage.get<assembled_block>();
 
@@ -2810,10 +2763,10 @@ block_state_ptr controller::finalize_block( const signer_callback_type& signer_c
    return bsp;
 }
 
-void controller::commit_block( bool is_backup ) {
+void controller::commit_block() {
    validate_db_available_size();
    validate_reversible_available_size();
-   my->commit_block( true, is_backup );
+   my->commit_block( true);
 }
 
 vector<transaction_metadata_ptr> controller::abort_block() {

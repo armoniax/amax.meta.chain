@@ -30,7 +30,7 @@ namespace eosio { namespace chain {
 
          block_header_state_ptr  get_block_header( const block_id_type& id )const;
          block_state_ptr         get_block( const block_id_type& id )const;
-
+         block_state_ptr         get_backup_head_block( const block_id_type head_prev) const;
          /**
           *  Purges any existing blocks from the fork database and resets the root block_header_state to the provided value.
           *  The head will also be reset to point to the root.

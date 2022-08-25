@@ -425,10 +425,10 @@ namespace eosio { namespace testing {
              result.emplace_back(k.sign(d));
 
          return result;
-      } , is_backup_block_mode);
+      });
 
       auto producing_block_id = control->pending_producer_block_id();
-      control->commit_block(is_backup_block_mode);
+      control->commit_block();
       signed_block_ptr new_block = this->last_accept_block;
       if (!is_backup_block_mode) {
          FC_ASSERT( new_block->id() == control->head_block_state()->id, "new main block is not head" );
