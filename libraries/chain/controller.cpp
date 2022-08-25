@@ -1740,46 +1740,30 @@ struct controller_impl {
       resource_limits.process_block_usage(pbhs.block_num);
 
       auto& bb = pending->_block_stage.get<building_block>();
-      signed_block_ptr block_ptr;
       // Create (unsigned) block:
-      if( pbhs.is_backup ){
-         /**
-         *@Description: when controller in backup mode, block should be backup block
-         */
-         block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
+      signed_block_ptr block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
             bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
             calculate_action_merkle(),
             bb._new_pending_producer_schedule,
             std::move( bb._new_protocol_feature_activations ),
             protocol_features.get_protocol_feature_set(),
-            true
+            pbhs.is_backup,
+            pbhs.previous_backup
          ) );
+      
+      if( pbhs.is_backup ){
+         /**
+         *@Description: when controller in backup mode, block should be backup block
+         */
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block's previous main block num: ${mnum}",("mnum",head->block_num));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
       }else if( !pbhs.is_backup && pbhs.previous_backup != block_id_type() ){
          //backup node receive main block will verify.
          //main node produce also need composite.
-         block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
-            bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
-            calculate_action_merkle(),
-            bb._new_pending_producer_schedule,
-            std::move( bb._new_protocol_feature_activations ),
-            protocol_features.get_protocol_feature_set(),
-            false,
-            pbhs.previous_backup
-         ) );
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previous_backup id: ${id}",("id",pbhs.previous_backup));
-      }else{
-         block_ptr = std::make_shared<signed_block>( pbhs.make_block_header(
-            bb._transaction_mroot ? *bb._transaction_mroot : calculate_trx_merkle( bb._pending_trx_receipts ),
-            calculate_action_merkle(),
-            bb._new_pending_producer_schedule,
-            std::move( bb._new_protocol_feature_activations ),
-            protocol_features.get_protocol_feature_set()
-         ) );
       }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
