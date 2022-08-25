@@ -394,14 +394,16 @@ struct controller_impl {
       full_block_ptr fptr;
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
-         //EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
-         if( backup_block != nullptr ){
-            fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
-         }else{
+         EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
+         fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         // if( backup_block != nullptr ){
+         //    fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
+         //    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
+         // }else{
             //need to sync by net plugin.
-            fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
-         }   
+         //    fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
+         // }   
       }else{
          fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
       }
@@ -2536,11 +2538,7 @@ uint32_t controller::get_max_nonprivileged_inline_action_size()const
 const block_id_type controller::get_backup_head_id()const
 {
    block_state_ptr  temp = my->fork_db.get_backup_head_block( my->head->prev());
-   signed_block_ptr pre_backup;
-   if(temp){
-      pre_backup = temp->block;
-   }
-   return pre_backup ? pre_backup->id() : block_id_type();
+   return temp ? temp->block->id() : block_id_type();
 }
 controller::controller( const controller::config& cfg, const chain_id_type& chain_id )
 :my( new controller_impl( cfg, *this, protocol_feature_set{}, chain_id ) )
