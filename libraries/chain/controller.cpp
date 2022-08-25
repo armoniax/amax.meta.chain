@@ -147,7 +147,7 @@ struct pending_state {
    pending_state( maybe_session&& s, const block_header_state& prev,
                   block_timestamp_type when,
                   uint16_t num_prev_blocks_to_confirm,
-                  const vector<digest_type>& new_protocol_feature_activations, bool is_backup = false,block_id_type pre_backup = block_id_type())
+                  const vector<digest_type>& new_protocol_feature_activations, bool is_backup = false, block_id_type pre_backup = block_id_type())
    :_db_session( move(s) )
    ,_block_stage( building_block( prev, when, num_prev_blocks_to_confirm, new_protocol_feature_activations , is_backup, pre_backup) )
    {}
@@ -1565,14 +1565,13 @@ struct controller_impl {
       });
 
       if(is_backup){
-         //testing backup mode producer session production
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations, true );
       }else if (!self.skip_db_sessions(s)) {
          EOS_ASSERT( db.revision() == head->block_num, database_exception, "db revision is not on par with head block",
                      ("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) );
-         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations ,false,pre_backup);
+         pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations, false, pre_backup);
       } else {
-         pending.emplace( maybe_session(), *head, when, confirm_block_count, new_protocol_feature_activations ,false,pre_backup);
+         pending.emplace( maybe_session(), *head, when, confirm_block_count, new_protocol_feature_activations, false, pre_backup);
       }
 
       pending->_block_status = s;
@@ -1941,7 +1940,7 @@ struct controller_impl {
          const auto& new_protocol_feature_activations = bsp->get_new_protocol_feature_activations();
 
          auto producer_block_id = b->id();
-         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup ,b->previous_backup);
+         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup, b->previous_backup);
 
          const bool existing_trxs_metas = !bsp->trxs_metas().empty();
          const bool pub_keys_recovered = bsp->is_pub_keys_recovered();
