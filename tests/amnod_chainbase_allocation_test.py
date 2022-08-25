@@ -77,13 +77,9 @@ try:
     newProducerAcc.activePublicKey = "AM6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
     producerNode.createAccount(newProducerAcc, cluster.amaxAccount)
 
-    setProdsStr = '{"schedule": ['
-    setProdsStr += '{"producer_name":' + newProducerAcc.name + ',"block_signing_key":' + newProducerAcc.activePublicKey + '}'
-    setProdsStr += ']}'
-    cmd="push action -j amax setprods '{}' -p amax".format(setProdsStr)
-    trans = producerNode.processAmcliCmd(cmd, cmd, silentErrors=False)
-    assert trans
-    setProdsBlockNum = int(trans["processed"]["block_num"])
+    trans = producerNode.setProducers([{"name": newProducerAcc.name, "public": newProducerAcc.activePublicKey}])
+    assert trans and trans[0]
+    setProdsBlockNum = int(trans[1]["processed"]["block_num"])
 
     # Wait until the block where set prods is executed become irreversible so the producer schedule
     def isSetProdsBlockNumIrr():

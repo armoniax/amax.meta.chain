@@ -421,7 +421,6 @@ class Cluster(object):
             Utils.Print("ERROR: Cluster doesn't seem to be in sync. Some nodes missing block 1")
             return False
 
-        # no need now
         # if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
         #     Utils.Print("Activate Preactivate Feature.")
         #     biosNode.activatePreactivateFeature()
@@ -577,7 +576,7 @@ class Cluster(object):
     @staticmethod
     def getClientVersion(verbose=False):
         """Returns client version (string)"""
-        p = re.compile(r'^Build version:\s(\w+)\n$')
+        # p = re.compile(r'^v(\w+)\n$')
         try:
             cmd="%s version client" % (Utils.AmaxClientPath)
             if verbose: Utils.Print("cmd: %s" % (cmd))
@@ -585,13 +584,14 @@ class Cluster(object):
             assert(response)
             assert(isinstance(response, str))
             if verbose: Utils.Print("response: <%s>" % (response))
-            m=p.match(response)
-            if m is None:
-                Utils.Print("ERROR: client version regex mismatch")
-                return None
+            # m=p.match(response)
+            # if m is None:
+            #     Utils.Print("ERROR: client version regex mismatch")
+            #     return None
 
-            verStr=m.group(1)
-            return verStr
+            # verStr=m.group(1)
+            # return verStr
+            return response
         except subprocess.CalledProcessError as ex:
             msg=ex.output.decode("utf-8")
             Utils.Print("ERROR: Exception during client version query. %s" % (msg))
@@ -951,12 +951,10 @@ class Cluster(object):
         cmd="bash bios_boot.sh"
         if Utils.Debug: Utils.Print("cmd: %s" % (cmd))
         env = {
-            "BIOS_CONTRACT_PATH": "unittests/contracts/old_versions/v1.6.0-rc3/amax.bios",
+            "BIOS_CONTRACT_PATH": "unittests/contracts/amax.bios",
             "BIOS_CURRENCY_SYMBOL": CORE_SYMBOL,
             "FEATURE_DIGESTS": ""
         }
-        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-            env["BIOS_CONTRACT_PATH"] = "unittests/contracts/old_versions/v1.7.0-develop-preactivate_feature/amax.bios"
 
         if pfSetupPolicy == PFSetupPolicy.FULL:
             allBuiltinProtocolFeatureDigests = biosNode.getAllBuiltinFeatureDigestsToPreactivate()
@@ -1071,12 +1069,11 @@ class Cluster(object):
             Utils.Print("ERROR: Failed to import %s account keys into ignition wallet." % (amaxName))
             return None
 
+        if pfSetupPolicy == PFSetupPolicy.FULL:
+            biosNode.preactivateAllBuiltinProtocolFeature()
+
         contract="amax.bios"
         contractDir="unittests/contracts/%s" % (contract)
-        if PFSetupPolicy.hasPreactivateFeature(pfSetupPolicy):
-            contractDir="unittests/contracts/old_versions/v1.7.0-develop-preactivate_feature/%s" % (contract)
-        else:
-            contractDir="unittests/contracts/old_versions/v1.6.0-rc3/%s" % (contract)
         wasmFile="%s.wasm" % (contract)
         abiFile="%s.abi" % (contract)
         Utils.Print("Publish %s contract" % (contract))
@@ -1084,9 +1081,6 @@ class Cluster(object):
         if trans is None:
             Utils.Print("ERROR: Failed to publish contract %s." % (contract))
             return None
-
-        if pfSetupPolicy == PFSetupPolicy.FULL:
-            biosNode.preactivateAllBuiltinProtocolFeature()
 
         Node.validateTransaction(trans)
 
@@ -1133,24 +1127,13 @@ class Cluster(object):
                 setProdsStr='{"schedule": ['
                 firstTime=True
                 prodNames=[]
+                producers=[]
                 for name, keys in producerKeys.items():
                     if counts[keys["node"]] >= prodCount:
                         continue
-                    if firstTime:
-                        firstTime = False
-                    else:
-                        setProdsStr += ','
-
-                    setProdsStr += ' { "producer_name": "%s", "block_signing_key": "%s" }' % (keys["name"], keys["public"])
-                    prodNames.append(keys["name"])
+                    producers.append(keys)
                     counts[keys["node"]] += 1
-
-                setProdsStr += ' ] }'
-                if Utils.Debug: Utils.Print("setprods: %s" % (setProdsStr))
-                Utils.Print("Setting producers: %s." % (", ".join(prodNames)))
-                opts="--permission amax@active"
-                # pylint: disable=redefined-variable-type
-                trans=biosNode.pushMessage("amax", "setprods", setProdsStr, opts)
+                trans = biosNode.setProducers(producers)
                 if trans is None or not trans[0]:
                     Utils.Print("ERROR: Failed to set producer %s." % (keys["name"]))
                     return None
@@ -1325,7 +1308,7 @@ class Cluster(object):
     @staticmethod
     def pgrepEosServerPattern(nodeInstance):
         dataLocation=Utils.getNodeDataDir(nodeInstance)
-        return r"[\n]?(\d+) (.* --data-dir %s .*)\n" % (dataLocation)
+        return r"[\n]?(\d+) (.* --data-dir %s(?: .*)?)\n" % (dataLocation)
 
     # Populates list of EosInstanceInfo objects, matched to actual running instances
     def discoverLocalNodes(self, totalNodes, timeout=None):

@@ -56,11 +56,11 @@ try:
         "preactivation_required": True,
         "enabled": False
     }
-    biosNode.modifyBuiltinPFSubjRestrictions("bios", "PREACTIVATE_FEATURE", newSubjectiveRestrictions)
+    biosNode.modifyBuiltinPFSubjRestrictions("bios", "WTMSIG_BLOCK_SIGNATURES", newSubjectiveRestrictions)
     restartNode(biosNode, "bios")
 
     supportedProtocolFeatureDict = biosNode.getSupportedProtocolFeatureDict()
-    preactivateFeatureSubjectiveRestrictions = supportedProtocolFeatureDict["PREACTIVATE_FEATURE"]["subjective_restrictions"]
+    preactivateFeatureSubjectiveRestrictions = supportedProtocolFeatureDict["WTMSIG_BLOCK_SIGNATURES"]["subjective_restrictions"]
 
     # Ensure that the PREACTIVATE_FEATURE subjective restrictions match the value written in the JSON
     assert preactivateFeatureSubjectiveRestrictions == newSubjectiveRestrictions,\

@@ -35,25 +35,16 @@ def validBlockProducer(prodsActive, prodsSeen, blockNum, node):
     return blockProducer
 
 def setProds(sharedProdKey):
-    setProdsStr='{"schedule": ['
-    firstTime=True
+    producers = []
     for name in ["defproducera", "shrproducera", "defproducerb", "defproducerc"]:
-        if firstTime:
-            firstTime = False
-        else:
-            setProdsStr += ','
         key = cluster.defProducerAccounts[name].activePublicKey
         if name == "shrproducera":
             key = sharedProdKey
-        setProdsStr += ' { "producer_name": "%s", "block_signing_key": "%s" }' % (name, key)
+        producers.append({"name": name, "public": key})
 
-    setProdsStr += ' ] }'
-    Utils.Print("setprods: %s" % (setProdsStr))
-    opts="--permission amax@active"
-    # pylint: disable=redefined-variable-type
-    trans=cluster.biosNode.pushMessage("amax", "setprods", setProdsStr, opts)
+    trans = cluster.biosNode.setProducers(producers)
     if trans is None or not trans[0]:
-        Utils.Print("ERROR: Failed to set producer with cmd %s" % (setProdsStr))
+        Utils.Print("ERROR: Failed to set producer: %s" % (trans[1]))
 
 def verifyProductionRounds(trans, node, prodsActive, rounds):
     blockNum=node.getNextCleanProductionCycle(trans)
