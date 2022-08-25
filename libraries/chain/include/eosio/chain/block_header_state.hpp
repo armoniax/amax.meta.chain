@@ -123,7 +123,7 @@ struct pending_block_header_state : public detail::block_header_state_common {
    detail::schedule_info                prev_pending_schedule;
    bool                                 was_pending_promoted = false;
    block_id_type                        previous;
-   block_id_type                        previous_backup = block_id_type();
+   block_id_type                        previous_backup;
    bool                                 is_backup = false;
    account_name                         producer;
    block_timestamp_type                 timestamp;
@@ -170,7 +170,7 @@ struct block_header_state : public detail::block_header_state_common {
    protocol_feature_activation_set_ptr  activated_protocol_features;
    vector<signature_type>               additional_signatures;
    bool                                 is_backup = false;
-   block_id_type                        pre_backup = block_id_type();
+   block_id_type                        pre_backup;
    /// this data is redundant with the data stored in header, but it acts as a cache that avoids
    /// duplication of work
    flat_multimap<uint16_t, block_header_extension> header_exts;

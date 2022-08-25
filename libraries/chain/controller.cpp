@@ -2113,9 +2113,7 @@ struct controller_impl {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
-            //can not verify backup block in main node temporary.
-            //apply_block(bsp, s, trx_lookup);   
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");   
          }else if(!bsp->is_backup()){
             log_irreversibles();
          }
