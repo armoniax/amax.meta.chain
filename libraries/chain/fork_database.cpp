@@ -587,8 +587,8 @@ namespace eosio
       {
          const auto &previdx = my->index.get<by_prev>();
          auto previtr = previdx.lower_bound( head_prev );
-         while(previtr != previdx.end()){
-            if((*previtr)->header.is_backup)
+         while(previtr != previdx.end() && (*previtr)->header.previous == head_prev){
+            if ((*previtr)->header.is_backup)
                return *previtr;
             ++previtr;
          }

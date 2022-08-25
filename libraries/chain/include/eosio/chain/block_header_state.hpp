@@ -169,7 +169,7 @@ struct block_header_state : public detail::block_header_state_common {
    detail::schedule_info                pending_schedule;
    protocol_feature_activation_set_ptr  activated_protocol_features;
    vector<signature_type>               additional_signatures;
-   bool                                 is_backup_flag = false;
+   bool                                 is_backup = false;
    block_id_type                        pre_backup = block_id_type();
    /// this data is redundant with the data stored in header, but it acts as a cache that avoids
    /// duplication of work
@@ -202,7 +202,7 @@ struct block_header_state : public detail::block_header_state_common {
    digest_type            sig_digest()const;
    void                   sign( const signer_callback_type& signer );
    void                   verify_signee()const;
-
+   bool                   is_header_backup()const{return is_backup;}
    const vector<digest_type>& get_new_protocol_feature_activations()const;
 };
 

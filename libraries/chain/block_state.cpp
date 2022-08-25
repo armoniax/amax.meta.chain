@@ -68,7 +68,7 @@ namespace eosio { namespace chain {
 
             emplace_extension(b.block_extensions, additional_sigs_eid, fc::raw::pack( result.additional_signatures ));
          }
-         result.is_backup_flag = cur.is_backup;
+         result.is_backup = cur.is_backup;
          result.pre_backup = cur.previous_backup;
          return result;
       }
