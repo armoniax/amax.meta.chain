@@ -64,6 +64,7 @@ namespace variant_ext {
 
    fc::variant to_variant(const producer_change_map &change_map) {
       return mvo()
+         ("clear_existed", change_map.clear_existed)
          ("producer_count", change_map.producer_count)
          ("changes", to_variant(change_map.changes));
    }

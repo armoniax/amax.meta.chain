@@ -409,20 +409,24 @@ namespace eosio { namespace chain {
       shared_producer_change_map& operator= ( const shared_producer_change_map & ) = default;
 
       void clear() {
+         clear_existed = false;
          producer_count = 0;
          changes.clear();
       }
 
+      bool clear_existed = false; // clear existed producers before change
       uint32_t  producer_count = 0; // the total producer count after change
       shared_flat_map<name, shared_producer_change_record> changes;
    };
 
    struct producer_change_map {
+      bool clear_existed = false; // clear existed producers before change
       uint32_t  producer_count = 0; // the total producer count after change
       flat_map<name, producer_change_record> changes;
 
       auto to_shared(chainbase::allocator<char> alloc) const {
          auto result = shared_producer_change_map(alloc);
+         result.clear_existed = clear_existed;
          result.producer_count = producer_count;
          result.changes.clear();
          result.changes.reserve( changes.size() );
@@ -438,6 +442,7 @@ namespace eosio { namespace chain {
 
       static auto from_shared( const shared_producer_change_map& src ) {
          producer_change_map result;
+         result.clear_existed = src.clear_existed;
          result.producer_count = src.producer_count;
          result.changes.reserve(src.changes.size());
          for( const auto& c : src.changes ) {
@@ -454,10 +459,10 @@ namespace eosio { namespace chain {
       }
 
       friend bool operator == ( const producer_change_map& lhs, const producer_change_map& rhs ) {
-         return tie( lhs.producer_count, lhs.changes ) == tie( rhs.producer_count, rhs.changes );
+         return tie( lhs.clear_existed, lhs.producer_count, lhs.changes ) == tie( rhs.clear_existed, rhs.producer_count, rhs.changes );
       }
       friend bool operator != ( const producer_change_map& lhs, const producer_change_map& rhs ) {
-         return tie( lhs.producer_count, lhs.changes ) != tie( rhs.producer_count, rhs.changes );
+         return tie( lhs.clear_existed, lhs.producer_count, lhs.changes ) != tie( rhs.clear_existed, rhs.producer_count, rhs.changes );
       }
 
    };
@@ -587,8 +592,8 @@ FC_REFLECT_TEMPLATE( (eosio::chain::producer_change_operation ProducerChangeOper
 FC_REFLECT_TEMPLATE( (eosio::chain::producer_change_operation ProducerChangeOperation),
                       eosio::chain::producer_authority_change<ProducerChangeOperation>, (authority) )
 
-FC_REFLECT( eosio::chain::shared_producer_change_map, (producer_count)(changes) )
-FC_REFLECT( eosio::chain::producer_change_map, (producer_count)(changes) )
+FC_REFLECT( eosio::chain::shared_producer_change_map, (clear_existed)(producer_count)(changes) )
+FC_REFLECT( eosio::chain::producer_change_map, (clear_existed)(producer_count)(changes) )
 
 FC_REFLECT( eosio::chain::proposed_producer_changes, (main_changes)(backup_changes) )
 FC_REFLECT( eosio::chain::shared_producer_schedule_change, (version)(main_changes)(backup_changes) )

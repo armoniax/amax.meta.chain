@@ -36,10 +36,11 @@ namespace test {
    >;
 
    struct producer_change_map {
+      bool      clear_existed = false; // clear existed producers before change
       uint32_t  producer_count = 0; // the total producer count after change
       map<name, producer_change_record> changes;
 
-      EOSLIB_SERIALIZE( producer_change_map, (producer_count)(changes) )
+      EOSLIB_SERIALIZE( producer_change_map, (clear_existed)(producer_count)(changes) )
    };
 
    struct proposed_producer_changes {

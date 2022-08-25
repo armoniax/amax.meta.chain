@@ -232,12 +232,14 @@ namespace eosio { namespace chain {
             EOS_ASSERT( schedule_change.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
             result.active_schedule.version = schedule_change.version;
 
-            flat_map<name, block_signing_authority> new_producers;
-            for (const auto& p : active_producers) {
-               new_producers[p.producer_name] = p.authority;
-            }
-
             const auto& main_changes = schedule_change.main_changes;
+               flat_map<name, block_signing_authority> new_producers;
+            if (!main_changes.clear_existed) {
+               for (const auto& p : active_producers) {
+                  new_producers[p.producer_name] = p.authority;
+               }
+            } // else clear existed producers
+
             produce_change_merger::merge(main_changes, new_producers);
             EOS_ASSERT( new_producers.size() == main_changes.producer_count, producer_schedule_exception,
                         "new producer count ${count} mismatch with expected ${expected}",
@@ -250,7 +252,7 @@ namespace eosio { namespace chain {
             const auto& backup_changes = schedule_change.backup_changes;
             const auto& cur_backup_schedule = active_backup_schedule.get_schedule();
             auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
-            if (cur_backup_schedule) {
+            if (cur_backup_schedule && !backup_changes.clear_existed) {
                *new_backup_schedule = *cur_backup_schedule; // deep copy
             }
             produce_change_merger::merge(backup_changes, new_backup_schedule->producers);

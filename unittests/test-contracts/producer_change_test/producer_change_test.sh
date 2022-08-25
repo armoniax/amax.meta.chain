@@ -98,6 +98,7 @@ changes=$( cat <<EOF
 {
     "changes": {
         "main_changes": {
+            "clear_existed": 0,
             "producer_count": 1,
             "changes": [
                 [
@@ -132,6 +133,7 @@ changes=$( cat <<EOF
             ]
         },
         "backup_changes": {
+            "clear_existed": 0,
             "producer_count": 1,
             "changes": [
                 [
