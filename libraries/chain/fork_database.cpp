@@ -133,20 +133,20 @@ namespace eosio
                fc::raw::unpack(ds, num_blocks_to_backup_siblings);
                my->backup_siblings_to_root.clear();
                for(uint32_t i = 0, n = num_blocks_to_backup_siblings.value; i < n; ++i){
-                  block_state s;
-                  fc::raw::unpack(ds, s);
-                  my->backup_siblings_to_root.insert(std::pair( s.id, std::make_shared<block_state>(move(s))));
+                  block_state_ptr s = std::make_shared<block_state>();
+                  fc::raw::unpack(ds, *s);
+                  my->backup_siblings_to_root.insert(std::pair( s->id, s));
                }
 
                unsigned_int size;
                fc::raw::unpack(ds, size);
                for (uint32_t i = 0, n = size.value; i < n; ++i)
                {
-                  block_state s;
-                  fc::raw::unpack(ds, s);
+                  block_state_ptr s = std::make_shared<block_state>();
+                  fc::raw::unpack(ds, *s);
                   // do not populate transaction_metadatas, they will be created as needed in apply_block with appropriate key recovery
-                  s.header_exts = s.block->validate_and_extract_header_extensions();
-                  my->add(std::make_shared<block_state>(move(s)), false, true, validator);
+                  s->header_exts = s->block->validate_and_extract_header_extensions();
+                  my->add(s, false, true, validator);
                }
                block_id_type head_id;
                fc::raw::unpack(ds, head_id);
