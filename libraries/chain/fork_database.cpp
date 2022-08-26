@@ -128,6 +128,15 @@ namespace eosio
                block_header_state bhs;
                fc::raw::unpack(ds, bhs);
                reset(bhs);
+               
+               unsigned_int num_blocks_to_backup_siblings;
+               fc::raw::unpack(ds, num_blocks_to_backup_siblings);
+               my->backup_siblings_to_root.clear();
+               for(uint32_t i = 0, n = num_blocks_to_backup_siblings.value; i < n; ++i){
+                  block_state s;
+                  fc::raw::unpack(ds, s);
+                  my->backup_siblings_to_root.insert(std::pair( s.id, std::make_shared<block_state>(move(s))));
+               }
 
                unsigned_int size;
                fc::raw::unpack(ds, size);
@@ -200,6 +209,14 @@ namespace eosio
          fc::raw::pack(out, magic_number);
          fc::raw::pack(out, max_supported_version); // write out current version which is always max_supported_version
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root));
+         //Here to insert logic that saves backup_siblings_to_root which will be loaded into backup_siblings_to_root.
+         //when next time app launch.
+         uint32_t num_blocks_to_backup_siblings = my->backup_siblings_to_root.size();
+         fc::raw::pack(out, unsigned_int{num_blocks_to_backup_siblings});
+         std::map<block_id_type, block_state_ptr>::iterator it = my->backup_siblings_to_root.begin();
+         for( ; it != my->backup_siblings_to_root.end(); ++it){
+            fc::raw::pack(out, *(it->second));
+         }
          uint32_t num_blocks_in_fork_db = my->index.size();
          fc::raw::pack(out, unsigned_int{num_blocks_in_fork_db});
 
