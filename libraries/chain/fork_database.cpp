@@ -19,8 +19,8 @@ namespace eosio
 
       const uint32_t fork_database::magic_number = 0x30510FDB;
 
-      const uint32_t fork_database::min_supported_version = 1;
-      const uint32_t fork_database::max_supported_version = 1;
+      const uint32_t fork_database::min_supported_version = 2;
+      const uint32_t fork_database::max_supported_version = 2;
 
       // work around block_state::is_valid being private
       inline bool block_state_is_valid(const block_state &bs)
@@ -209,13 +209,10 @@ namespace eosio
          fc::raw::pack(out, magic_number);
          fc::raw::pack(out, max_supported_version); // write out current version which is always max_supported_version
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root));
-         //Here to insert logic that saves backup_siblings_to_root which will be loaded into backup_siblings_to_root.
-         //when next time app launch.
          uint32_t num_blocks_to_backup_siblings = my->backup_siblings_to_root.size();
          fc::raw::pack(out, unsigned_int{num_blocks_to_backup_siblings});
-         std::map<block_id_type, block_state_ptr>::iterator it = my->backup_siblings_to_root.begin();
-         for( ; it != my->backup_siblings_to_root.end(); ++it){
-            fc::raw::pack(out, *(it->second));
+         for( const auto& bs : my->backup_siblings_to_root){
+            fc::raw::pack(out, *(bs.second));
          }
          uint32_t num_blocks_in_fork_db = my->index.size();
          fc::raw::pack(out, unsigned_int{num_blocks_in_fork_db});
@@ -321,6 +318,7 @@ namespace eosio
          }
          const auto &previdx = my->index.get<by_prev>();
          auto previtr = previdx.lower_bound(new_root->header.previous);
+         my->backup_siblings_to_root.clear();
          while (previtr != previdx.end()){
              if( (*previtr)->block->is_backup && (*previtr)->header.previous == new_root->header.previous ) {
                  my->backup_siblings_to_root.insert(std::pair((*previtr)->block->id(),(*previtr)));
