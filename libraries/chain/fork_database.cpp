@@ -19,8 +19,8 @@ namespace eosio
 
       const uint32_t fork_database::magic_number = 0x30510FDB;
 
-      const uint32_t fork_database::min_supported_version = 1;
-      const uint32_t fork_database::max_supported_version = 1;
+      const uint32_t fork_database::min_supported_version = 2;
+      const uint32_t fork_database::max_supported_version = 2;
 
       // work around block_state::is_valid being private
       inline bool block_state_is_valid(const block_state &bs)
@@ -128,16 +128,25 @@ namespace eosio
                block_header_state bhs;
                fc::raw::unpack(ds, bhs);
                reset(bhs);
+               
+               unsigned_int num_blocks_to_backup_siblings;
+               fc::raw::unpack(ds, num_blocks_to_backup_siblings);
+               my->backup_siblings_to_root.clear();
+               for(uint32_t i = 0, n = num_blocks_to_backup_siblings.value; i < n; ++i){
+                  block_state_ptr s = std::make_shared<block_state>();
+                  fc::raw::unpack(ds, *s);
+                  my->backup_siblings_to_root.insert(std::pair( s->id, s));
+               }
 
                unsigned_int size;
                fc::raw::unpack(ds, size);
                for (uint32_t i = 0, n = size.value; i < n; ++i)
                {
-                  block_state s;
-                  fc::raw::unpack(ds, s);
+                  block_state_ptr s = std::make_shared<block_state>();
+                  fc::raw::unpack(ds, *s);
                   // do not populate transaction_metadatas, they will be created as needed in apply_block with appropriate key recovery
-                  s.header_exts = s.block->validate_and_extract_header_extensions();
-                  my->add(std::make_shared<block_state>(move(s)), false, true, validator);
+                  s->header_exts = s->block->validate_and_extract_header_extensions();
+                  my->add(s, false, true, validator);
                }
                block_id_type head_id;
                fc::raw::unpack(ds, head_id);
@@ -200,6 +209,11 @@ namespace eosio
          fc::raw::pack(out, magic_number);
          fc::raw::pack(out, max_supported_version); // write out current version which is always max_supported_version
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root));
+         uint32_t num_blocks_to_backup_siblings = my->backup_siblings_to_root.size();
+         fc::raw::pack(out, unsigned_int{num_blocks_to_backup_siblings});
+         for( const auto& bs : my->backup_siblings_to_root){
+            fc::raw::pack(out, *(bs.second));
+         }
          uint32_t num_blocks_in_fork_db = my->index.size();
          fc::raw::pack(out, unsigned_int{num_blocks_in_fork_db});
 
@@ -304,6 +318,7 @@ namespace eosio
          }
          const auto &previdx = my->index.get<by_prev>();
          auto previtr = previdx.lower_bound(new_root->header.previous);
+         my->backup_siblings_to_root.clear();
          while (previtr != previdx.end()){
              if( (*previtr)->block->is_backup && (*previtr)->header.previous == new_root->header.previous ) {
                  my->backup_siblings_to_root.insert(std::pair((*previtr)->block->id(),(*previtr)));
