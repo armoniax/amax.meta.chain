@@ -2050,9 +2050,9 @@ struct controller_impl {
       auto existing = fork_db.get_block( id );
       EOS_ASSERT( !existing, fork_database_exception, "we already know about this block: ${id}", ("id", id) );
 
-      auto prev = fork_db.get_block_header( b->previous );
+      auto prev = fork_db.get_block_header( b->previous, b->is_backup );
       EOS_ASSERT( prev, unlinkable_block_exception,
-                  "unlinkable block ${id}", ("id", id)("previous", b->previous) );
+                  "unlinkable block ${id} ${previous}", ("id", id)("previous", b->previous) );
       //fix me
       if(b->is_backup){
          dlog("received block is backup block, producer: ${bp}",("bp",b->producer));

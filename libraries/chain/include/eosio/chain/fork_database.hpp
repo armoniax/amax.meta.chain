@@ -28,7 +28,7 @@ namespace eosio { namespace chain {
                                               const vector<digest_type>& )>& validator );
          void close();
 
-         block_header_state_ptr  get_block_header( const block_id_type& id )const;
+         block_header_state_ptr  get_block_header( const block_id_type& id , bool is_backup = false )const;
          block_state_ptr         get_block( const block_id_type& id )const;
          block_state_ptr         get_backup_head_block( const block_id_type head_prev) const;
          /**
