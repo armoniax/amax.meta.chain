@@ -310,7 +310,6 @@ namespace eosio
          EOS_ASSERT(my->root, fork_database_exception, "root not yet set");
 
          auto new_root = get_block(id);
-         auto old_root_previous = my->root_previous;
          if(new_root->header.previous == my->root->id){
             my->root_previous = my->root;
          }else{
@@ -351,9 +350,6 @@ namespace eosio
          {
             remove(block_id);
          }
-         //delete orphan backup block refer to root_previous when rp move to new block point.
-         if (old_root_previous)
-            remove(old_root_previous->id);
 
          // Even though fork database no longer needs block or trxs when a block state becomes a root of the tree,
          // avoid mutating the block state at all, for example clearing the block shared pointer, because other
@@ -392,7 +388,14 @@ namespace eosio
          auto prev_bh = self.get_block_header(n->header.previous, n->header.is_backup);
          
          EOS_ASSERT(prev_bh, unlinkable_block_exception,
-                    "unlinkable block", ("id", n->id)("previous", n->header.previous)); 
+                    "unlinkable block", ("id", n->id)("previous", n->header.previous));
+
+         //add backup block same num as root in its siblings
+         if (n->block_num == root->block_num && n->header.is_backup) 
+         {
+             backup_siblings_to_root.insert(std::pair(n->id,n));
+             return;
+         }
 
          // ensure backup active schedule is valid
          n->active_backup_schedule.ensure_pre_schedule(prev_bh->active_backup_schedule);
