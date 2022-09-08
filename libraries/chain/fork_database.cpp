@@ -390,13 +390,6 @@ namespace eosio
          EOS_ASSERT(prev_bh, unlinkable_block_exception,
                     "unlinkable block", ("id", n->id)("previous", n->header.previous));
 
-         //add backup block same num as root in its siblings
-         if (n->block_num == root->block_num && n->header.is_backup) 
-         {
-             backup_siblings_to_root.insert(std::pair(n->id,n));
-             return;
-         }
-
          // ensure backup active schedule is valid
          n->active_backup_schedule.ensure_pre_schedule(prev_bh->active_backup_schedule);
 
@@ -413,6 +406,13 @@ namespace eosio
                }
             }
             EOS_RETHROW_EXCEPTIONS(fork_database_exception, "serialized fork database is incompatible with configured protocol features")
+         }
+         
+         //add backup block same num as root in its siblings
+         if (n->header.previous == root->header.previous && n->header.is_backup) 
+         {
+             backup_siblings_to_root.insert(std::pair(n->id,n));
+             return;
          }
 
          auto inserted = index.insert(n);
