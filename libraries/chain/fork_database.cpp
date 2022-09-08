@@ -310,6 +310,7 @@ namespace eosio
          EOS_ASSERT(my->root, fork_database_exception, "root not yet set");
 
          auto new_root = get_block(id);
+         auto old_root_previous = my->root_previous;
          if(new_root->header.previous == my->root->id){
             my->root_previous = my->root;
          }else{
@@ -350,6 +351,9 @@ namespace eosio
          {
             remove(block_id);
          }
+         //delete orphan backup block refer to root_previous when rp move to new block point.
+         if (old_root_previous)
+            remove(old_root_previous->id);
 
          // Even though fork database no longer needs block or trxs when a block state becomes a root of the tree,
          // avoid mutating the block state at all, for example clearing the block shared pointer, because other
@@ -573,12 +577,6 @@ namespace eosio
             if (itr != my->index.end())
                my->index.erase(itr);
          }
-      }
-
-      void  fork_database::remove_orphan_backup(const block_id_type& id){
-            auto itr = my->index.find(id);
-            if (itr != my->index.end())
-               my->index.erase(itr);
       }
 
       void fork_database::mark_valid(const block_state_ptr &h)
