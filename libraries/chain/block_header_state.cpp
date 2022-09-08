@@ -461,7 +461,7 @@ namespace eosio { namespace chain {
       result.header  = h;
 
       result.header_exts = std::move(exts);
-
+      result.is_backup   = is_backup;
       if( maybe_new_producer_schedule.which() > 0 ) {
          result.pending_schedule.schedule = std::move(maybe_new_producer_schedule);
          result.pending_schedule.schedule_hash = std::move(*maybe_new_producer_schedule_hash);
