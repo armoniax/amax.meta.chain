@@ -76,7 +76,7 @@ namespace eosio
          fork_database &self;
          fork_multi_index_type index;
          block_state_ptr root; // Only uses the block_header_state portion
-         block_state_ptr root_previous_state; // this piont to root's previous block state
+         block_state_ptr root_previous; // this piont to root's previous block state
          std::map<block_id_type, block_state_ptr> backup_siblings_to_root; //point to backup blocks to root(only exist in memory not in index, same block num with root)
          block_state_ptr head;
          fc::path datadir;
@@ -126,6 +126,10 @@ namespace eosio
                           "Fork database version is ${version} while code supports version(s) [${min},${max}]",
                           ("filename", fork_db_dat.generic_string())("version", version)("min", min_supported_version)("max", max_supported_version));
 
+               block_header_state pbhs;
+               fc::raw::unpack(ds, pbhs);
+               my->root_previous = std::make_shared<block_state>();
+               static_cast<block_header_state &>(*my->root_previous) = pbhs;
                block_header_state bhs;
                fc::raw::unpack(ds, bhs);
                reset(bhs);
@@ -209,6 +213,7 @@ namespace eosio
          std::ofstream out(fork_db_dat.generic_string().c_str(), std::ios::out | std::ios::binary | std::ofstream::trunc);
          fc::raw::pack(out, magic_number);
          fc::raw::pack(out, max_supported_version); // write out current version which is always max_supported_version
+         fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root_previous));
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root));
          uint32_t num_blocks_to_backup_siblings = my->backup_siblings_to_root.size();
          fc::raw::pack(out, unsigned_int{num_blocks_to_backup_siblings});
@@ -306,9 +311,9 @@ namespace eosio
 
          auto new_root = get_block(id);
          if(new_root->header.previous == my->root->id){
-            my->root_previous_state = my->root;
+            my->root_previous = my->root;
          }else{
-            my->root_previous_state = get_block(new_root->header.previous);
+            my->root_previous = get_block(new_root->header.previous);
          }
          
          EOS_ASSERT(new_root, fork_database_exception,
@@ -354,7 +359,7 @@ namespace eosio
          my->root->active_backup_schedule.ensure_persisted();
       }
 
-      block_header_state_ptr fork_database::get_block_header(const block_id_type &id, bool is_backup) const
+      block_header_state_ptr fork_database::get_block_header(const block_id_type &id, bool finding_root_previous) const
       {
          const auto &by_id_idx = my->index.get<by_block_id>();
 
@@ -365,8 +370,8 @@ namespace eosio
          auto itr = my->index.find(id);
          if (itr != my->index.end())
             return *itr;
-         if(is_backup && my->root_previous_state && id == my->root_previous_state->id)
-            return my->root_previous_state;
+         if(finding_root_previous && my->root_previous && id == my->root_previous->id)
+            return my->root_previous;
          
          return block_header_state_ptr();
       }
@@ -380,17 +385,10 @@ namespace eosio
          EOS_ASSERT(root, fork_database_exception, "root not yet set");
          EOS_ASSERT(n, fork_database_exception, "attempt to add null block state");
 
-         auto prev_bh = self.get_block_header(n->header.previous);
-         if(!n->header.is_backup){
-            EOS_ASSERT(prev_bh, unlinkable_block_exception,
+         auto prev_bh = self.get_block_header(n->header.previous, n->header.is_backup);
+         
+         EOS_ASSERT(prev_bh, unlinkable_block_exception,
                     "unlinkable block", ("id", n->id)("previous", n->header.previous)); 
-         }else if(!prev_bh){
-            EOS_ASSERT(n->header.previous == root->header.previous, unlinkable_block_exception,
-                    "unlinkable block", ("id", n->id)("previous", n->header.previous));
-         }else{
-            EOS_ASSERT(prev_bh, unlinkable_block_exception,
-                    "unlinkable block", ("id", n->id)("previous", n->header.previous));
-         }
 
          // ensure backup active schedule is valid
          n->active_backup_schedule.ensure_pre_schedule(prev_bh->active_backup_schedule);
@@ -575,6 +573,12 @@ namespace eosio
             if (itr != my->index.end())
                my->index.erase(itr);
          }
+      }
+
+      void  fork_database::remove_orphan_backup(const block_id_type& id){
+            auto itr = my->index.find(id);
+            if (itr != my->index.end())
+               my->index.erase(itr);
       }
 
       void fork_database::mark_valid(const block_state_ptr &h)

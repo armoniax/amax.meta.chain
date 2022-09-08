@@ -395,6 +395,8 @@ struct controller_impl {
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
          EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
+         //delete orphan backup block refer to root_previous when rp move to new block point.
+         fork_db.remove_orphan_backup(backup_id);
          fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
          // if( backup_block != nullptr ){
