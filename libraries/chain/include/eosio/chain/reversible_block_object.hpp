@@ -41,7 +41,7 @@ namespace eosio { namespace chain {
          fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
          block_header h;
          fc::raw::unpack( ds, h );
-         return h.previous_backup;
+         return h.previous_backup();
       }
    };
 

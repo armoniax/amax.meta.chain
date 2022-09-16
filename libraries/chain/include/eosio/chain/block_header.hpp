@@ -84,34 +84,34 @@ namespace eosio { namespace chain {
       static uint32_t   num_from_id(const block_id_type& id);
       flat_multimap<uint16_t, block_header_extension> validate_and_extract_header_extensions()const;
       //previous_backup block id
-      block_id_type                    previous_backup = fc::sha256();
+      block_id_type                    previous_backup_ = fc::sha256();
       //flag to main block or backup
-      bool                             is_backup = false;
+      bool                             is_backup_ = false;
       bool                             is_extracted = false;
-      bool is_backup_header(){
-         if( !is_extracted ){
-            const auto& header_ext = validate_and_extract_header_extensions();
-            if( header_ext.count(backup_block_extension::extension_id()) > 0 ){
-               auto& backup_ext = header_ext.lower_bound(backup_block_extension::extension_id())->second.get<backup_block_extension>();
-               is_backup = backup_ext.is_backup;
-               previous_backup = backup_ext.previous_backup;
-            }
-            is_extracted = true;
+
+      void extract_backup_block_extension(){
+         const auto& header_ext = validate_and_extract_header_extensions();
+         if( header_ext.count(backup_block_extension::extension_id()) > 0 ){
+            auto& backup_ext = header_ext.lower_bound(backup_block_extension::extension_id())->second.get<backup_block_extension>();
+            is_backup_ = backup_ext.is_backup;
+            previous_backup_ = backup_ext.previous_backup;
          }
-         return is_backup;
       }
 
-      block_id_type previous_backup_header(){
+      bool is_backup(){
          if( !is_extracted ){
-            const auto& header_ext = validate_and_extract_header_extensions();
-            if( header_ext.count(backup_block_extension::extension_id()) > 0 ){
-               auto& backup_ext = header_ext.lower_bound(backup_block_extension::extension_id())->second.get<backup_block_extension>();
-               is_backup = backup_ext.is_backup;
-               previous_backup = backup_ext.previous_backup;
-            }
+            extract_backup_block_extension();
             is_extracted = true;
          }
-         return previous_backup;
+         return is_backup_;
+      }
+
+      block_id_type previous_backup(){
+         if( !is_extracted ){
+            extract_backup_block_extension();
+            is_extracted = true;
+         }
+         return previous_backup_;
       }
    };
 

@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_SUITE(producer_change_tests)
       auto backup_block1 = bbc.produce_block();
 
       BOOST_REQUIRE_EQUAL( bbc.control->head_block_id(), c.control->head_block_id() );
-      BOOST_REQUIRE_EQUAL( backup_block1->is_backup, true );
+      BOOST_REQUIRE_EQUAL( backup_block1->is_backup(), true );
       BOOST_REQUIRE_EQUAL( backup_block1->block_num(), c.control->head_block_num() + 1 );
       BOOST_REQUIRE_EQUAL( backup_block1->previous, c.control->head_block_id() );
 
