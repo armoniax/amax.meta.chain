@@ -332,7 +332,7 @@ namespace eosio
          auto previtr = previdx.lower_bound(new_root->header.previous);
          my->backup_siblings_to_root.clear();
          while (previtr != previdx.end()){
-             if( (*previtr)->block->is_backup && (*previtr)->header.previous == new_root->header.previous ) {
+             if( (*previtr)->block->is_backup_header() && (*previtr)->header.previous == new_root->header.previous ) {
                  my->backup_siblings_to_root.insert(std::pair((*previtr)->block->id(),(*previtr)));
              }
              ++previtr;
@@ -385,7 +385,7 @@ namespace eosio
          EOS_ASSERT(root, fork_database_exception, "root not yet set");
          EOS_ASSERT(n, fork_database_exception, "attempt to add null block state");
 
-         auto prev_bh = self.get_block_header(n->header.previous, n->header.is_backup);
+         auto prev_bh = self.get_block_header(n->header.previous, n->header.is_backup_header());
          
          EOS_ASSERT(prev_bh, unlinkable_block_exception,
                     "unlinkable block", ("id", n->id)("previous", n->header.previous));
@@ -409,7 +409,7 @@ namespace eosio
          }
          
          //add backup block same num as root in its siblings
-         if (n->header.previous == root->header.previous && n->header.is_backup) 
+         if (n->header.previous == root->header.previous && n->header.is_backup_header()) 
          {
              backup_siblings_to_root.insert(std::pair(n->id,n));
              return;
