@@ -325,11 +325,12 @@ namespace eosio { namespace chain {
       h.producer          = producer;
       h.confirmed         = confirmed;
       h.previous          = previous;
-      h.previous_backup   = pre_backup;
-      h.is_backup         = is_backup;
+      h._previous_backup   = pre_backup;
+      h._is_backup         = is_backup;
       h.transaction_mroot = transaction_mroot;
       h.action_mroot      = action_mroot;
       h.schedule_version  = active_schedule_version;
+      h.is_extracted      = true;
 
       if( new_protocol_feature_activations.size() > 0 ) {
          emplace_extension(
@@ -341,6 +342,12 @@ namespace eosio { namespace chain {
 
       emplace_produce_change_ext_visitor produce_change_visitor(pfs, prev_activated_protocol_features, h);
       producer_schedule_change.visit(produce_change_visitor);
+
+      emplace_extension(
+         h.header_extensions,
+         backup_block_extension::extension_id(),
+         fc::raw::pack( backup_block_extension{pre_backup, is_backup})
+      );
 
       // if (new_producers) {
       //    if ( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::wtmsig_block_signatures) ) {
@@ -551,7 +558,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed, h.is_backup, h.previous_backup ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed, h.is_backup(), h.previous_backup() ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {

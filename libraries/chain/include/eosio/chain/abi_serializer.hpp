@@ -509,15 +509,15 @@ namespace impl {
       template<typename Resolver>
       static void add( mutable_variant_object &out, const char* name, const signed_block& block, Resolver resolver, abi_traverse_context& ctx )
       {
-         static_assert(fc::reflector<signed_block>::total_member_count == 14);
+         static_assert(fc::reflector<signed_block>::total_member_count == 12);
          auto h = ctx.enter_scope();
          mutable_variant_object mvo;
          mvo("timestamp", block.timestamp);
          mvo("producer", block.producer);
          mvo("confirmed", block.confirmed);
          mvo("previous", block.previous);
-         mvo("previous_backup",block.previous_backup);
-         mvo("is_backup",block.is_backup);
+         // mvo("previous_backup",block.previous_backup);
+         // mvo("is_backup",block.is_backup);
          mvo("transaction_mroot", block.transaction_mroot);
          mvo("action_mroot", block.action_mroot);
          mvo("schedule_version", block.schedule_version);
@@ -544,6 +544,11 @@ namespace impl {
          if ( header_exts.count(producer_schedule_change_extension_v2::extension_id())) {
             const auto& producer_schedule_change = header_exts.lower_bound(producer_schedule_change_extension_v2::extension_id())->second.get<producer_schedule_change_extension_v2>();
             mvo("producer_schedule_change", producer_schedule_change);
+         }
+
+         if ( header_exts.count(backup_block_extension::extension_id())) {
+            const auto& backup_ext = header_exts.lower_bound(backup_block_extension::extension_id())->second.get<backup_block_extension>();
+            mvo("backup_block_extension", backup_ext);
          }
 
          mvo("producer_signature", block.producer_signature);

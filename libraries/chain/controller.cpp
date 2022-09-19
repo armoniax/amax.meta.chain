@@ -390,7 +390,7 @@ struct controller_impl {
    }
 
    void log_full_irreversible( std::reverse_iterator<eosio::chain::branch_type::const_iterator> it ) {
-      block_id_type backup_id = (*it)->block->previous_backup;
+      block_id_type backup_id = (*it)->block->previous_backup();
       full_block_ptr fptr;
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
@@ -1940,7 +1940,7 @@ struct controller_impl {
          const auto& new_protocol_feature_activations = bsp->get_new_protocol_feature_activations();
 
          auto producer_block_id = b->id();
-         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup, b->previous_backup);
+         start_block( b->timestamp, b->confirmed, new_protocol_feature_activations, s, producer_block_id, b->is_backup(), b->previous_backup());
 
          const bool existing_trxs_metas = !bsp->trxs_metas().empty();
          const bool pub_keys_recovered = bsp->is_pub_keys_recovered();
@@ -2050,11 +2050,11 @@ struct controller_impl {
       auto existing = fork_db.get_block( id );
       EOS_ASSERT( !existing, fork_database_exception, "we already know about this block: ${id}", ("id", id) );
 
-      auto prev = fork_db.get_block_header( b->previous, b->is_backup );
+      auto prev = fork_db.get_block_header( b->previous, b->is_backup() );
       EOS_ASSERT( prev, unlinkable_block_exception,
                   "unlinkable block ${id} ${previous}", ("id", id)("previous", b->previous) );
       //fix me
-      if(b->is_backup){
+      if(b->is_backup()){
          dlog("received block is backup block, producer: ${bp}",("bp",b->producer));
          self.set_verify_mode(true);
          prev->next_is_backup = true;

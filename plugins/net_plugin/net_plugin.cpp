@@ -60,11 +60,11 @@ namespace eosio {
    }
 
    static signed_block_ptr fetch_backup_block_by_main(controller& cc, const signed_block_ptr& main_block) {
-      if (main_block && !main_block->is_backup) {
-         if (main_block->previous_backup != block_id_type()) {
-            auto backup_block = cc.fetch_block_by_id( main_block->previous_backup );
+      if (main_block && !main_block->is_backup()) {
+         if (main_block->previous_backup() != block_id_type()) {
+            auto backup_block = cc.fetch_block_by_id( main_block->previous_backup() );
             // TODO: backup_block_not_found_exception
-            EOS_ASSERT( backup_block, plugin_exception, "backup block ${bb} not found by main block ${mb}", ("bb", main_block->previous_backup)("mb", main_block->id()));
+            EOS_ASSERT( backup_block, plugin_exception, "backup block ${bb} not found by main block ${mb}", ("bb", main_block->previous_backup())("mb", main_block->id()));
             return backup_block;
          }
       }
@@ -2049,7 +2049,7 @@ namespace eosio {
       if( !have_connection ) return;
       std::shared_ptr<std::vector<char>> send_buffer = create_send_buffer( b );
 
-      optional<block_id_type> previous_backup = !b->is_backup && b->previous_backup != block_id_type() ? b->previous_backup : optional<block_id_type>();
+      optional<block_id_type> previous_backup = !b->is_backup() && b->previous_backup() != block_id_type() ? b->previous_backup() : optional<block_id_type>();
 
       for_each_block_connection( [this, &id, bnum = b->block_num(), &send_buffer, &previous_backup]( auto& cp ) {
          if( !cp->current() ) {
@@ -2541,10 +2541,10 @@ namespace eosio {
                if (backup_block) {
                   auto received_backup_id = backup_block->id();
                   auto backup_blk_num = backup_block->block_num();
-                  if (main_block->previous_backup != received_backup_id) {
-                     fc_ilog( logger, "backup block id mismatched, received block id:${id}",
+                  if (main_block->previous_backup() != received_backup_id) {
+                     fc_ilog( logger, "backup block id mismatched, received block id:${id} pre:${previous_backup} rev:${received_backup}",
                               ("id", blk_id)
-                              ("previous_backup", main_block->previous_backup)
+                              ("previous_backup", main_block->previous_backup())
                               ("received_backup", received_backup_id) );
                      close();
                      return false;
@@ -2566,10 +2566,10 @@ namespace eosio {
                      }
                   }
                } else {
-                  if (main_block->previous_backup != block_id_type()) {
+                  if (main_block->previous_backup() != block_id_type()) {
                      fc_ilog( logger, "received block id:${id} contained previous_backup:${previous_backup}, but receved backup block is empty",
                               ("id", blk_id)
-                              ("previous_backup", main_block->previous_backup));
+                              ("previous_backup", main_block->previous_backup()));
                      close();
                      return false;
                   }
