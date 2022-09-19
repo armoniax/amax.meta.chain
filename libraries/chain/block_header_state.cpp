@@ -330,6 +330,7 @@ namespace eosio { namespace chain {
       h.transaction_mroot = transaction_mroot;
       h.action_mroot      = action_mroot;
       h.schedule_version  = active_schedule_version;
+      h.is_extracted      = true;
 
       if( new_protocol_feature_activations.size() > 0 ) {
          emplace_extension(
