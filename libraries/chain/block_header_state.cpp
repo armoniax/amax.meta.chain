@@ -325,8 +325,8 @@ namespace eosio { namespace chain {
       h.producer          = producer;
       h.confirmed         = confirmed;
       h.previous          = previous;
-      h.previous_backup_   = pre_backup;
-      h.is_backup_         = is_backup;
+      h._previous_backup   = pre_backup;
+      h._is_backup         = is_backup;
       h.transaction_mroot = transaction_mroot;
       h.action_mroot      = action_mroot;
       h.schedule_version  = active_schedule_version;
@@ -557,8 +557,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      auto temp = const_cast<signed_block_header*>(&h);
-      return next( h.timestamp, h.confirmed, temp->is_backup(), temp->previous_backup() ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed, h.is_backup(), h.previous_backup() ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {

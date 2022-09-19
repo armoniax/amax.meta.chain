@@ -202,7 +202,7 @@ struct block_header_state : public detail::block_header_state_common {
    digest_type            sig_digest()const;
    void                   sign( const signer_callback_type& signer );
    void                   verify_signee()const;
-   bool                   is_header_backup()const{return const_cast<signed_block_header*>(&header)->is_backup();}
+   bool                   is_header_backup()const{return header.is_backup();}
    const vector<digest_type>& get_new_protocol_feature_activations()const;
 };
 
