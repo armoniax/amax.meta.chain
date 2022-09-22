@@ -173,6 +173,28 @@ may use a new `set_proposed_producers_ex` intrinsic to access extended features.
 */
             {}
          } )
+         (  builtin_protocol_feature_t::apos, builtin_protocol_feature_spec{
+            "APOS",
+            fc::variant("367385a71c5826c699f7d265404cc2b857a1c1f612a273069de88bfb80f15020").as<digest_type>(),
+            //SHA256 hash of the raw message below within the comment delimiters (do not modify message below).
+/*
+the core framework of APOS is as follows:
+
+1.All network nodes that run AMC node software can participate in block production for both main and blocks that form AMC main and backup chain(s);
+2.The nodes elected through a non-stop voting process and rank top 21 in the list become the main nodes and the remaining 10,000 nodes are the backup nodes;
+3.The voting process requires the candidate nodes to stake a certain amount of $AMAX tokens in order to receive votes from the Armonia community;
+4.The other nodes either in the main or backup node list are called observer nodes;
+5.The main nodes take turns according to VRF algorithm to produce main blocks and receive newly inflated $AMAX tokens;
+6.The backup nodes also take turns according to VRF algorithm but are applied in a much larger quorum (10,000 nodes for one backup chain) and each backup block mined will reward the miner with a certain amount of $AMAX tokens. The backup block must refer to the latest main block being produced by the main node;
+7.The main nodes shall include backup blocks when generating a main block and will be rewarded for correctly including a good backup block;
+8.When a bad backup block is included in the main block, it will not be accepted by the whole network and thus discarded by other nodes;
+9.When a main block is missing or faulty, the backup block will replace the main block to become the actual main block and the producer node thus receives the main block reward;
+10.The finality of main blocks is determined through implementation of an aBFT algorithm. However, the finality of backup blocks is determined by the main blocks;
+11.Transactions with main blocks must be not only verified but also executed to update the corresponding global state of the network, while the backup blocks are only required to be verified in order to be accepted by the whole network. In this way, it avoids the double-spending problem and allows for the nodes to conduct parallel processing for both main and backup blocks; and
+12.To prevent greedy or lazy nodes from cheating the network by producing empty or useless blocks that include useless fabricated transactions, reward to the backup nodes for producing backup blocks will correspond with the similarity of block transactions compared to those in the main blocks at the same height. Therefore, the reward will only be calculated and settled in the next block height.
+*/
+            {}
+         })
    ;
 
 
