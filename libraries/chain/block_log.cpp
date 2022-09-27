@@ -619,17 +619,17 @@ namespace eosio { namespace chain {
 
       std::exception_ptr     except_ptr;
       vector<char>           incomplete_block_data;
-      optional<signed_block> bad_block;
+      optional<full_block> bad_block;
       uint32_t               block_num = 0;
 
       block_id_type previous;
 
       uint64_t pos = old_block_stream.tellg();
       while( pos < end_pos ) {
-         signed_block tmp;
+         full_block tmp;
 
          try {
-            fc::raw::unpack(old_block_stream, tmp);
+            tmp.unpack(old_block_stream);
          } catch( ... ) {
             except_ptr = std::current_exception();
             incomplete_block_data.resize( end_pos - pos );
@@ -643,10 +643,10 @@ namespace eosio { namespace chain {
                   ("num", block_header::num_from_id(id))("id", id)
                   ("prev_num", block_header::num_from_id(previous))("previous", previous) );
          }
-         if( previous != tmp.previous ) {
+         if( previous != tmp.main_block->previous ) {
             elog( "Block ${num} (${id}) does not link back to previous block. "
                   "Expected previous: ${expected}. Actual previous: ${actual}.",
-                  ("num", block_header::num_from_id(id))("id", id)("expected", previous)("actual", tmp.previous) );
+                  ("num", block_header::num_from_id(id))("id", id)("expected", previous)("actual", tmp.main_block->previous) );
          }
          previous = id;
 
@@ -659,7 +659,7 @@ namespace eosio { namespace chain {
             break;
          }
 
-         auto data = fc::raw::pack(tmp);
+         auto data = tmp.pack();
          new_block_stream.write( data.data(), data.size() );
          new_block_stream.write( reinterpret_cast<char*>(&pos), sizeof(pos) );
          block_num = tmp.block_num();
@@ -672,7 +672,7 @@ namespace eosio { namespace chain {
 
       if( bad_block.valid() ) {
          ilog( "Recovered only up to block number ${num}. Last block in block log was not properly committed:\n${last_block}",
-               ("num", block_num)("last_block", *bad_block) );
+               ("num", block_num)("last_block", (*bad_block).main_block) );
       } else if( except_ptr ) {
          std::string error_msg;
 
