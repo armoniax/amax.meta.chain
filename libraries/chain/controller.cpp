@@ -403,11 +403,11 @@ struct controller_impl {
          // }else{
             //need to sync by net plugin.
          //    fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
-         // }   
+         // }
       }else{
          fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
       }
-      
+
       fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
       blog.append( fptr );
       fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block append successfully...");
@@ -450,7 +450,7 @@ struct controller_impl {
             db.commit( (*bitr)->block_num );
 
             root_id = (*bitr)->id;
-            
+
             log_full_irreversible(bitr);
 
             auto rbitr = rbi.begin();
@@ -1751,7 +1751,7 @@ struct controller_impl {
             pbhs.is_backup,
             pbhs.previous_backup
          ) );
-      
+
       if( pbhs.is_backup ){
          /**
          *@Description: when controller in backup mode, block should be backup block
@@ -1782,7 +1782,7 @@ struct controller_impl {
                                  std::move( bb._new_pending_producer_schedule )
                               };
    } FC_CAPTURE_AND_RETHROW() } /// finalize_block
-   
+
    /**
     * @post regardless of the success of commit block there is no active pending block
     */
@@ -2055,11 +2055,11 @@ struct controller_impl {
                   "unlinkable block ${id} ${previous}", ("id", id)("previous", b->previous) );
       //fix me
       if(b->is_backup()){
-         dlog("received block is backup block, producer: ${bp}",("bp",b->producer));
+         fc_dlog(_backup_block_trace_log, "received block is backup block, producer: ${bp}",("bp",b->producer));
          self.set_verify_mode(true);
          prev->next_is_backup = true;
       }else{
-         dlog("received block is main block, producer: ${bp}",("bp",b->producer));
+         fc_dlog(_backup_block_trace_log, "received block is main block, producer: ${bp}",("bp",b->producer));
          self.set_verify_mode(false);
          prev->next_is_backup = false;
       }
@@ -2112,7 +2112,7 @@ struct controller_impl {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");   
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
          }else if(!bsp->is_backup()){
             log_irreversibles();
          }
@@ -2733,7 +2733,7 @@ void controller::start_block( block_timestamp_type when,
    if( new_protocol_feature_activations.size() > 0 ) {
       validate_protocol_features( new_protocol_feature_activations );
    }
-   
+
    my->start_block( when, confirm_block_count, new_protocol_feature_activations,
                block_status::incomplete, optional<block_id_type>() , is_backup, pre_backup);
 
@@ -3126,7 +3126,7 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    }
 
    if (!gpo.proposed_schedule.producers.empty()) {
-      wlog( "there is already a proposed schedule set, wait for it to become active.");
+      wlog( "there is already a proposed schedule change set, wait for it to become active.");
       return -1;
    }
    const auto& pending_sch = pending_producer_schedule();
@@ -3141,6 +3141,11 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    }
    const auto& active_sch = active_producers();
    auto version = pending_change ? pending_change->version : active_sch.version;
+
+   if (changes.main_changes.empty() && changes.backup_changes.empty()) {
+      return version;
+   }
+
    version++;
 
    // TODO: check changes:
