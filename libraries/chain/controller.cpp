@@ -877,9 +877,24 @@ struct controller_impl {
       snapshot->write_section<chain_snapshot_header>([this]( auto &section ){
          section.add_row(chain_snapshot_header(), db);
       });
-
-      snapshot->write_section<block_state>([this]( auto &section ){
-         section.template add_row<block_header_state>(*fork_db.head(), db);
+      
+      snapshot->write_section<snapshot_block_header_state_v4>([this]( auto &section ){
+         block_state_ptr current_state =  fork_db.head();
+         current_state->active_backup_schedule.ensure_persisted();
+         block_state_ptr prev_state;
+         prev_state = fork_db.get_block(current_state->prev());
+         if( !prev_state ) prev_state = fork_db.root();
+         EOS_ASSERT( prev_state, snapshot_finalization_exception,"In snapshot v4, previous state of snapshot state can not be null" );
+         snapshot_block_header_state_v4 complete_state;
+         complete_state.pre_state_snapshoot = *prev_state;
+         complete_state.state_snapshot = *current_state;
+         /**
+          * when node is backup node, it can produce next backup block based current head state
+          * but in log "producer_plugin/produce_block/ilog:2431" predicates this backup block,
+          * block_state_ptr actually is block_header_state_ptr. this time SEGSEGV will be thrown
+          * because new_bs->block is null. **modify log format**.
+          */
+         section.template add_row<snapshot_block_header_state_v4>(complete_state, db);
       });
 
       controller_index_set::walk_indices([this, &snapshot]( auto utils ){
@@ -929,17 +944,26 @@ struct controller_impl {
       });
 
       { /// load and upgrade the block header state
+         block_header_state pre_head_header_state;
          block_header_state head_header_state;
          using v2 = legacy::snapshot_block_header_state_v2;
-
+         using v4 = snapshot_block_header_state_v4;
+         bool is_v4 = false;
          if (std::clamp(header.version, v2::minimum_version, v2::maximum_version) == header.version ) {
-            snapshot->read_section<block_state>([this, &head_header_state]( auto &section ) {
+            snapshot->read_section<block_header_state>([this, &head_header_state]( auto &section ) {
                legacy::snapshot_block_header_state_v2 legacy_header_state;
                section.read_row(legacy_header_state, db);
-               head_header_state = block_header_state(std::move(legacy_header_state));
+               //in Armonia network always cann't come here,because no history load.
+               head_header_state = block_header_state(std::move(legacy_header_state)); 
             });
-         } else {
-            snapshot->read_section<block_state>([this,&head_header_state]( auto &section ){
+         }else if( std::clamp(header.version, v4::minimum_version, v4::maximum_version) == header.version ){
+            snapshot->read_section<snapshot_block_header_state_v4>([this, &pre_head_header_state, &head_header_state]( auto &section ){
+               section.read_row(pre_head_header_state, db);
+               section.read_row(head_header_state, db);
+            });
+            is_v4 = true;
+         }else{
+            snapshot->read_section<block_header_state>([this,&head_header_state]( auto &section ){
                section.read_row(head_header_state, db);
             });
          }
@@ -954,6 +978,7 @@ struct controller_impl {
          );
 
          fork_db.reset( head_header_state );
+         if( is_v4 ) fork_db.set_root_previous( pre_head_header_state );
          head = fork_db.head();
          snapshot_head_block = head->block_num;
 
@@ -2051,7 +2076,8 @@ struct controller_impl {
       EOS_ASSERT( !existing, fork_database_exception, "we already know about this block: ${id}", ("id", id) );
 
       auto prev = fork_db.get_block_header( b->previous, b->is_backup() );
-      EOS_ASSERT( prev, unlinkable_block_exception,
+      //if start from snapshot, next main block may need "b->previous = head->block->previous" 
+      EOS_ASSERT( prev || b->previous == head->block->previous, unlinkable_block_exception,
                   "unlinkable block ${id} ${previous}", ("id", id)("previous", b->previous) );
       //fix me
       if(b->is_backup()){

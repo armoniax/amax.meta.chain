@@ -292,6 +292,13 @@ namespace eosio
          my->head = my->root;
       }
 
+      void fork_database::set_root_previous( const block_header_state& root_prev )
+      {
+         my->root_previous = std::make_shared<block_state>();
+         static_cast<block_header_state &>(*my->root_previous) = root_prev;
+         my->root_previous->validated = true;
+      }
+
       void fork_database::rollback_head_to_root()
       {
          auto &by_id_idx = my->index.get<by_block_id>();
