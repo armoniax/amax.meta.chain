@@ -17,7 +17,7 @@ namespace eosio { namespace chain {
       }
    }
 
-   struct produce_change_merger {
+   struct producer_change_merger {
 
       static void merge(const producer_change_map& change_map, flat_map<name, block_signing_authority> &producers) {
 
@@ -227,26 +227,26 @@ namespace eosio { namespace chain {
          } else {
             // merge producer changes to main active producers
             const auto& schedule_change = pending_schedule.schedule.get<producer_schedule_change>();
-            auto& active_producers = result.active_schedule.producers;
 
             EOS_ASSERT( schedule_change.version == active_schedule.version + 1, producer_schedule_exception, "wrong producer schedule version specified" );
             result.active_schedule.version = schedule_change.version;
 
             const auto& main_changes = schedule_change.main_changes;
-               flat_map<name, block_signing_authority> new_producers;
+            flat_map<name, block_signing_authority> new_producers;
             if (!main_changes.clear_existed) {
-               for (const auto& p : active_producers) {
+               for (const auto& p : active_schedule.producers) {
                   new_producers[p.producer_name] = p.authority;
                }
             } // else clear existed producers
 
-            produce_change_merger::merge(main_changes, new_producers);
+            producer_change_merger::merge(main_changes, new_producers);
             EOS_ASSERT( new_producers.size() == main_changes.producer_count, producer_schedule_exception,
                         "new producer count ${count} mismatch with expected ${expected}",
                         ("count", new_producers.size())("expected", main_changes.producer_count) );
-            active_producers.resize(new_producers.size());
+            auto& new_active_producers = result.active_schedule.producers;
+            new_active_producers.resize(new_producers.size());
             for (size_t i = 0; i < new_producers.size(); i++) {
-               active_producers[i] = producer_authority{std::move(new_producers.nth(i)->first), std::move(new_producers.nth(i)->second)};
+               new_active_producers[i] = producer_authority{std::move(new_producers.nth(i)->first), std::move(new_producers.nth(i)->second)};
             }
 
             const auto& backup_changes = schedule_change.backup_changes;
@@ -255,7 +255,7 @@ namespace eosio { namespace chain {
             if (cur_backup_schedule && !backup_changes.clear_existed) {
                *new_backup_schedule = *cur_backup_schedule; // deep copy
             }
-            produce_change_merger::merge(backup_changes, new_backup_schedule->producers);
+            producer_change_merger::merge(backup_changes, new_backup_schedule->producers);
             EOS_ASSERT( new_backup_schedule->producers.size() == backup_changes.producer_count, producer_schedule_exception,
                         "new producer count ${count} mismatch with expected ${expected}",
                         ("count", new_backup_schedule->producers.size())("expected", backup_changes.producer_count) );
@@ -344,7 +344,7 @@ namespace eosio { namespace chain {
 
       emplace_produce_change_ext_visitor produce_change_visitor(pfs, prev_activated_protocol_features, h);
       producer_schedule_change.visit(produce_change_visitor);
-      
+
       //check backup block extension is activated? syncing old data shouldn't emplace backup_block_extension
       if( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::apos ) ){
          emplace_extension(

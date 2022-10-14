@@ -1698,7 +1698,12 @@ struct controller_impl {
                      in_trx_requiring_checks = old_value;
                   });
                in_trx_requiring_checks = true;
-               push_transaction( onbtrx, fc::time_point::maximum(), self.get_global_properties().configuration.min_transaction_cpu_usage, true, 0 );
+               auto trace = push_transaction( onbtrx, fc::time_point::maximum(), self.get_global_properties().configuration.min_transaction_cpu_usage, true, 0 );
+               if( trace && trace->except &&
+                        (   trace->except->code() != eosio_assert_code_exception::code_value
+                        || (trace->error_code && *trace->error_code != 8000000000000000000) ) ) {
+                  wdump((*trace));
+               }
             } catch( const std::bad_alloc& e ) {
                elog( "on block transaction failed due to a std::bad_alloc" );
                throw;
@@ -3116,22 +3121,36 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    const auto& gpo = get_global_properties();
    auto hbs = head_block_state();
    auto cur_block_num = hbs->block_num + 1;
-   auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
+   // TODO: dpos feature activated
    // if( producers.size() == 0 && is_builtin_activated( builtin_protocol_feature_t::disallow_empty_producer_schedule ) ) {
    //    return -1;
    // }
+   auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
+   EOS_ASSERT( total_change_count <= chain::config::max_producer_changes, wasm_execution_error, "Producer schedule exceeds the maximum producer change count for this chain");
+   if (total_change_count > chain::config::max_producer_changes)
+   {
+      wlog( "Producer schedule exceeds the maximum producer change count for this chain");
+      return -1;
+   }
+
+   auto is_change_empty = (total_change_count == 0);
 
    if( gpo.proposed_schedule_block_num.valid() ) {
-      return -1; // there is already a proposed schedule set in a previous block, wait for it to become pending
+      if (!is_change_empty)
+         wlog( "there is already a proposed schedule set in a previous block, wait for it to become pending.");
+      return -1;
    }
 
    if (!gpo.proposed_schedule.producers.empty()) {
-      wlog( "there is already a proposed schedule change set, wait for it to become active.");
+
+      if (!is_change_empty)
+         wlog( "there is already a proposed schedule change set, wait for it to become active.");
       return -1;
    }
    const auto& pending_sch = pending_producer_schedule();
    if (pending_sch.contains<producer_authority_schedule>()) {
-      wlog( "there is already a pending full schedule set, wait for it to become active.");
+      if (!is_change_empty)
+         wlog( "there is already a pending full schedule set, wait for it to become active.");
       return -1;
    }
 
@@ -3142,7 +3161,7 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    const auto& active_sch = active_producers();
    auto version = pending_change ? pending_change->version : active_sch.version;
 
-   if (changes.main_changes.empty() && changes.backup_changes.empty()) {
+   if (!is_change_empty) {
       return version;
    }
 

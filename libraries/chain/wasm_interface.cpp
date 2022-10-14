@@ -283,7 +283,6 @@ class privileged_api : public context_aware_api {
 
          auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
          EOS_ASSERT( total_change_count <= config::max_producer_changes, wasm_execution_error, "Producer schedule exceeds the maximum producer change count for this chain");
-         EOS_ASSERT( total_change_count > 0, wasm_execution_error, "Producer schedule changes cannot be empty" );
 
          const auto num_supported_key_types = context.db.get<protocol_state_object>().num_supported_key_types;
 

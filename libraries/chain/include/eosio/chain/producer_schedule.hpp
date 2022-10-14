@@ -458,10 +458,6 @@ namespace eosio { namespace chain {
          return result;
       }
 
-      bool empty() const {
-         return clear_existed == false && producer_count == 0 && changes.empty();
-      }
-
       friend bool operator == ( const producer_change_map& lhs, const producer_change_map& rhs ) {
          return tie( lhs.clear_existed, lhs.producer_count, lhs.changes ) == tie( rhs.clear_existed, rhs.producer_count, rhs.changes );
       }
