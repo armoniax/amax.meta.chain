@@ -212,7 +212,12 @@ namespace eosio
 
          std::ofstream out(fork_db_dat.generic_string().c_str(), std::ios::out | std::ios::binary | std::ofstream::trunc);
          fc::raw::pack(out, magic_number);
-         fc::raw::pack(out, max_supported_version); // write out current version which is always max_supported_version
+         // write out current version which is always max_supported_version
+         fc::raw::pack(out, max_supported_version); 
+         if( !my->root_previous && my->root->block_num == 1 ){
+            //this node first launch and do nothing when close.
+            my->root_previous = my->root;
+         }
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root_previous));
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root));
          uint32_t num_blocks_to_backup_siblings = my->backup_siblings_to_root.size();
