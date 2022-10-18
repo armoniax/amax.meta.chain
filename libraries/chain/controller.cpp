@@ -967,8 +967,21 @@ struct controller_impl {
             });
             is_v4 = true;
          }else{
-            snapshot->read_section<block_header_state>([this,&head_header_state]( auto &section ){
-               section.read_row(head_header_state, db);
+            snapshot->read_section<block_state>([this,&head_header_state]( auto &section ){
+               section.read_row(head_header_state.block_num, db);
+               section.read_row(head_header_state.dpos_proposed_irreversible_blocknum, db);
+               section.read_row(head_header_state.dpos_irreversible_blocknum, db);
+               section.read_row(head_header_state.active_schedule, db);
+               section.read_row(head_header_state.blockroot_merkle, db);
+               section.read_row(head_header_state.producer_to_last_produced, db);
+               section.read_row(head_header_state.producer_to_last_implied_irb, db);
+               section.read_row(head_header_state.valid_block_signing_authority, db);
+               section.read_row(head_header_state.confirm_count, db);
+               section.read_row(head_header_state.id, db);
+               section.read_row(head_header_state.header, db);
+               section.read_row(head_header_state.pending_schedule, db);
+               section.read_row(head_header_state.activated_protocol_features, db);
+               section.read_row(head_header_state.additional_signatures, db);
             });
          }
 
