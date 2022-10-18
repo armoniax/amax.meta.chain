@@ -486,6 +486,7 @@ struct controller_impl {
       block_header_state genheader;
       genheader.active_schedule                = initial_schedule;
       genheader.pending_schedule.schedule      = initial_schedule;
+      genheader.active_backup_schedule.schedule = std::make_shared<backup_producer_schedule>();
       // NOTE: if wtmsig block signatures are enabled at genesis time this should be the hash of a producer authority schedule
       genheader.pending_schedule.schedule_hash = fc::sha256::hash(initial_legacy_schedule);
       genheader.header.timestamp               = genesis.initial_timestamp;

@@ -133,7 +133,7 @@ namespace eosio
                block_header_state bhs;
                fc::raw::unpack(ds, bhs);
                reset(bhs);
-               
+
                unsigned_int num_blocks_to_backup_siblings;
                fc::raw::unpack(ds, num_blocks_to_backup_siblings);
                my->backup_siblings_to_root.clear();
@@ -315,7 +315,7 @@ namespace eosio
          }else{
             my->root_previous = get_block(new_root->header.previous);
          }
-         
+
          EOS_ASSERT(new_root, fork_database_exception,
                     "cannot advance root to a block that does not exist in the fork database");
          EOS_ASSERT(new_root->is_valid(), fork_database_exception,
@@ -357,6 +357,9 @@ namespace eosio
 
          my->root = new_root;
          my->root->active_backup_schedule.ensure_persisted();
+         if (my->root_previous) {
+            my->root_previous->active_backup_schedule.ensure_persisted();
+         }
       }
 
       block_header_state_ptr fork_database::get_block_header(const block_id_type &id, bool finding_root_previous) const
@@ -372,7 +375,7 @@ namespace eosio
             return *itr;
          if(finding_root_previous && my->root_previous && id == my->root_previous->id)
             return my->root_previous;
-         
+
          return block_header_state_ptr();
       }
 
@@ -386,7 +389,7 @@ namespace eosio
          EOS_ASSERT(n, fork_database_exception, "attempt to add null block state");
 
          auto prev_bh = self.get_block_header(n->header.previous, n->header.is_backup());
-         
+
          EOS_ASSERT(prev_bh, unlinkable_block_exception,
                     "unlinkable block", ("id", n->id)("previous", n->header.previous));
 
@@ -407,9 +410,9 @@ namespace eosio
             }
             EOS_RETHROW_EXCEPTIONS(fork_database_exception, "serialized fork database is incompatible with configured protocol features")
          }
-         
+
          //add backup block same num as root in its siblings
-         if (n->header.previous == root->header.previous && n->header.is_backup()) 
+         if (n->header.previous == root->header.previous && n->header.is_backup())
          {
              backup_siblings_to_root.insert(std::pair(n->id,n));
              return;

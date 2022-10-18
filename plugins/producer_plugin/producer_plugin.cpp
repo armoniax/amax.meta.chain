@@ -326,7 +326,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                return false;
             }
          #endif
-         
+
          const auto& id = block_id ? *block_id : block->id();
          auto blk_num = block->block_num();
 
@@ -387,7 +387,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
             }
          }
-         /** 
+         /**
          *@Description: reset backup verify mode to main
          */
          if(chain.is_backup_verify()){
@@ -1451,7 +1451,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const a
    // else if(itr == active_schedule.end()){
    //    return optional<fc::time_point>();
    // }
-   
+
    if(itr != active_schedule.end()){
       size_t producer_index = itr - active_schedule.begin();
       uint32_t minimum_offset = 1; // must at least be the "next" block
@@ -1607,7 +1607,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          if(iter != _signature_providers.end()) {
             num_relevant_signatures++;
          }
-         /** 
+         /**
          *@Description: for test 2 producing mode switch
          */
          if(num_relevant_signatures > 0){
@@ -1617,7 +1617,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          }
       });
    }
-   
+
    producer_authority check_producer;
    if(!is_backup){
       check_producer = scheduled_producer;
@@ -1691,7 +1691,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       fc_dlog(_log, "Starting backup block #${n} at ${time} producer ${p}",
            ("n", hbs->block_num + 1)("time", now)("p", backup_scheduled_producer->producer_name));
    }
-   
+
    try {
       //                      ||
       //setup watermark point \/
