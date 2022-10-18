@@ -254,8 +254,8 @@ struct snapshot_block_header_state_v4{
    static constexpr uint32_t maximum_version = 4;
    static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state_v4 is no longer needed");
    
-   block_header_state pre_state_snapshoot;
-   block_header_state state_snapshot;
+   block_header_state pre_state;
+   block_header_state state;
 };
 
 } } /// namespace eosio::chain
@@ -339,6 +339,6 @@ FC_REFLECT(  eosio::chain::legacy::snapshot_block_header_state_v3,
 )
 
 FC_REFLECT( eosio::chain::snapshot_block_header_state_v4,
-     (pre_state_snapshoot)
-     (state_snapshot)
+     (pre_state)
+     (state)
 )

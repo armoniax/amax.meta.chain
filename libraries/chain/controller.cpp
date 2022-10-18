@@ -512,8 +512,10 @@ struct controller_impl {
       if( start_block_num <= blog_head->block_num() ) {
          ilog( "existing block log, attempting to replay from ${s} to ${n} blocks",
                ("s", start_block_num)("n", blog_head->block_num()) );
+         block_state_ptr prev_head;
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
+               prev_head = head;
                replay_push_block( next, controller::block_status::irreversible );
                if( next->block_num() % 500 == 0 ) {
                   ilog( "${n} of ${head}", ("n", next->block_num())("head", blog_head->block_num()) );
@@ -530,6 +532,8 @@ struct controller_impl {
             ilog( "resetting fork database with new last irreversible block as the new root: ${id}",
                   ("id", head->id) );
             fork_db.reset( *head );
+            //in case of new root has backup siblings.
+            fork_db.set_root_previous(*prev_head);
          } else if( head->block_num != fork_db.root()->block_num ) {
             auto new_root = fork_db.search_on_branch( pending_head->id, head->block_num );
             EOS_ASSERT( new_root, fork_database_exception, "unexpected error: could not find new LIB in fork database" );
@@ -886,8 +890,8 @@ struct controller_impl {
          if( !prev_state ) prev_state = fork_db.root();
          EOS_ASSERT( prev_state, snapshot_finalization_exception,"In snapshot v4, previous state of snapshot state can not be null" );
          snapshot_block_header_state_v4 complete_state;
-         complete_state.pre_state_snapshoot = *prev_state;
-         complete_state.state_snapshot = *current_state;
+         complete_state.pre_state = *prev_state;
+         complete_state.state = *current_state;
          /**
           * when node is backup node, it can produce next backup block based current head state
           * but in log "producer_plugin/produce_block/ilog:2431" predicates this backup block,
@@ -2127,6 +2131,11 @@ struct controller_impl {
          emit( self.pre_accepted_block, b );
 
          fork_db.add( bsp );
+
+         if( bsp->is_backup() && fork_db.get_block( bsp->id) ){
+            //accepted backup block need to be broadcast to peers.
+            emit( self.accepted_block, bsp );
+         }
 
          if (self.is_trusted_producer(b->producer)) {
             trusted_producer_light_validation = true;
