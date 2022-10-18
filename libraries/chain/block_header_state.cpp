@@ -1,5 +1,6 @@
 #include <eosio/chain/block_header_state.hpp>
 #include <eosio/chain/exceptions.hpp>
+#include <eosio/chain/producer_change.hpp>
 #include <limits>
 
 const fc::string backup_block_trace_logger_name("backup_block_tracing");
@@ -16,33 +17,6 @@ namespace eosio { namespace chain {
          return digest && protocol_features.find(*digest) != protocol_features.end();
       }
    }
-
-   struct producer_change_merger {
-
-      static void merge(const producer_change_map& change_map, flat_map<name, block_signing_authority> &producers) {
-
-         for (const auto& change : change_map.changes) {
-            const auto producer_name = change.first;
-            change.second.visit( [&producer_name, &producers](const auto& c ) {
-               switch(c.change_operation) {
-                  case producer_change_operation::add:
-                     // TODO: need to check producer not existed for add
-                  case producer_change_operation::modify:
-                     // TODO: need to check producer existed for modify
-                     EOS_ASSERT( c.authority, producer_schedule_exception,
-                                 "producer authority can not be empty for change operation ${op}",
-                                 ("op", (uint32_t)c.change_operation) );
-                     producers[producer_name] = *c.authority;
-                     break;
-                  case producer_change_operation::del:
-                     // TODO: need to check producer existed for del
-                     producers.erase(producer_name);
-                     break;
-               }
-            });
-         }
-      }
-   };
 
    struct emplace_produce_change_ext_visitor {
 
@@ -240,9 +214,6 @@ namespace eosio { namespace chain {
             } // else clear existed producers
 
             producer_change_merger::merge(main_changes, new_producers);
-            EOS_ASSERT( new_producers.size() == main_changes.producer_count, producer_schedule_exception,
-                        "new producer count ${count} mismatch with expected ${expected}",
-                        ("count", new_producers.size())("expected", main_changes.producer_count) );
             auto& new_active_producers = result.active_schedule.producers;
             new_active_producers.resize(new_producers.size());
             for (size_t i = 0; i < new_producers.size(); i++) {
@@ -250,18 +221,15 @@ namespace eosio { namespace chain {
             }
 
             const auto& backup_changes = schedule_change.backup_changes;
-            const auto& cur_backup_schedule = active_backup_schedule.get_schedule();
+            const auto& pre_backup_schedule = active_backup_schedule.get_schedule();
             auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
-            if (cur_backup_schedule && !backup_changes.clear_existed) {
-               *new_backup_schedule = *cur_backup_schedule; // deep copy
+            if (pre_backup_schedule && !backup_changes.clear_existed) {
+               *new_backup_schedule = *pre_backup_schedule; // deep copy
             }
             producer_change_merger::merge(backup_changes, new_backup_schedule->producers);
-            EOS_ASSERT( new_backup_schedule->producers.size() == backup_changes.producer_count, producer_schedule_exception,
-                        "new producer count ${count} mismatch with expected ${expected}",
-                        ("count", new_backup_schedule->producers.size())("expected", backup_changes.producer_count) );
             new_backup_schedule->version = schedule_change.version;
             result.active_backup_schedule.schedule = new_backup_schedule;
-            result.active_backup_schedule.pre_schedule = cur_backup_schedule;
+            result.active_backup_schedule.pre_schedule = pre_backup_schedule;
          }
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;

@@ -228,6 +228,7 @@ namespace eosio { namespace chain {
          const vector<transaction_receipt>& get_pending_trx_receipts()const;
 
          const producer_authority_schedule&    active_producers()const;
+         backup_producer_schedule_ptr          active_backup_producers()const;
          producer_authority_schedule           pending_producers()const;
          const block_producer_schedule_change& pending_producer_schedule()const;
          optional<producer_authority_schedule> proposed_producers()const;

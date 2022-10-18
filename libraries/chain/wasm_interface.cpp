@@ -273,8 +273,20 @@ class privileged_api : public context_aware_api {
 
       void check_producer_authority(const name& producer_name, uint32_t num_supported_key_types, const producer_change_record& change) {
          change.visit([&producer_name, num_supported_key_types, this](const auto& c) {
-            if (c.authority) {
-               this->check_producer_authority(producer_name, num_supported_key_types, *c.authority);
+            switch(c.change_operation) {
+               case producer_change_operation::add:
+               case producer_change_operation::modify: {
+                  EOS_ASSERT( c.authority, producer_schedule_exception,
+                              "producer authority must not be empty for change operation ${op}",
+                              ("op", (uint32_t)c.change_operation) );
+                  this->check_producer_authority(producer_name, num_supported_key_types, *c.authority);
+                  break;
+               }
+               case producer_change_operation::del:
+                  EOS_ASSERT( c.authority, producer_schedule_exception,
+                              "producer authority must be empty for change operation ${op}",
+                              ("op", (uint32_t)c.change_operation) );
+                  break;
             }
          });
       }

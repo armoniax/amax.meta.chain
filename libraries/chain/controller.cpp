@@ -25,6 +25,7 @@
 #include <eosio/chain/chain_snapshot.hpp>
 #include <eosio/chain/thread_utils.hpp>
 #include <eosio/chain/platform_timer.hpp>
+#include <eosio/chain/producer_change.hpp>
 
 #include <chainbase/chainbase.hpp>
 #include <fc/io/json.hpp>
@@ -3126,7 +3127,6 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    //    return -1;
    // }
    auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
-   EOS_ASSERT( total_change_count <= chain::config::max_producer_changes, wasm_execution_error, "Producer schedule exceeds the maximum producer change count for this chain");
    if (total_change_count > chain::config::max_producer_changes)
    {
       wlog( "Producer schedule exceeds the maximum producer change count for this chain");
@@ -3158,38 +3158,18 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    if (pending_sch.contains<producer_schedule_change>()) {
       pending_change = &pending_sch.get<producer_schedule_change>();
    }
-   const auto& active_sch = active_producers();
-   auto version = pending_change ? pending_change->version : active_sch.version;
+   const auto& active_main_sch = active_producers();
+   auto version = pending_change ? pending_change->version : active_main_sch.version;
 
    if (!is_change_empty) {
       return version;
    }
 
+   auto active_backup_sch = active_backup_producers();
+
+   producer_change_merger::validate(changes, active_main_sch.producers, active_backup_sch->producers);
+
    version++;
-
-   // TODO: check changes:
-   // 1. add main: producer is empty (not found or empty) in:
-   //    (a) peding main changes,
-   // || (b) active main schedule
-   // || (c) proposed backup changes
-   // || (d) pending backup changes
-   // || (e) active backup schedule
-
-   // 2. delete | modify main: producer is not empty (found and not empty) in:
-   //    (a) peding main changes,
-   // || (b) active main schedule
-
-   // 3. add backup: producer is empty (not found or empty) in:
-   //    (a) peding backup changes,
-   // || (b) active backup schedule
-   // || (c) proposed main changes
-   // || (d) pending main changes
-   // || (e) active main schedule
-
-   // 4. delete | modify backup: producer is not empty (found and not empty) in:
-   //    (a) peding backup changes,
-   // || (b) active backup schedule
-
    ilog( "proposed producer schedule change with version ${v}", ("v", version) );
 
    my->db.modify( gpo, [&]( auto& gp ) {
@@ -3210,6 +3190,16 @@ const producer_authority_schedule&    controller::active_producers()const {
       return my->pending->_block_stage.get<completed_block>()._block_state->active_schedule;
 
    return my->pending->get_pending_block_header_state().active_schedule;
+}
+
+backup_producer_schedule_ptr controller::active_backup_producers()const {
+   if( !(my->pending) )
+      return  my->head->active_backup_schedule.get_schedule();
+
+   if( my->pending->_block_stage.contains<completed_block>() )
+      return my->pending->_block_stage.get<completed_block>()._block_state->active_backup_schedule.get_schedule();
+
+   return my->pending->get_pending_block_header_state().active_backup_schedule.get_schedule();
 }
 
 const block_producer_schedule_change& controller::pending_producer_schedule()const {
