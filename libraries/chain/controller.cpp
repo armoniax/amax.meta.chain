@@ -1703,7 +1703,7 @@ struct controller_impl {
                auto trace = push_transaction( onbtrx, fc::time_point::maximum(), self.get_global_properties().configuration.min_transaction_cpu_usage, true, 0 );
                if( trace && trace->except &&
                         (   trace->except->code() != eosio_assert_code_exception::code_value
-                        || (trace->error_code && *trace->error_code != 8000000000000000000) ) ) {
+                        || (trace->error_code && *trace->error_code != 8000000000000000000) )) {
                   wdump((*trace));
                }
             } catch( const std::bad_alloc& e ) {
@@ -3160,15 +3160,21 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
       pending_change = &pending_sch.get<producer_schedule_change>();
    }
    const auto& active_main_sch = active_producers();
+   auto active_backup_sch = active_backup_producers();
+
    auto version = pending_change ? pending_change->version : active_main_sch.version;
 
-   if (!is_change_empty) {
+   if (is_change_empty) {
       return version;
    }
 
-   auto active_backup_sch = active_backup_producers();
-
-   producer_change_merger::validate(changes, active_main_sch.producers, active_backup_sch->producers);
+   try {
+      producer_change_merger::validate(changes, active_main_sch.producers, active_backup_sch->producers);
+   } catch( const producer_schedule_exception& e ) {
+      wlog( "producer changes validate failed" );
+      wdump((e.to_detail_string()));
+      return -1;
+   }
 
    version++;
    ilog( "proposed producer schedule change with version ${v}", ("v", version) );

@@ -52,7 +52,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
          switch(op) {
             case producer_change_operation::add: {
                main_producer_count++;
-               EOS_ASSERT( existed, producer_schedule_exception, "the added main producer:${p} already exists", ("p", producer_name ) );
+               EOS_ASSERT( !existed, producer_schedule_exception, "the added main producer:${p} already exists", ("p", producer_name ) );
 
                auto change_itr = backup_changes.changes.find(producer_name);
                if (change_itr != backup_changes.changes.end()) {
@@ -89,15 +89,15 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
          switch(op) {
             case producer_change_operation::add: {
                backup_producer_count++;
-               EOS_ASSERT( existed, producer_schedule_exception, "the added backup producer:${p} already exists", ("p", producer_name ) );
+               EOS_ASSERT( !existed, producer_schedule_exception, "the added backup producer:${p} already exists", ("p", producer_name ) );
 
                // new backup producer must not exist in main producers
-               auto change_itr = changes.backup_changes.changes.find(producer_name);
-               if (change_itr != changes.backup_changes.changes.end()) {
+               auto change_itr = changes.main_changes.changes.find(producer_name);
+               if (change_itr != changes.main_changes.changes.end()) {
                   auto bop = (producer_change_operation)change_itr->second.which();
                   EOS_ASSERT( bop == producer_change_operation::del,
-                     producer_schedule_exception, "the added backup producer:${p} also exist in main change", ("p", producer_name ) );
-               } else if (!backup_changes.clear_existed) {
+                     producer_schedule_exception, "the added backup producer:${p} also exist in main producer change", ("p", producer_name ) );
+               } else if (!main_changes.clear_existed) {
                   EOS_ASSERT( !exist_in_main_producers(producer_name), producer_schedule_exception, "the added backup producer:${p} also exist in main producers", ("p", producer_name ) );
                }
 

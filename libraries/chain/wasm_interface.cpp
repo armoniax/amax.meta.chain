@@ -283,7 +283,7 @@ class privileged_api : public context_aware_api {
                   break;
                }
                case producer_change_operation::del:
-                  EOS_ASSERT( c.authority, producer_schedule_exception,
+                  EOS_ASSERT( !c.authority, producer_schedule_exception,
                               "producer authority must be empty for change operation ${op}",
                               ("op", (uint32_t)c.change_operation) );
                   break;
@@ -292,7 +292,6 @@ class privileged_api : public context_aware_api {
       }
 
       int64_t set_proposed_producer_changes( proposed_producer_changes &&changes ) {
-
          auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
          EOS_ASSERT( total_change_count <= config::max_producer_changes, wasm_execution_error, "Producer schedule exceeds the maximum producer change count for this chain");
 
@@ -303,8 +302,6 @@ class privileged_api : public context_aware_api {
             const auto& producer_name = change.first;
             EOS_ASSERT( context.is_account(producer_name), wasm_execution_error, "producer schedule change includes a nonexisting account" );
             check_producer_authority(producer_name, num_supported_key_types, change.second);
-            // TODO: check added main bp does not exist in main bp list, [ackup bp list, backup_changes]
-            // TODO: check modified and deleted main bp exist in main bp list
          }
 
          // backup producers
@@ -312,8 +309,6 @@ class privileged_api : public context_aware_api {
             const auto& producer_name = change.first;
             EOS_ASSERT( context.is_account(producer_name), wasm_execution_error, "producer schedule change includes a nonexisting account" );
             check_producer_authority(producer_name, num_supported_key_types, change.second);
-            // TODO: check added backup bp does not exist in main bp list, ackup bp list
-            // TODO: check modified and deleted backup bp exist in backup bp list
          }
 
          return context.control.set_proposed_producers( std::move(changes) );
