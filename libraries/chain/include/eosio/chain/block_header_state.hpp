@@ -43,6 +43,41 @@ namespace legacy {
       schedule_info                        pending_schedule;
       protocol_feature_activation_set_ptr  activated_protocol_features;
    };
+
+
+   /**
+    * a fc::raw::unpack compatible version of the old block_state structure stored in
+    * version 3 snapshots
+    */
+   struct snapshot_block_header_state_v3 {
+      static constexpr uint32_t minimum_version = 3;
+      static constexpr uint32_t maximum_version = 3;
+      static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state_v3 is no longer needed");
+
+      struct schedule_info {
+         uint32_t                          schedule_lib_num = 0; /// last irr block num
+         digest_type                       schedule_hash;
+         producer_authority_schedule       schedule;
+      };
+
+      /// from block_header_state_common
+      uint32_t                          block_num = 0;
+      uint32_t                          dpos_proposed_irreversible_blocknum = 0;
+      uint32_t                          dpos_irreversible_blocknum = 0;
+      producer_authority_schedule       active_schedule;
+      incremental_merkle                blockroot_merkle;
+      flat_map<account_name,uint32_t>   producer_to_last_produced;
+      flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
+      block_signing_authority           valid_block_signing_authority;
+      vector<uint8_t>                   confirm_count;
+
+      /// from block_header_state
+      block_id_type                        id;
+      signed_block_header                  header;
+      schedule_info                        pending_schedule;
+      protocol_feature_activation_set_ptr  activated_protocol_features;
+      vector<signature_type>               additional_signatures;
+   };
 }
 
 using signer_callback_type = std::function<std::vector<signature_type>(const digest_type&)>;
@@ -182,6 +217,7 @@ struct block_header_state : public detail::block_header_state_common {
    {}
 
    explicit block_header_state( legacy::snapshot_block_header_state_v2&& snapshot );
+   explicit block_header_state( legacy::snapshot_block_header_state_v3&& snapshot );
 
    pending_block_header_state  next( block_timestamp_type when, uint16_t num_prev_blocks_to_confirm,bool is_backup = false, block_id_type pre_backup = block_id_type())const;
 
@@ -207,43 +243,6 @@ struct block_header_state : public detail::block_header_state_common {
 };
 
 using block_header_state_ptr = std::shared_ptr<block_header_state>;
-
-namespace legacy {
-
-   /**
-    * a fc::raw::unpack compatible version of the old block_state structure stored in
-    * version 2 snapshots
-    */
-   struct snapshot_block_header_state_v3 : public detail::block_header_state_common {
-      static constexpr uint32_t minimum_version = 3;
-      static constexpr uint32_t maximum_version = 3;
-      static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state_v3 is no longer needed");
-
-      struct schedule_info {
-         uint32_t                          schedule_lib_num = 0; /// last irr block num
-         digest_type                       schedule_hash;
-         producer_authority_schedule       schedule;
-      };
-
-      /// from block_header_state_common
-      uint32_t                          block_num = 0;
-      uint32_t                          dpos_proposed_irreversible_blocknum = 0;
-      uint32_t                          dpos_irreversible_blocknum = 0;
-      producer_authority_schedule       active_schedule;
-      incremental_merkle                blockroot_merkle;
-      flat_map<account_name,uint32_t>   producer_to_last_produced;
-      flat_map<account_name,uint32_t>   producer_to_last_implied_irb;
-      block_signing_authority           valid_block_signing_authority;
-      vector<uint8_t>                   confirm_count;
-
-      /// from block_header_state
-      block_id_type                        id;
-      signed_block_header                  header;
-      schedule_info                        pending_schedule;
-      protocol_feature_activation_set_ptr  activated_protocol_features;
-      vector<signature_type>               additional_signatures;
-   };
-}
 
 } } /// namespace eosio::chain
 

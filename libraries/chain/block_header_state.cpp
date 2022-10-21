@@ -617,4 +617,29 @@ namespace eosio { namespace chain {
    }
 
 
+   block_header_state::block_header_state( legacy::snapshot_block_header_state_v3&& snapshot )
+   {
+      // commons
+      block_num                             = snapshot.block_num;
+      dpos_proposed_irreversible_blocknum   = snapshot.dpos_proposed_irreversible_blocknum;
+      dpos_irreversible_blocknum            = snapshot.dpos_irreversible_blocknum;
+      active_schedule                       = producer_authority_schedule( snapshot.active_schedule );
+      blockroot_merkle                      = std::move(snapshot.blockroot_merkle);
+      producer_to_last_produced             = std::move(snapshot.producer_to_last_produced);
+      producer_to_last_implied_irb          = std::move(snapshot.producer_to_last_implied_irb);
+      valid_block_signing_authority         = std::move(snapshot.valid_block_signing_authority);
+      confirm_count                         = std::move(snapshot.confirm_count);
+      active_backup_schedule.schedule       = std::make_shared<backup_producer_schedule>();
+
+      // block header state
+      id                                    = std::move(snapshot.id);
+      header                                = std::move(snapshot.header);
+      pending_schedule.schedule_lib_num     = snapshot.pending_schedule.schedule_lib_num;
+      pending_schedule.schedule_hash        = std::move(snapshot.pending_schedule.schedule_hash);
+      pending_schedule.schedule             = std::move(snapshot.pending_schedule.schedule);
+
+      activated_protocol_features           = std::move(snapshot.activated_protocol_features);
+      additional_signatures                  = std::move(snapshot.additional_signatures);
+   }
+
 } } /// namespace eosio::chain

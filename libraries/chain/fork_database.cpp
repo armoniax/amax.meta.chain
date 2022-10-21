@@ -133,13 +133,11 @@ namespace eosio
                           "Fork database version is ${version} while code supports version(s) [${min},${max}]",
                           ("filename", fork_db_dat.generic_string())("version", version)("min", min_supported_version)("max", max_supported_version));
 
-               block_header_state pbhs;
+               shared_ptr<block_header_state> pbhs;
                fc::raw::unpack(ds, pbhs);
-               my->root_previous = std::make_shared<block_state>();
-               static_cast<block_header_state &>(*my->root_previous) = pbhs;
                block_header_state bhs;
                fc::raw::unpack(ds, bhs);
-               reset(bhs);
+               reset(bhs, pbhs.get());
 
                unsigned_int num_blocks_to_backup_siblings;
                fc::raw::unpack(ds, num_blocks_to_backup_siblings);
@@ -220,7 +218,7 @@ namespace eosio
          std::ofstream out(fork_db_dat.generic_string().c_str(), std::ios::out | std::ios::binary | std::ofstream::trunc);
          fc::raw::pack(out, magic_number);
          fc::raw::pack(out, max_supported_version); // write out current version which is always max_supported_version
-         fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root_previous));
+         fc::raw::pack(out, static_cast<block_header_state_ptr>(my->root_previous));
          fc::raw::pack(out, *static_cast<block_header_state *>(&*my->root));
          uint32_t num_blocks_to_backup_siblings = my->backup_siblings_to_root.size();
          fc::raw::pack(out, unsigned_int{num_blocks_to_backup_siblings});
@@ -290,13 +288,24 @@ namespace eosio
          close();
       }
 
-      void fork_database::reset(const block_header_state &root_bhs)
+      void fork_database::reset(const block_header_state &root_bhs, const block_header_state* root_previous_bhs)
       {
          my->index.clear();
          my->root = std::make_shared<block_state>();
          static_cast<block_header_state &>(*my->root) = root_bhs;
          my->root->validated = true;
          my->head = my->root;
+
+         my->root_previous.reset();
+         if (root_bhs.block_num > 1) {
+            EOS_ASSERT(root_previous_bhs, fork_database_exception,
+                        "Root previous can not be empty. root_id:${id}", ("id", root_bhs.id));
+            EOS_ASSERT(root_bhs.prev() == root_previous_bhs->id, fork_database_exception,
+                        "Root previous id mismatch. root_id:${id}, expected:${expected}, got:${got}",
+                        ("id", root_bhs.id)("expected", root_bhs.prev())("got", root_previous_bhs->id));
+            my->root_previous = std::make_shared<block_state>();
+            static_cast<block_header_state &>(*my->root_previous) = *root_previous_bhs;
+         }
       }
 
       void fork_database::rollback_head_to_root()
