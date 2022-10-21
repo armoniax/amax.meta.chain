@@ -60,7 +60,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
                   EOS_ASSERT( bop == producer_change_operation::del, producer_schedule_exception, "the added main producer:${p} also exist in backup change", ("p", producer_name ) );
                } else if (!backup_changes.clear_existed) {
                   auto prod_itr = backup_producers.find(producer_name);
-                  EOS_ASSERT( prod_itr != backup_producers.end(), producer_schedule_exception, "the added main producer:${p} also exist in backup producers", ("p", producer_name ) );
+                  EOS_ASSERT( prod_itr == backup_producers.end(), producer_schedule_exception, "the added main producer:${p} also exist in backup producers", ("p", producer_name ) );
                }
 
                break;

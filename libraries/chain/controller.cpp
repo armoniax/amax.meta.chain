@@ -3149,9 +3149,9 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
       return -1;
    }
    const auto& pending_sch = pending_producer_schedule();
-   if (pending_sch.contains<producer_authority_schedule>()) {
+   if (!pending_sch.contains<uint32_t>()) {
       if (!is_change_empty)
-         wlog( "there is already a pending full schedule set, wait for it to become active.");
+         wlog( "there is already a pending schedule set, wait for it to become active.");
       return -1;
    }
 
