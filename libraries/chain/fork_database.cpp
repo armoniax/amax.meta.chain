@@ -41,11 +41,18 @@ namespace eosio
       struct by_block_id;
       struct by_lib_block_num;
       struct by_prev;
+      struct best_backup_by_prev;
       typedef multi_index_container<
           block_state_ptr,
           indexed_by<
               hashed_unique<tag<by_block_id>, member<block_header_state, block_id_type, &block_header_state::id>, std::hash<block_id_type>>,
               ordered_non_unique<tag<by_prev>, const_mem_fun<block_header_state, const block_id_type &, &block_header_state::prev>>,
+              ordered_unique<tag<best_backup_by_prev>, 
+                           composite_key<block_header_state,
+                                    const_mem_fun<block_header_state, const block_id_type &, &block_header_state::prev>,
+                                    member<block_header_state, bool, &block_header_state::is_backup>,
+                                    member<block_header_state, block_id_type, &block_header_state::id>>,
+                           composite_key_compare<sha256_less, std::greater<bool> , sha256_less>>,
               ordered_unique<tag<by_lib_block_num>,
                              composite_key<block_state,
                                            global_fun<const block_state &, bool, &block_state_is_valid>,
@@ -623,12 +630,17 @@ namespace eosio
 
       block_state_ptr fork_database::get_backup_head_block( const block_id_type head_prev) const
       {
-         const auto &previdx = my->index.get<by_prev>();
-         auto previtr = previdx.lower_bound( head_prev );
-         while(previtr != previdx.end() && (*previtr)->header.previous == head_prev){
-            if ((*previtr)->header.is_backup())
-               return *previtr;
-            ++previtr;
+         // const auto &previdx = my->index.get<by_prev>();
+         // auto previtr = previdx.lower_bound( head_prev );
+         // while(previtr != previdx.end() && (*previtr)->header.previous == head_prev){
+         //    if ((*previtr)->header.is_backup())
+         //       return *previtr;
+         //    ++previtr;
+         // }
+         const auto &previdx = my->index.get<best_backup_by_prev>();
+         auto best_backup_state = previdx.lower_bound( head_prev );
+         if( best_backup_state != previdx.end() && (*best_backup_state)->header.is_backup() && (*best_backup_state)->header.previous == head_prev ){
+            return *best_backup_state;
          }
          return block_state_ptr();
       }

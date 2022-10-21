@@ -2108,6 +2108,12 @@ struct controller_impl {
          emit( self.pre_accepted_block, b );
 
          fork_db.add( bsp );
+         block_state_ptr maybe = fork_db.get_backup_head_block(head->prev());
+         if( bsp->is_backup() && maybe == bsp ){
+            //accepted backup block need to be broadcast to peers.
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
+            emit( self.accepted_block, bsp );
+         }
 
          if (self.is_trusted_producer(b->producer)) {
             trusted_producer_light_validation = true;
