@@ -33,6 +33,10 @@
                 {
                     "name": "changes",
                     "type": "proposed_producer_changes"
+                },
+                {
+                    "name": "expected",
+                    "type": "int64?"
                 }
             ]
         },
@@ -98,6 +102,10 @@
             "name": "producer_change_map",
             "base": "",
             "fields": [
+                {
+                    "name": "clear_existed",
+                    "type": "bool"
+                },
                 {
                     "name": "producer_count",
                     "type": "uint32"
