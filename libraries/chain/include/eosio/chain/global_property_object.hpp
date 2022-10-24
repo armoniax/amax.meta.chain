@@ -28,6 +28,17 @@ namespace eosio { namespace chain {
          producer_schedule_type           proposed_schedule;
          chain_config                     configuration;
       };
+
+      struct snapshot_global_property_object_v3 {
+         static constexpr uint32_t minimum_version = 3;
+         static constexpr uint32_t maximum_version = 3;
+         static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_global_property_object_v3 is no longer needed");
+
+         optional<block_num_type>            proposed_schedule_block_num;
+         producer_authority_schedule         proposed_schedule;
+         chain_config                        configuration;
+         chain_id_type                       chain_id;
+      };
    }
 
    /**
@@ -54,6 +65,14 @@ namespace eosio { namespace chain {
          configuration = legacy.configuration;
          chain_id = chain_id_val;
       }
+
+      void initalize_from( const legacy::snapshot_global_property_object_v3& legacy) {
+         proposed_schedule_block_num = legacy.proposed_schedule_block_num;
+         proposed_schedule = legacy.proposed_schedule.to_shared(proposed_schedule.producers.get_allocator());
+         configuration = legacy.configuration;
+         chain_id = legacy.chain_id;
+      }
+
    };
 
 
@@ -69,6 +88,7 @@ namespace eosio { namespace chain {
    struct snapshot_global_property_object {
       optional<block_num_type>            proposed_schedule_block_num;
       producer_authority_schedule         proposed_schedule;
+      producer_schedule_change            proposed_schedule_change;
       chain_config                        configuration;
       chain_id_type                       chain_id;
    };
@@ -80,12 +100,18 @@ namespace eosio { namespace chain {
          using snapshot_type = snapshot_global_property_object;
 
          static snapshot_global_property_object to_snapshot_row( const global_property_object& value, const chainbase::database& ) {
-            return {value.proposed_schedule_block_num, producer_authority_schedule::from_shared(value.proposed_schedule), value.configuration, value.chain_id};
+            return {
+               value.proposed_schedule_block_num,
+               producer_authority_schedule::from_shared(value.proposed_schedule),
+               producer_schedule_change::from_shared(value.proposed_schedule_change),
+               value.configuration,
+               value.chain_id};
          }
 
          static void from_snapshot_row( snapshot_global_property_object&& row, global_property_object& value, chainbase::database& ) {
             value.proposed_schedule_block_num = row.proposed_schedule_block_num;
             value.proposed_schedule = row.proposed_schedule.to_shared(value.proposed_schedule.producers.get_allocator());
+            value.proposed_schedule_change = row.proposed_schedule_change.to_shared(value.proposed_schedule_change.main_changes.changes.get_allocator());
             value.configuration = row.configuration;
             value.chain_id = row.chain_id;
          }
@@ -123,16 +149,20 @@ CHAINBASE_SET_INDEX_TYPE(eosio::chain::dynamic_global_property_object,
 
 FC_REFLECT(eosio::chain::global_property_object,
             (proposed_schedule_block_num)(proposed_schedule)(proposed_schedule_change)(configuration)(chain_id)
-          )
+)
 
 FC_REFLECT(eosio::chain::legacy::snapshot_global_property_object_v2,
             (proposed_schedule_block_num)(proposed_schedule)(configuration)
-          )
+)
+
+FC_REFLECT(eosio::chain::legacy::snapshot_global_property_object_v3,
+            (proposed_schedule_block_num)(proposed_schedule)(configuration)(chain_id)
+)
 
 FC_REFLECT(eosio::chain::snapshot_global_property_object,
-            (proposed_schedule_block_num)(proposed_schedule)(configuration)(chain_id)
-          )
+            (proposed_schedule_block_num)(proposed_schedule)(proposed_schedule_change)(configuration)(chain_id)
+)
 
 FC_REFLECT(eosio::chain::dynamic_global_property_object,
             (global_action_sequence)
-          )
+)

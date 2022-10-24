@@ -881,7 +881,15 @@ struct controller_impl {
       });
 
       snapshot->write_section<block_state>([this]( auto &section ){
+         fork_db.head()->active_backup_schedule.ensure_persisted();
          section.template add_row<block_header_state>(*fork_db.head(), db);
+      });
+
+      snapshot->write_section<block_state>([this]( auto &section ){
+         auto previous = fork_db.get_block(fork_db.head()->prev());
+         EOS_ASSERT( previous, snapshot_exception, "Head previous not found when adding snapshot. ");
+         previous->active_backup_schedule.ensure_persisted();
+         section.template add_row<block_header_state>(*previous, db);
       });
 
       controller_index_set::walk_indices([this, &snapshot]( auto utils ){
@@ -932,7 +940,9 @@ struct controller_impl {
 
       { /// load and upgrade the block header state
          block_header_state head_header_state;
+         std::shared_ptr<block_header_state> prevous_header_state;
          using v2 = legacy::snapshot_block_header_state_v2;
+         using v3 = legacy::snapshot_block_header_state_v3;
 
          if (std::clamp(header.version, v2::minimum_version, v2::maximum_version) == header.version ) {
             snapshot->read_section<block_state>([this, &head_header_state]( auto &section ) {
@@ -940,9 +950,20 @@ struct controller_impl {
                section.read_row(legacy_header_state, db);
                head_header_state = block_header_state(std::move(legacy_header_state));
             });
-         } else {
+
+         } else if (std::clamp(header.version, v3::minimum_version, v3::maximum_version) == header.version ) {
+            snapshot->read_section<block_state>([this, &head_header_state]( auto &section ) {
+               legacy::snapshot_block_header_state_v3 legacy_header_state;
+               section.read_row(legacy_header_state, db);
+               head_header_state = block_header_state(std::move(legacy_header_state));
+            });
+         } else { // v4
             snapshot->read_section<block_state>([this,&head_header_state]( auto &section ){
                section.read_row(head_header_state, db);
+            });
+            prevous_header_state = std::make_shared<block_header_state>();
+            snapshot->read_section<block_state>([this,&phs = *prevous_header_state]( auto &section ){
+               section.read_row(phs, db);
             });
          }
 
@@ -955,7 +976,7 @@ struct controller_impl {
                      ("block_log_last_num", blog_end)
          );
 
-         fork_db.reset( head_header_state );
+         fork_db.reset( head_header_state, prevous_header_state.get() ); // head previous
          head = fork_db.head();
          snapshot_head_block = head->block_num;
 
@@ -977,6 +998,7 @@ struct controller_impl {
          // special case for in-place upgrade of global_property_object
          if (std::is_same<value_t, global_property_object>::value) {
             using v2 = legacy::snapshot_global_property_object_v2;
+            using v3 = legacy::snapshot_global_property_object_v3;
 
             if (std::clamp(header.version, v2::minimum_version, v2::maximum_version) == header.version ) {
                fc::optional<genesis_state> genesis = extract_legacy_genesis_state(*snapshot, header.version);
@@ -992,7 +1014,18 @@ struct controller_impl {
                   });
                });
                return; // early out to avoid default processing
+            } else if (std::clamp(header.version, v3::minimum_version, v3::maximum_version) == header.version ) {
+               snapshot->read_section<global_property_object>([&db=this->db]( auto &section ) {
+                  v3 legacy_global_properties;
+                  section.read_row(legacy_global_properties, db);
+
+                  db.create<global_property_object>([&legacy_global_properties](auto& gpo ){
+                     gpo.initalize_from(legacy_global_properties);
+                  });
+               });
+               return; // early out to avoid default processing
             }
+
          }
 
          snapshot->read_section<value_t>([this]( auto& section ) {
