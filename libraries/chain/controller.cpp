@@ -2120,6 +2120,17 @@ struct controller_impl {
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
+            bool broadcast = false;
+            if( bsp->prev() == head->prev() ){
+               broadcast = fork_db.get_backup_head_block(head->prev()) == bsp;
+            }else if( bsp->prev() == head->id ){
+               broadcast = fork_db.get_backup_head_block(head->id) == bsp;
+            }
+            if( broadcast ) {
+               //accepted backup block need to be broadcast to peers.
+               // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
+               emit( self.accepted_block, bsp );
+            }
          }else if(!bsp->is_backup()){
             log_irreversibles();
          }

@@ -139,7 +139,7 @@ namespace eosio { namespace chain {
       result.producer                                        = proauth.producer_name;
       result.is_backup                                       = is_backup;
       result.previous_backup                                 = pre_backup;
-      fc_ilog(_backup_block_trace_log,"[BACKUP_TRACE] next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
+      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
 
       result.blockroot_merkle = blockroot_merkle;
       result.blockroot_merkle.append( id );
