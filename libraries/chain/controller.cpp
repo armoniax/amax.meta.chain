@@ -2108,12 +2108,6 @@ struct controller_impl {
          emit( self.pre_accepted_block, b );
 
          fork_db.add( bsp );
-         block_state_ptr maybe = fork_db.get_backup_head_block(head->prev());
-         if( bsp->is_backup() && maybe == bsp ){
-            //accepted backup block need to be broadcast to peers.
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
-            emit( self.accepted_block, bsp );
-         }
 
          if (self.is_trusted_producer(b->producer)) {
             trusted_producer_light_validation = true;
@@ -2126,6 +2120,12 @@ struct controller_impl {
          } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
             //main node receive backup block
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
+            block_state_ptr maybe = fork_db.get_backup_head_block(head->prev());
+            if( maybe == bsp ){
+               //accepted backup block need to be broadcast to peers.
+               fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
+               emit( self.accepted_block, bsp );
+            }
          }else if(!bsp->is_backup()){
             log_irreversibles();
          }
