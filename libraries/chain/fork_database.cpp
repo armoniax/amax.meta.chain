@@ -630,13 +630,6 @@ namespace eosio
 
       block_state_ptr fork_database::get_backup_head_block( const block_id_type head_prev) const
       {
-         // const auto &previdx = my->index.get<by_prev>();
-         // auto previtr = previdx.lower_bound( head_prev );
-         // while(previtr != previdx.end() && (*previtr)->header.previous == head_prev){
-         //    if ((*previtr)->header.is_backup())
-         //       return *previtr;
-         //    ++previtr;
-         // }
          const auto &previdx = my->index.get<best_backup_by_prev>();
          auto best_backup_state = previdx.lower_bound( head_prev );
          if( best_backup_state != previdx.end() && (*best_backup_state)->header.is_backup() && (*best_backup_state)->header.previous == head_prev ){
