@@ -249,12 +249,12 @@ using block_header_state_ptr = std::shared_ptr<block_header_state>;
 * if a node is backup node, its snapshot needs to capture previous of current head state.
 * to main node this structure has no effection on its behaviors.
 */
-struct snapshot_block_header_state{
+struct snapshot_chain_head_state{
    static constexpr uint32_t minimum_version = 4;
    static constexpr uint32_t maximum_version = 4;
    static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state is no longer needed");
    
-   block_header_state pre_state_snapshoot;
+   block_header_state_ptr pre_state_snapshoot;
    block_header_state state_snapshot;
 };
 
@@ -338,7 +338,7 @@ FC_REFLECT(  eosio::chain::legacy::snapshot_block_header_state_v3,
             (additional_signatures)
 )
 
-FC_REFLECT( eosio::chain::snapshot_block_header_state,
+FC_REFLECT( eosio::chain::snapshot_chain_head_state,
      (pre_state_snapshoot)
      (state_snapshot)
 )

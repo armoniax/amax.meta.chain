@@ -882,17 +882,17 @@ struct controller_impl {
          section.add_row(chain_snapshot_header(), db);
       });
 
-      snapshot->write_section<snapshot_block_header_state>([this]( auto &section ){
+      snapshot->write_section<snapshot_chain_head_state>([this]( auto &section ){
          block_state_ptr current_state =  fork_db.head();
          current_state->active_backup_schedule.ensure_persisted();
          block_header_state_ptr prev_state;
          prev_state = fork_db.get_block_header(current_state->prev(), true);
-         EOS_ASSERT( prev_state, snapshot_exception, "Head previous not found when adding snapshot.");
-         prev_state->active_backup_schedule.ensure_persisted();
-         snapshot_block_header_state complete_state;
-         complete_state.pre_state_snapshoot = *prev_state;
+         //EOS_ASSERT( prev_state, snapshot_exception, "Head previous not found when adding snapshot.");
+         if( prev_state ) prev_state->active_backup_schedule.ensure_persisted();
+         snapshot_chain_head_state complete_state;
+         complete_state.pre_state_snapshoot = prev_state;
          complete_state.state_snapshot = *current_state;
-         section.template add_row<snapshot_block_header_state>(complete_state, db);
+         section.template add_row<snapshot_chain_head_state>(complete_state, db);
       });
 
       controller_index_set::walk_indices([this, &snapshot]( auto utils ){
@@ -962,8 +962,8 @@ struct controller_impl {
             });
          } else { // v4
             prevous_header_state = std::make_shared<block_header_state>();
-            snapshot->read_section<snapshot_block_header_state>([this, &head_header_state, &prevous_header_state]( auto &section ){
-               section.read_row(*prevous_header_state, db);
+            snapshot->read_section<snapshot_chain_head_state>([this, &head_header_state, &prevous_header_state]( auto &section ){
+               section.read_row(prevous_header_state, db);
                section.read_row(head_header_state, db);
             });
          }
@@ -976,7 +976,6 @@ struct controller_impl {
                      ("block_log_first_num", blog_start)
                      ("block_log_last_num", blog_end)
          );
-
          fork_db.reset( head_header_state, prevous_header_state.get() ); // head previous
          head = fork_db.head();
          snapshot_head_block = head->block_num;
@@ -1019,7 +1018,6 @@ struct controller_impl {
                snapshot->read_section<global_property_object>([&db=this->db]( auto &section ) {
                   v3 legacy_global_properties;
                   section.read_row(legacy_global_properties, db);
-
                   db.create<global_property_object>([&legacy_global_properties](auto& gpo ){
                      gpo.initalize_from(legacy_global_properties);
                   });
@@ -3569,11 +3567,20 @@ chain_id_type controller::extract_chain_id(snapshot_reader& snapshot) {
    }
 
    chain_id_type chain_id;
-   snapshot.read_section<global_property_object>([&chain_id]( auto &section ){
-      snapshot_global_property_object global_properties;
-      section.read_row(global_properties);
-      chain_id = global_properties.chain_id;
-   });
+   using v3 = legacy::snapshot_global_property_object_v3;
+   if(std::clamp(header.version, v3::minimum_version, v3::maximum_version) == header.version ) {
+      snapshot.read_section<global_property_object>([ &chain_id]( auto &section ) {
+         v3 legacy_global_properties;
+         section.read_row(legacy_global_properties);
+         chain_id = legacy_global_properties.chain_id;
+      });
+   }else{//V4
+      snapshot.read_section<global_property_object>([&chain_id]( auto &section ){
+         snapshot_global_property_object global_properties;
+         section.read_row(global_properties);
+         chain_id = global_properties.chain_id;
+      });
+   }
    return chain_id;
 }
 
