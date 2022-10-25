@@ -636,7 +636,11 @@ namespace eosio { namespace chain {
       header                                = std::move(snapshot.header);
       pending_schedule.schedule_lib_num     = snapshot.pending_schedule.schedule_lib_num;
       pending_schedule.schedule_hash        = std::move(snapshot.pending_schedule.schedule_hash);
-      pending_schedule.schedule             = std::move(snapshot.pending_schedule.schedule);
+      if (snapshot.pending_schedule.schedule.producers.size() > 0) {
+         pending_schedule.schedule             = std::move(snapshot.pending_schedule.schedule);
+      } else {
+         pending_schedule.data_clear(snapshot.pending_schedule.schedule.version);
+      }
 
       activated_protocol_features           = std::move(snapshot.activated_protocol_features);
       additional_signatures                  = std::move(snapshot.additional_signatures);
