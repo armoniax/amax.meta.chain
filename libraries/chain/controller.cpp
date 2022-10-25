@@ -890,8 +890,8 @@ struct controller_impl {
          //EOS_ASSERT( prev_state, snapshot_exception, "Head previous not found when adding snapshot.");
          if( prev_state ) prev_state->active_backup_schedule.ensure_persisted();
          snapshot_chain_head_state complete_state;
-         complete_state.pre_state_snapshoot = prev_state;
-         complete_state.state_snapshot = *current_state;
+         complete_state.pre_head_state = prev_state;
+         complete_state.head_state = *current_state;
          section.template add_row<snapshot_chain_head_state>(complete_state, db);
       });
 
@@ -942,33 +942,34 @@ struct controller_impl {
       });
 
       { /// load and upgrade the block header state
-         block_header_state head_header_state;
-         std::shared_ptr<block_header_state> prevous_header_state;
+         // block_header_state head_header_state;
+         // std::shared_ptr<block_header_state> prevous_header_state;
+         snapshot_chain_head_state chain_head_state;
          using v2 = legacy::snapshot_block_header_state_v2;
          using v3 = legacy::snapshot_block_header_state_v3;
 
          if (std::clamp(header.version, v2::minimum_version, v2::maximum_version) == header.version ) {
-            snapshot->read_section<block_state>([this, &head_header_state]( auto &section ) {
+            snapshot->read_section<block_state>([this, &chain_head_state]( auto &section ) {
                legacy::snapshot_block_header_state_v2 legacy_header_state;
                section.read_row(legacy_header_state, db);
-               head_header_state = block_header_state(std::move(legacy_header_state));
+               chain_head_state.head_state = block_header_state(std::move(legacy_header_state));
             });
 
          } else if (std::clamp(header.version, v3::minimum_version, v3::maximum_version) == header.version ) {
-            snapshot->read_section<block_state>([this, &head_header_state]( auto &section ) {
+            snapshot->read_section<block_state>([this, &chain_head_state]( auto &section ) {
                legacy::snapshot_block_header_state_v3 legacy_header_state;
                section.read_row(legacy_header_state, db);
-               head_header_state = block_header_state(std::move(legacy_header_state));
+               chain_head_state.head_state = block_header_state(std::move(legacy_header_state));
             });
          } else { // v4
-            prevous_header_state = std::make_shared<block_header_state>();
-            snapshot->read_section<snapshot_chain_head_state>([this, &head_header_state, &prevous_header_state]( auto &section ){
-               section.read_row(prevous_header_state, db);
-               section.read_row(head_header_state, db);
+            //prevous_header_state = std::make_shared<block_header_state>();
+            snapshot->read_section<snapshot_chain_head_state>([this, &chain_head_state]( auto &section ){
+               section.read_row(chain_head_state.pre_head_state, db);
+               section.read_row(chain_head_state.head_state, db);
             });
          }
 
-         snapshot_head_block = head_header_state.block_num;
+         snapshot_head_block = chain_head_state.head_state.block_num;
          EOS_ASSERT( blog_start <= (snapshot_head_block + 1) && snapshot_head_block <= blog_end,
                      block_log_exception,
                      "Block log is provided with snapshot but does not contain the head block from the snapshot nor a block right after it",
@@ -976,7 +977,7 @@ struct controller_impl {
                      ("block_log_first_num", blog_start)
                      ("block_log_last_num", blog_end)
          );
-         fork_db.reset( head_header_state, prevous_header_state.get() ); // head previous
+         fork_db.reset( chain_head_state.head_state, chain_head_state.pre_head_state.get() ); // head previous
          head = fork_db.head();
          snapshot_head_block = head->block_num;
 
