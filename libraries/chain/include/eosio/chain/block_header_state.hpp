@@ -244,11 +244,6 @@ struct block_header_state : public detail::block_header_state_common {
 
 using block_header_state_ptr = std::shared_ptr<block_header_state>;
 
-/**
-* compatiable with snapshot_block_header_state_v3
-* if a node is backup node, its snapshot needs to capture previous of current head state.
-* to main node this structure has no effection on its behaviors.
-*/
 struct snapshot_chain_head_state{
    static constexpr uint32_t minimum_version = 4;
    static constexpr uint32_t maximum_version = 4;

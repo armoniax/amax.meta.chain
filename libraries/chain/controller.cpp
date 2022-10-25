@@ -889,10 +889,10 @@ struct controller_impl {
          prev_state = fork_db.get_block_header(current_state->prev(), true);
          //EOS_ASSERT( prev_state, snapshot_exception, "Head previous not found when adding snapshot.");
          if( prev_state ) prev_state->active_backup_schedule.ensure_persisted();
-         snapshot_chain_head_state complete_state;
-         complete_state.pre_head_state = prev_state;
-         complete_state.head_state = *current_state;
-         section.template add_row<snapshot_chain_head_state>(complete_state, db);
+         snapshot_chain_head_state chain_head_state;
+         chain_head_state.pre_head_state = prev_state;
+         chain_head_state.head_state = *current_state;
+         section.template add_row<snapshot_chain_head_state>(chain_head_state, db);
       });
 
       controller_index_set::walk_indices([this, &snapshot]( auto utils ){
@@ -942,8 +942,6 @@ struct controller_impl {
       });
 
       { /// load and upgrade the block header state
-         // block_header_state head_header_state;
-         // std::shared_ptr<block_header_state> prevous_header_state;
          snapshot_chain_head_state chain_head_state;
          using v2 = legacy::snapshot_block_header_state_v2;
          using v3 = legacy::snapshot_block_header_state_v3;
@@ -962,10 +960,8 @@ struct controller_impl {
                chain_head_state.head_state = block_header_state(std::move(legacy_header_state));
             });
          } else { // v4
-            //prevous_header_state = std::make_shared<block_header_state>();
             snapshot->read_section<snapshot_chain_head_state>([this, &chain_head_state]( auto &section ){
-               section.read_row(chain_head_state.pre_head_state, db);
-               section.read_row(chain_head_state.head_state, db);
+               section.read_row(chain_head_state, db);
             });
          }
 
