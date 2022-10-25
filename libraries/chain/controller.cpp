@@ -514,8 +514,10 @@ struct controller_impl {
       if( start_block_num <= blog_head->block_num() ) {
          ilog( "existing block log, attempting to replay from ${s} to ${n} blocks",
                ("s", start_block_num)("n", blog_head->block_num()) );
+         block_state_ptr prev_head;
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
+               prev_head = head;
                replay_push_block( next, controller::block_status::irreversible );
                if( next->block_num() % 500 == 0 ) {
                   ilog( "${n} of ${head}", ("n", next->block_num())("head", blog_head->block_num()) );
@@ -531,7 +533,7 @@ struct controller_impl {
          if( pending_head->block_num < head->block_num || head->block_num < fork_db.root()->block_num ) {
             ilog( "resetting fork database with new last irreversible block as the new root: ${id}",
                   ("id", head->id) );
-            fork_db.reset( *head );
+            fork_db.reset( *head , prev_head.get());
          } else if( head->block_num != fork_db.root()->block_num ) {
             auto new_root = fork_db.search_on_branch( pending_head->id, head->block_num );
             EOS_ASSERT( new_root, fork_database_exception, "unexpected error: could not find new LIB in fork database" );
@@ -880,16 +882,17 @@ struct controller_impl {
          section.add_row(chain_snapshot_header(), db);
       });
 
-      snapshot->write_section<block_state>([this]( auto &section ){
-         fork_db.head()->active_backup_schedule.ensure_persisted();
-         section.template add_row<block_header_state>(*fork_db.head(), db);
-      });
-
-      snapshot->write_section<block_state>([this]( auto &section ){
-         auto previous = fork_db.get_block(fork_db.head()->prev());
-         EOS_ASSERT( previous, snapshot_exception, "Head previous not found when adding snapshot. ");
-         previous->active_backup_schedule.ensure_persisted();
-         section.template add_row<block_header_state>(*previous, db);
+      snapshot->write_section<snapshot_block_header_state>([this]( auto &section ){
+         block_state_ptr current_state =  fork_db.head();
+         current_state->active_backup_schedule.ensure_persisted();
+         block_header_state_ptr prev_state;
+         prev_state = fork_db.get_block_header(current_state->prev(), true);
+         EOS_ASSERT( prev_state, snapshot_exception, "Head previous not found when adding snapshot.");
+         prev_state->active_backup_schedule.ensure_persisted();
+         snapshot_block_header_state complete_state;
+         complete_state.pre_state_snapshoot = *prev_state;
+         complete_state.state_snapshot = *current_state;
+         section.template add_row<snapshot_block_header_state>(complete_state, db);
       });
 
       controller_index_set::walk_indices([this, &snapshot]( auto utils ){
@@ -958,12 +961,10 @@ struct controller_impl {
                head_header_state = block_header_state(std::move(legacy_header_state));
             });
          } else { // v4
-            snapshot->read_section<block_state>([this,&head_header_state]( auto &section ){
-               section.read_row(head_header_state, db);
-            });
             prevous_header_state = std::make_shared<block_header_state>();
-            snapshot->read_section<block_state>([this,&phs = *prevous_header_state]( auto &section ){
-               section.read_row(phs, db);
+            snapshot->read_section<snapshot_block_header_state>([this, &head_header_state, &prevous_header_state]( auto &section ){
+               section.read_row(*prevous_header_state, db);
+               section.read_row(head_header_state, db);
             });
          }
 
