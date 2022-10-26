@@ -297,12 +297,13 @@ namespace eosio
          my->head = my->root;
 
          my->root_previous.reset();
-         if (root_bhs.block_num > 1) {
-            EOS_ASSERT(root_previous_bhs, fork_database_exception,
-                        "Root previous can not be empty. root_id:${id}", ("id", root_bhs.id));
-            EOS_ASSERT(root_bhs.prev() == root_previous_bhs->id, fork_database_exception,
-                        "Root previous id mismatch. root_id:${id}, expected:${expected}, got:${got}",
-                        ("id", root_bhs.id)("expected", root_bhs.prev())("got", root_previous_bhs->id));
+         
+         // EOS_ASSERT(root_previous_bhs, fork_database_exception,
+         //             "Root previous can not be empty. root_id:${id}", ("id", root_bhs.id));
+         // EOS_ASSERT(root_bhs.prev() == root_previous_bhs->id, fork_database_exception,
+         //             "Root previous id mismatch. root_id:${id}, expected:${expected}, got:${got}",
+         //             ("id", root_bhs.id)("expected", root_bhs.prev())("got", root_previous_bhs->id));
+         if(root_previous_bhs){
             my->root_previous = std::make_shared<block_state>();
             static_cast<block_header_state &>(*my->root_previous) = *root_previous_bhs;
          }

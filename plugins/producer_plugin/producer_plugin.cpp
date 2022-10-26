@@ -1428,9 +1428,6 @@ producer_plugin::get_account_ram_corrections( const get_account_ram_corrections_
 optional<fc::time_point> producer_plugin_impl::calculate_next_block_time(const account_name& producer_name, const block_timestamp_type& current_block_time) const {
    chain::controller& chain = chain_plug->chain();
    const auto& hbs = chain.head_block_state();
-   if(!hbs){
-      ilog("in special situation, head block state is null ptr.....");
-   }
    auto active_schedule = hbs->active_schedule.producers;
    auto schedule = hbs->active_backup_schedule.get_schedule();
    flat_map<name, block_signing_authority>* backup_active_schedule = nullptr;
@@ -2300,7 +2297,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_producer_wake_up_time( 
    optional<fc::time_point> wake_up_time;
    for (const auto& p : _producers) {
       auto next_producer_block_time = calculate_next_block_time(p, ref_block_time);
-      ilog("next block time: ${nbt}, producer size: ${size}",("nbt",next_producer_block_time)("size",_producers.size()));
+      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next block time: ${nbt}, producer size: ${size}",("nbt",next_producer_block_time)("size",_producers.size()));
       if (next_producer_block_time) {
          auto producer_wake_up_time = *next_producer_block_time - fc::microseconds(config::block_interval_us);
          if (wake_up_time) {

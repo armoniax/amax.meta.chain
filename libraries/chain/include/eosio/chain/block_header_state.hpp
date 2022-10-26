@@ -244,6 +244,15 @@ struct block_header_state : public detail::block_header_state_common {
 
 using block_header_state_ptr = std::shared_ptr<block_header_state>;
 
+struct snapshot_chain_head_state{
+   static constexpr uint32_t minimum_version = 4;
+   static constexpr uint32_t maximum_version = 4;
+   static_assert(chain_snapshot_header::minimum_compatible_version <= maximum_version, "snapshot_block_header_state is no longer needed");
+   
+   block_header_state_ptr pre_head_state;
+   block_header_state head_state;
+};
+
 } } /// namespace eosio::chain
 
 FC_REFLECT( eosio::chain::detail::backup_schedule_index_t,
@@ -322,4 +331,9 @@ FC_REFLECT(  eosio::chain::legacy::snapshot_block_header_state_v3,
             (pending_schedule)
             (activated_protocol_features)
             (additional_signatures)
+)
+
+FC_REFLECT( eosio::chain::snapshot_chain_head_state,
+     (pre_head_state)
+     (head_state)
 )
