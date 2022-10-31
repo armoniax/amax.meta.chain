@@ -32,7 +32,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
    /**
     * main_producers should be sorted by producer_name
     */
-   inline void validate(const proposed_producer_changes& changes, const vector<producer_authority> main_producers, flat_map<name, block_signing_authority> backup_producers)
+   inline void validate(const proposed_producer_changes& changes, const vector<producer_authority>& main_producers, flat_map<name, block_signing_authority>& backup_producers)
    {
       auto exist_in_main_producers = [&main_producers](const name &producer_name) {
          return std::find_if(main_producers.begin(), main_producers.end(), [&producer_name](const auto& item) {
@@ -46,7 +46,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
       for (const auto& change : main_changes.changes)
       {
          const auto& producer_name = change.first;
-         bool existed = exist_in_main_producers(producer_name);
+         bool existed = (!main_changes.clear_existed) && exist_in_main_producers(producer_name);
          auto op = (producer_change_operation)change.second.which();
 
          switch(op) {
@@ -80,10 +80,10 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
 
       // check backup producer changes
       uint32_t backup_producer_count = backup_producers.size();
-      for (const auto& change : changes.backup_changes.changes)
+      for (const auto& change : backup_changes.changes)
       {
          const auto& producer_name = change.first;
-         bool existed = backup_producers.find(producer_name) != backup_producers.end();
+         bool existed = (!backup_changes.clear_existed) && ( backup_producers.find(producer_name) != backup_producers.end()) ;
          auto op = (producer_change_operation)change.second.which();
 
          switch(op) {
