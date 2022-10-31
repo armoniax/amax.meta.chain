@@ -103,40 +103,6 @@
                 {
                     "name": "revision",
                     "type": "uint8"
-                },
-                {
-                    "name": "ext",
-                    "type": "amax_global_state_ext?"
-                }
-            ]
-        },
-        {
-            "name": "amax_global_state_ext",
-            "base": "",
-            "fields": [
-                {
-                    "name": "elected_version",
-                    "type": "uint8"
-                },
-                {
-                    "name": "max_main_producer_count",
-                    "type": "uint32"
-                },
-                {
-                    "name": "max_backup_producer_count",
-                    "type": "uint32"
-                },
-                {
-                    "name": "last_producer_change_id",
-                    "type": "uint64"
-                },
-                {
-                    "name": "main_elected_queue",
-                    "type": "producer_elected_queue"
-                },
-                {
-                    "name": "backup_elected_queue",
-                    "type": "producer_elected_queue"
                 }
             ]
         },
@@ -571,6 +537,36 @@
                 {
                     "name": "amount",
                     "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "elect_global_state",
+            "base": "",
+            "fields": [
+                {
+                    "name": "elected_version",
+                    "type": "uint8"
+                },
+                {
+                    "name": "max_main_producer_count",
+                    "type": "uint32"
+                },
+                {
+                    "name": "max_backup_producer_count",
+                    "type": "uint32"
+                },
+                {
+                    "name": "last_producer_change_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "main_elected_queue",
+                    "type": "producer_elected_queue"
+                },
+                {
+                    "name": "backup_elected_queue",
+                    "type": "producer_elected_queue"
                 }
             ]
         },
@@ -1133,29 +1129,7 @@
             ]
         },
         {
-            "name": "producer_elected_queue",
-            "base": "",
-            "fields": [
-                {
-                    "name": "last_producer_count",
-                    "type": "uint32"
-                },
-                {
-                    "name": "tail",
-                    "type": "producer_elected_votes"
-                },
-                {
-                    "name": "tail_prev",
-                    "type": "producer_elected_votes"
-                },
-                {
-                    "name": "tail_next",
-                    "type": "producer_elected_votes"
-                }
-            ]
-        },
-        {
-            "name": "producer_elected_votes",
+            "name": "producer_elected_info",
             "base": "",
             "fields": [
                 {
@@ -1169,6 +1143,28 @@
                 {
                     "name": "authority",
                     "type": "block_signing_authority"
+                }
+            ]
+        },
+        {
+            "name": "producer_elected_queue",
+            "base": "",
+            "fields": [
+                {
+                    "name": "last_producer_count",
+                    "type": "uint32"
+                },
+                {
+                    "name": "tail",
+                    "type": "producer_elected_info"
+                },
+                {
+                    "name": "tail_prev",
+                    "type": "producer_elected_info"
+                },
+                {
+                    "name": "tail_next",
+                    "type": "producer_elected_info"
                 }
             ]
         },
@@ -2393,6 +2389,13 @@
         {
             "name": "electchange",
             "type": "elected_change",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "electglobal",
+            "type": "elect_global_state",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
