@@ -313,7 +313,6 @@ namespace eosio { namespace chain {
       emplace_produce_change_ext_visitor produce_change_visitor(pfs, prev_activated_protocol_features, h);
       producer_schedule_change.visit(produce_change_visitor);
 
-      //check backup block extension is activated? syncing old data shouldn't emplace backup_block_extension
       if( detail::is_builtin_activated(prev_activated_protocol_features, pfs, builtin_protocol_feature_t::apos ) ){
          emplace_extension(
             h.header_extensions,

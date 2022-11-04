@@ -341,6 +341,11 @@ class privileged_api : public context_aware_api {
             fc::raw::unpack(ds, producers);
             return set_proposed_producers_common(std::move(producers), false);
          } else if (packed_producer_format == 2) {
+
+            EOS_ASSERT( context.control.is_builtin_activated(builtin_protocol_feature_t::apos ),
+                        wasm_execution_error,
+                        "producer schedule change not supported before apos protocol feature activated"
+            );
             datastream<const char*> ds( packed_producer_schedule, datalen );
             proposed_producer_changes changes;
 
