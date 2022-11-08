@@ -2297,7 +2297,7 @@ optional<fc::time_point> producer_plugin_impl::calculate_producer_wake_up_time( 
    optional<fc::time_point> wake_up_time;
    for (const auto& p : _producers) {
       auto next_producer_block_time = calculate_next_block_time(p, ref_block_time);
-      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next block time: ${nbt}, producer size: ${size}",("nbt",next_producer_block_time)("size",_producers.size()));
+      // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next block time: ${nbt}, producer size: ${size}",("nbt",next_producer_block_time)("size",_producers.size()));
       if (next_producer_block_time) {
          auto producer_wake_up_time = *next_producer_block_time - fc::microseconds(config::block_interval_us);
          if (wake_up_time) {

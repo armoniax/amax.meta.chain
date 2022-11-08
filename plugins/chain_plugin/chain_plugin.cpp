@@ -2177,6 +2177,43 @@ fc::variants read_only::get_last_blocks(const get_last_blocks_params& params) co
    }
    return vas;
 }
+
+read_only::get_active_producers_result read_only::get_active_producers(const get_active_producers_params& params) const{
+   read_only::get_active_producers_result result;
+   if(!params.is_backup){
+      result.is_backup = false;
+      const eosio::chain::producer_authority_schedule& current = db.active_producers();
+      eosio::chain::producer_authority_schedule temp;
+      temp.version = current.version;
+      temp.producers.reserve(params.limit);
+      uint32_t count = 0;
+      for(auto& pa: current.producers){
+         count++;
+         if( count > params.limit ) break;
+         temp.producers.push_back(pa);
+      }
+      result.sys_total_bps = current.producers.size();
+      to_variant(temp, result.active);
+   }else{
+      result.is_backup = true;
+      backup_producer_schedule_ptr backup_bps= db.active_backup_producers();
+      backup_producer_schedule temp;
+      if( backup_bps ){
+         temp.version = backup_bps->version;
+         temp.producers.reserve(params.limit);
+         uint32_t count = 0;
+         for(auto& np: backup_bps->producers){
+            count++;
+            if( count > params.limit ) break;
+            temp.producers.insert(np);
+         }
+         result.sys_total_bps = backup_bps->producers.size();
+      }
+      to_variant(temp, result.active);
+   }
+   return result;
+}
+
 fc::variant read_only::get_block_header_state(const get_block_header_state_params& params) const {
    block_state_ptr b;
    optional<uint64_t> block_num;
