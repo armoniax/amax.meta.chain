@@ -13,6 +13,7 @@
 #include <eosio/chain/generated_transaction_object.hpp>
 #include <eosio/chain/global_property_object.hpp>
 #include <eosio/chain/snapshot.hpp>
+#include <eosio/chain/producer_change.hpp>
 
 #include <eosio/chain/eosio_contract.hpp>
 
@@ -2178,26 +2179,56 @@ fc::variants read_only::get_last_blocks(const get_last_blocks_params& params) co
    return vas;
 }
 
-read_only::get_active_producers_result read_only::get_active_producers(const get_active_producers_params& params) const{
-   read_only::get_active_producers_result result;
+read_only::get_apos_producers_result read_only::get_apos_producers(const get_apos_producers_params& params) const{
+   read_only::get_apos_producers_result result;
    if(!params.is_backup){
       result.is_backup = false;
-      const eosio::chain::producer_authority_schedule& current = db.active_producers();
-      eosio::chain::producer_authority_schedule temp;
-      temp.version = current.version;
-      temp.producers.reserve(params.limit);
-      uint32_t count = 0;
-      for(auto& pa: current.producers){
-         count++;
-         if( count > params.limit ) break;
-         temp.producers.push_back(pa);
+      uint32_t total_bps = db.active_producers().producers.size();
+      to_variant(db.active_producers(), result.active);
+      //pending main
+      const block_producer_schedule_change& bpsc = db.pending_producer_schedule();
+      if(bpsc.contains<producer_schedule_change>()){
+         const auto& schedule_change = bpsc.get<producer_schedule_change>();
+         const auto& main_changes = schedule_change.main_changes;
+         flat_map<name, block_signing_authority> new_producers;
+         producer_change_merger::merge(main_changes, new_producers);
+         producer_authority_schedule temp;
+         temp.version = schedule_change.version;
+         temp.producers.reserve(new_producers.size());
+         producer_authority pa;
+         for(auto& np: new_producers){
+            pa.producer_name = np.first;
+            pa.authority = np.second;
+            temp.producers.push_back(pa);
+         }
+         total_bps += new_producers.size();
+         to_variant(temp, result.pending);
       }
-      result.sys_total_bps = current.producers.size();
-      to_variant(temp, result.active);
+      //proposed main
+      const auto& gpo = db.get_global_properties();
+      if( gpo.proposed_schedule_block_num.valid() ){
+         const auto& schedule_change = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+         const auto& backup_changes = schedule_change.main_changes;
+         flat_map<name, block_signing_authority> new_producers;
+         producer_change_merger::merge(backup_changes, new_producers);
+         producer_authority_schedule temp;
+         temp.version = schedule_change.version;
+         temp.producers.reserve(new_producers.size());
+         producer_authority pa;
+         for(auto& np: new_producers){
+            pa.producer_name = np.first;
+            pa.authority = np.second;
+            temp.producers.push_back(pa);
+         }
+         total_bps += new_producers.size();
+         to_variant(temp, result.proposed);
+      }
+      result.sys_total_bps = total_bps;
    }else{
       result.is_backup = true;
       backup_producer_schedule_ptr backup_bps= db.active_backup_producers();
       backup_producer_schedule temp;
+      uint32_t total_bps = 0;
       if( backup_bps ){
          temp.version = backup_bps->version;
          temp.producers.reserve(params.limit);
@@ -2207,9 +2238,50 @@ read_only::get_active_producers_result read_only::get_active_producers(const get
             if( count > params.limit ) break;
             temp.producers.insert(np);
          }
-         result.sys_total_bps = backup_bps->producers.size();
+         total_bps = backup_bps->producers.size();
       }
       to_variant(temp, result.active);
+      //pending backup
+      const block_producer_schedule_change& bpsc = db.pending_producer_schedule();
+      if (bpsc.contains<producer_schedule_change>()){
+         const auto& schedule_change = bpsc.get<producer_schedule_change>();
+         const auto& backup_changes = schedule_change.backup_changes;
+         auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
+         producer_change_merger::merge(backup_changes, new_backup_schedule->producers);
+         new_backup_schedule->version = schedule_change.version;
+         backup_producer_schedule temp;
+         temp.version = new_backup_schedule->version;
+         temp.producers.reserve(params.limit);
+         uint32_t count = 0;
+         for(auto& np: new_backup_schedule->producers){
+            count++;
+            if( count > params.limit ) break;
+            temp.producers.insert(np);
+         }
+         total_bps += new_backup_schedule->producers.size();
+         to_variant(temp, result.pending);
+      }
+      //proposed backup
+      const auto& gpo = db.get_global_properties();
+      if( gpo.proposed_schedule_block_num.valid() ){
+         const auto& schedule_change = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+         const auto& backup_changes = schedule_change.backup_changes;
+         auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
+         producer_change_merger::merge(backup_changes, new_backup_schedule->producers);
+         new_backup_schedule->version = schedule_change.version;
+         backup_producer_schedule temp;
+         temp.version = new_backup_schedule->version;
+         temp.producers.reserve(params.limit);
+         uint32_t count = 0;
+         for(auto& np: new_backup_schedule->producers){
+            count++;
+            if( count > params.limit ) break;
+            temp.producers.insert(np);
+         }
+         total_bps += new_backup_schedule->producers.size();
+         to_variant(temp, result.proposed);
+      }
+      result.sys_total_bps = total_bps;
    }
    return result;
 }
