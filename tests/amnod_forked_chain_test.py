@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import chain_config
 from testUtils import Utils
 from datetime import datetime
 from datetime import timedelta
@@ -298,7 +299,7 @@ try:
     productionCycle=[]
     producerToSlot={}
     slot=-1
-    inRowCountPerProducer=12
+    inRowCountPerProducer=chain_config.producer_repetitions
     lastTimestamp=timestamp
     headBlockNum=node.getBlockNum()
     firstBlockForWindowMissedSlot=None
@@ -455,7 +456,7 @@ try:
     killBlockNum=blockNum
     lastBlockNum=killBlockNum+(maxActiveProducers - 1)*inRowCountPerProducer+1  # allow 1st testnet group to produce just 1 more block than the 2nd
 
-    Print("Tracking the blocks from the divergence till there are 10*12 blocks on one chain and 10*12+1 on the other, from block %d to %d" % (killBlockNum, lastBlockNum))
+    Print("Tracking the blocks from the divergence till there are 10*%d blocks on one chain and 10*%d+1 on the other, from block %d to %d" % (inRowCountPerProducer, inRowCountPerProducer, killBlockNum, lastBlockNum))
 
     for blockNum in range(killBlockNum,lastBlockNum):
         blockProducer0=prodNodes[0].getBlockProducerByNum(blockNum)

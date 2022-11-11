@@ -12,6 +12,7 @@ import sys
 import random
 import json
 
+import chain_config
 from core_symbol import CORE_SYMBOL
 from testUtils import Utils
 from testUtils import Account
@@ -1181,6 +1182,13 @@ class Cluster(object):
             Utils.Print("ERROR: Failed to create account %s" % (amaxStakeAccount.name))
             return None
 
+        amaxRexAccount=copy.deepcopy(amaxAccount)
+        amaxRexAccount.name="amax.rex"
+        trans=biosNode.createAccount(amaxRexAccount, amaxAccount, 0)
+        if trans is None:
+            Utils.Print("ERROR: Failed to create account %s" % (amaxRexAccount.name))
+            return None
+
         Node.validateTransaction(trans)
         transId=Node.getTransId(trans)
         if not biosNode.waitForTransInBlock(transId):
@@ -1228,8 +1236,8 @@ class Cluster(object):
         Utils.Print("Wait for issue action transaction to become finalized.")
         transId=Node.getTransId(trans[1])
         # biosNode.waitForTransInBlock(transId)
-        # guesstimating block finalization timeout. Two production rounds of 12 blocks per node, plus 60 seconds buffer
-        timeout = .5 * 12 * 2 * len(producerKeys) + 60
+        # guesstimating block finalization timeout. Two production rounds of chain_config.producer_repetitions blocks per node, plus 60 seconds buffer
+        timeout = chain_config.block_interval * chain_config.producer_repetitions * 2 * len(producerKeys) + 60
         if not biosNode.waitForTransFinalization(transId, timeout=timeout):
             Utils.Print("ERROR: Failed to validate transaction %s got rolled into a finalized block on server port %d." % (transId, biosNode.port))
             return None

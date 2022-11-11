@@ -18,6 +18,7 @@ target_include_directories( plugin_test PUBLIC
                             ${CMAKE_SOURCE_DIR}/plugins/chain_plugin/include
                             ${CMAKE_BINARY_DIR}/unittests/include/ )
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/chain_config.py ${CMAKE_CURRENT_BINARY_DIR}/chain_config.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/core_symbol.py.in ${CMAKE_CURRENT_BINARY_DIR}/core_symbol.py)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testUtils.py ${CMAKE_CURRENT_BINARY_DIR}/testUtils.py COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/WalletMgr.py ${CMAKE_CURRENT_BINARY_DIR}/WalletMgr.py COPYONLY)

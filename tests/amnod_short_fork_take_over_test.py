@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import chain_config
 from testUtils import Utils
 import testUtils
 import time
@@ -228,7 +229,7 @@ try:
     preKillBlockProducer=nonProdNode.getBlockProducerByNum(preKillBlockNum)
     # kill at last block before defproducerl, since the block it is killed on will get propagated
     killAtProducer="defproducerb"
-    inRowCountPerProducer=12
+    inRowCountPerProducer=chain_config.producer_repetitions
     nonProdNode.killNodeOnProducer(producer=killAtProducer, whereInSequence=(inRowCountPerProducer-1))
 
 
