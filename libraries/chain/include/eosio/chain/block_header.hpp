@@ -106,7 +106,7 @@ namespace eosio { namespace chain {
          return _is_backup;
       }
 
-      inline block_id_type previous_backup() const {
+      inline const block_id_type& previous_backup() const {
          extract_backup_block_extension();
          return _previous_backup;
       }

@@ -1805,7 +1805,7 @@ struct controller_impl {
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block's previous main block num: ${mnum}",("mnum",head->block_num));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-      }else if( !pbhs.is_backup && pbhs.previous_backup != block_id_type() ){
+      }else if( !pbhs.is_backup && !pbhs.previous_backup.empty() ){
          //backup node receive main block will verify.
          //main node produce also need composite.
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
@@ -3116,7 +3116,7 @@ block_id_type controller::get_block_id_for_num( uint32_t block_num )const { try 
 
    auto id = my->blog.read_block_id_by_num(block_num);
 
-   EOS_ASSERT( BOOST_LIKELY( id != block_id_type() ), unknown_block_exception,
+   EOS_ASSERT( BOOST_LIKELY( !id.empty() ), unknown_block_exception,
                "Could not find block: ${block}", ("block", block_num) );
 
    return id;
