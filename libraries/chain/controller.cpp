@@ -2166,6 +2166,45 @@ struct controller_impl {
 
       } FC_LOG_AND_RETHROW( )
    }
+   
+   void push_backup_block( std::future<block_state_ptr>& block_state_future ){
+      auto reset_prod_light_validation = fc::make_scoped_exit([old_value=trusted_producer_light_validation, this]() {
+         trusted_producer_light_validation = old_value;
+      });
+
+      try {
+         block_state_ptr bsp = block_state_future.get();
+
+         const auto& b = bsp->block;
+
+         emit( self.pre_accepted_block, b );
+
+         fork_db.add( bsp );
+
+         if (self.is_trusted_producer(b->producer)) {
+            trusted_producer_light_validation = true;
+         };
+
+         emit( self.accepted_block_header, bsp );
+
+         if( read_mode != db_read_mode::IRREVERSIBLE ){
+            //main node receive backup block
+            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
+            bool broadcast = false;
+            if( bsp->prev() == head->prev() ){
+               broadcast = fork_db.get_backup_head_block(head->prev()) == bsp;
+            }else if( bsp->prev() == head->id ){
+               broadcast = fork_db.get_backup_head_block(head->id) == bsp;
+            }
+            if( broadcast ) {
+               //accepted backup block need to be broadcast to peers.
+               // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
+               emit( self.accepted_block, bsp );
+            }
+         }
+
+      } FC_LOG_AND_RETHROW( )
+   }
 
    void replay_push_block( const signed_block_ptr& b, controller::block_status s ) {
       self.validate_db_available_size();
@@ -2834,6 +2873,12 @@ void controller::push_block( std::future<block_state_ptr>& block_state_future,
    validate_db_available_size();
    validate_reversible_available_size();
    my->push_block( block_state_future, forked_branch_cb, trx_lookup );
+}
+
+void controller::push_backup_block( std::future<block_state_ptr>& block_state_future ){
+   validate_db_available_size();
+   validate_reversible_available_size();
+   my->push_backup_block( block_state_future );
 }
 
 transaction_trace_ptr controller::push_transaction( const transaction_metadata_ptr& trx, fc::time_point deadline,

@@ -341,6 +341,51 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
          // start processing of block
          auto bsf = chain.create_block_state_future( block );
+         if( block->is_backup() ){
+            auto ensure = fc::make_scoped_exit([this](){
+               schedule_production_loop();
+            });
+            // push the new backup block
+            try {
+               chain.push_backup_block( bsf );
+            } catch ( const guard_exception& e ) {
+               chain_plugin::handle_guard_exception(e);
+               return false;
+            } catch( const fc::exception& e ) {
+               elog((e.to_detail_string()));
+               app().get_channel<channels::rejected_block>().publish( priority::medium, block );
+               throw;
+            } catch ( const std::bad_alloc& ) {
+               chain_plugin::handle_bad_alloc();
+            } catch ( boost::interprocess::bad_alloc& ) {
+               chain_plugin::handle_db_exhaustion();
+            }
+
+            const auto& hbs = chain.head_block_state();
+            if( hbs->header.timestamp.next().to_time_point() >= fc::time_point::now() ) {
+               _production_enabled = true;
+            }
+
+            if( fc::time_point::now() - block->timestamp < fc::minutes(5) || (blk_num % 1000 == 0) ) {
+               ilog("Received block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
+                  ("p",block->producer)("id",id.str().substr(8,16))("n",blk_num)("t",block->timestamp)
+                  ("count",block->transactions.size())("lib",chain.last_irreversible_block_num())
+                  ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
+               if( chain.get_read_mode() != db_read_mode::IRREVERSIBLE && hbs->id != id && hbs->block != nullptr ) { // not applied to head
+                  ilog("Block not applied to head ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, dpos: ${dpos}, conf: ${confs}, latency: ${latency} ms]",
+                     ("p",hbs->block->producer)("id",hbs->id.str().substr(8,16))("n",hbs->block_num)("t",hbs->block->timestamp)
+                     ("count",hbs->block->transactions.size())("dpos", hbs->dpos_irreversible_blocknum)
+                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
+               }
+            }
+            /**
+            *@Description: reset backup verify mode to main
+            */
+            if(chain.is_backup_verify()){
+               chain.set_verify_mode(false);
+            }
+            return true;
+         }
 
          // abort the pending block
          abort_block();
@@ -386,12 +431,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                     ("count",hbs->block->transactions.size())("dpos", hbs->dpos_irreversible_blocknum)
                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
             }
-         }
-         /**
-         *@Description: reset backup verify mode to main
-         */
-         if(chain.is_backup_verify()){
-            chain.set_verify_mode(false);
          }
          return true;
       }
