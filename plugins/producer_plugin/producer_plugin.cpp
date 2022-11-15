@@ -42,7 +42,6 @@ using std::deque;
 using boost::signals2::scoped_connection;
 
 #undef FC_LOG_AND_DROP
-#define ACCEPT_BLOCK_IN_PRODUCING // TODO: remove?
 #define LOG_AND_DROP()  \
    catch ( const guard_exception& e ) { \
       chain_plugin::handle_guard_exception(e); \
@@ -319,13 +318,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
 
       bool on_incoming_block(const signed_block_ptr& block, const std::optional<block_id_type>& block_id) {
          auto& chain = chain_plug->chain();
-         #ifndef ACCEPT_BLOCK_IN_PRODUCING
-            if ( _pending_block_mode == pending_block_mode::producing ) {
-               fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
-                     ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
-               return false;
-            }
-         #endif
 
          const auto& id = block_id ? *block_id : block->id();
          auto blk_num = block->block_num();
@@ -377,12 +369,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                      ("count",hbs->block->transactions.size())("dpos", hbs->dpos_irreversible_blocknum)
                      ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
                }
-            }
-            /**
-            *@Description: reset backup verify mode to main
-            */
-            if(chain.is_backup_verify()){
-               chain.set_verify_mode(false);
             }
             return true;
          }
@@ -1628,7 +1614,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       */
       if(num_relevant_signatures > 0){
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
-         chain.set_produce_mode(false);
          is_backup = false;
       }
    });
@@ -1648,7 +1633,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          */
          if(num_relevant_signatures > 0){
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
-            chain.set_verify_mode(true);
             is_backup = true;
          }
       });
