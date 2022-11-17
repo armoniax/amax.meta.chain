@@ -212,6 +212,16 @@ struct pending_state {
       return (activated_features.find( feature_digest ) != activated_features.end());
    }
 
+   bool is_backup() const {
+      if( _block_stage.contains<building_block>() )
+         return _block_stage.get<building_block>()._pending_block_header_state.is_backup;
+
+      if( _block_stage.contains<assembled_block>() )
+         return _block_stage.get<assembled_block>()._pending_block_header_state.is_backup;
+
+      return _block_stage.get<completed_block>()._block_state->is_backup();
+   }
+
    void push() {
       _db_session.push();
    }
@@ -2122,6 +2132,8 @@ struct controller_impl {
       try {
          block_state_ptr bsp = block_state_future.get();
 
+         EOS_ASSERT( !bsp->is_backup(), block_validate_exception, "must be main block" );
+
          const auto& b = bsp->block;
 
          emit( self.pre_accepted_block, b );
@@ -2150,6 +2162,8 @@ struct controller_impl {
 
       try {
          block_state_ptr bsp = block_state_future.get();
+         
+         EOS_ASSERT( bsp->is_backup(), block_validate_exception, "must be backup block" );
 
          const auto& b = bsp->block;
 
@@ -3419,8 +3433,8 @@ bool controller::is_producing_block()const {
    return (my->pending->_block_status == block_status::incomplete);
 }
 
-bool controller::is_backup_produce()const{
-   return is_backup_mode;
+bool controller::is_backup_producing()const{
+   return my->pending->is_backup();
 }
 
 bool controller::is_backup_verify()const{

@@ -334,9 +334,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          // start processing of block
          auto bsf = chain.create_block_state_future( block );
          if( block->is_backup() ){
-            auto ensure = fc::make_scoped_exit([this](){
-               schedule_production_loop();
-            });
             // push the new backup block
             try {
                chain.push_backup_block( bsf );
@@ -372,10 +369,13 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
             }
             return true;
          }
-
+         if ( _pending_block_mode == pending_block_mode::producing && chain.is_producing_block() && !chain.is_backup_producing() && chain.pending_block_producer() != block->producer ) {
+            fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
+                  ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
+            return false;
+         }
          // abort the pending block
          abort_block();
-
          // exceptions throw out, make sure we restart our loop
          auto ensure = fc::make_scoped_exit([this](){
             schedule_production_loop();
@@ -1613,7 +1613,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       *@Description: process producing mode switching
       */
       if(num_relevant_signatures > 0){
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","main"));
          is_backup = false;
       }
    });
@@ -1632,7 +1631,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          *@Description: for test 2 producing mode switch
          */
          if(num_relevant_signatures > 0){
-            fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] producer start change from ${pmod} to ${cmod}",("pmod",chain.is_backup_produce()?"backup":"main")("cmod","backup"));
             is_backup = true;
          }
       });
