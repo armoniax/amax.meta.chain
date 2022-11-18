@@ -169,7 +169,8 @@ namespace eosio { namespace chain {
          void push_block( std::future<block_state_ptr>& block_state_future,
                           const forked_branch_callback& cb,
                           const trx_meta_cache_lookup& trx_lookup );
-
+         
+         void push_backup_block( std::future<block_state_ptr>& block_state_future );
          boost::asio::io_context& get_thread_pool();
 
          const chainbase::database& db()const;
@@ -255,7 +256,7 @@ namespace eosio { namespace chain {
          void check_key_list( const public_key_type& key )const;
          bool is_building_block()const;
          bool is_producing_block()const;
-         bool is_backup_produce()const;
+         bool pending_block_is_backup()const;
          bool is_backup_verify()const;
 
          bool is_ram_billing_in_notify_allowed()const;

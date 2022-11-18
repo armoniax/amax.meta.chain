@@ -212,6 +212,16 @@ struct pending_state {
       return (activated_features.find( feature_digest ) != activated_features.end());
    }
 
+   bool is_backup() const {
+      if( _block_stage.contains<building_block>() )
+         return _block_stage.get<building_block>()._pending_block_header_state.is_backup;
+
+      if( _block_stage.contains<assembled_block>() )
+         return _block_stage.get<assembled_block>()._pending_block_header_state.is_backup;
+
+      return _block_stage.get<completed_block>()._block_state->is_backup();
+   }
+
    void push() {
       _db_session.push();
    }
@@ -2089,16 +2099,6 @@ struct controller_impl {
       auto prev = fork_db.get_block_header( b->previous, b->is_backup() );
       EOS_ASSERT( prev, unlinkable_block_exception,
                   "unlinkable block ${id} ${previous}", ("id", id)("previous", b->previous) );
-      //fix me
-      if(b->is_backup()){
-         fc_dlog(_backup_block_trace_log, "received block is backup block, producer: ${bp}",("bp",b->producer));
-         self.set_verify_mode(true);
-         prev->next_is_backup = true;
-      }else{
-         fc_dlog(_backup_block_trace_log, "received block is main block, producer: ${bp}",("bp",b->producer));
-         self.set_verify_mode(false);
-         prev->next_is_backup = false;
-      }
 
       return async_thread_pool( thread_pool.get_executor(), [b, prev, control=this]() {
          const bool skip_validate_signee = false;
@@ -2132,6 +2132,8 @@ struct controller_impl {
       try {
          block_state_ptr bsp = block_state_future.get();
 
+         EOS_ASSERT( !bsp->is_backup(), block_validate_exception, "must be main block" );
+
          const auto& b = bsp->block;
 
          emit( self.pre_accepted_block, b );
@@ -2144,24 +2146,51 @@ struct controller_impl {
 
          emit( self.accepted_block_header, bsp );
 
-         if( read_mode != db_read_mode::IRREVERSIBLE && !bsp->is_backup()) {
+         if( read_mode != db_read_mode::IRREVERSIBLE ) {
             maybe_switch_forks( fork_db.pending_head(), s, forked_branch_cb, trx_lookup );
-         } else if(read_mode != db_read_mode::IRREVERSIBLE && bsp->is_backup()){
+         }else{
+            log_irreversibles();
+         }
+
+      } FC_LOG_AND_RETHROW( )
+   }
+   
+   void push_backup_block( std::future<block_state_ptr>& block_state_future ){
+      auto reset_prod_light_validation = fc::make_scoped_exit([old_value=trusted_producer_light_validation, this]() {
+         trusted_producer_light_validation = old_value;
+      });
+
+      try {
+         block_state_ptr bsp = block_state_future.get();
+         
+         EOS_ASSERT( bsp->is_backup(), block_validate_exception, "must be backup block" );
+
+         const auto& b = bsp->block;
+
+         emit( self.pre_accepted_block, b );
+
+         fork_db.add( bsp );
+
+         if (self.is_trusted_producer(b->producer)) {
+            trusted_producer_light_validation = true;
+         };
+
+         emit( self.accepted_block_header, bsp );
+
+         if( read_mode != db_read_mode::IRREVERSIBLE ){
             //main node receive backup block
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
-            bool broadcast = false;
+            bool is_accepted_block = false;
             if( bsp->prev() == head->prev() ){
-               broadcast = fork_db.get_backup_head_block(head->prev()) == bsp;
+               is_accepted_block = fork_db.get_backup_head_block(head->prev()) == bsp;
             }else if( bsp->prev() == head->id ){
-               broadcast = fork_db.get_backup_head_block(head->id) == bsp;
+               is_accepted_block = fork_db.get_backup_head_block(head->id) == bsp;
             }
-            if( broadcast ) {
+            if( is_accepted_block ) {
                //accepted backup block need to be broadcast to peers.
                // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
                emit( self.accepted_block, bsp );
             }
-         }else if(!bsp->is_backup()){
-            log_irreversibles();
          }
 
       } FC_LOG_AND_RETHROW( )
@@ -2836,6 +2865,12 @@ void controller::push_block( std::future<block_state_ptr>& block_state_future,
    my->push_block( block_state_future, forked_branch_cb, trx_lookup );
 }
 
+void controller::push_backup_block( std::future<block_state_ptr>& block_state_future ){
+   validate_db_available_size();
+   validate_reversible_available_size();
+   my->push_backup_block( block_state_future );
+}
+
 transaction_trace_ptr controller::push_transaction( const transaction_metadata_ptr& trx, fc::time_point deadline,
                                                     uint32_t billed_cpu_time_us, bool explicit_billed_cpu_time,
                                                     uint32_t subjective_cpu_bill_us ) {
@@ -3398,8 +3433,8 @@ bool controller::is_producing_block()const {
    return (my->pending->_block_status == block_status::incomplete);
 }
 
-bool controller::is_backup_produce()const{
-   return is_backup_mode;
+bool controller::pending_block_is_backup()const{
+   return my->pending->is_backup();
 }
 
 bool controller::is_backup_verify()const{
@@ -3432,16 +3467,10 @@ void controller::validate_expiration( const transaction& trx )const { try {
 
 void controller::validate_tapos( const transaction& trx )const { try {
    const auto& tapos_block_summary = db().get<block_summary_object>((uint16_t)trx.ref_block_num);
-   if(is_backup_produce() || is_backup_verify()){
-      dlog("backup produce? ${produce}, tapos verify",("produce",is_backup_produce()?"true":"false"));
-      dlog("backup verify? ${verify}, tapos verify",("verify",is_backup_verify()?"true":"false"));
-      return;
-   }else{
        //Verify TaPoS block summary has correct ID prefix, and that this block's time is not past the expiration
       EOS_ASSERT(trx.verify_reference_block(tapos_block_summary.block_id), invalid_ref_block_exception,
               "Transaction's reference block did not match. Is this transaction from a different fork?",
               ("tapos_summary", tapos_block_summary));
-   }
 } FC_CAPTURE_AND_RETHROW() }
 
 void controller::validate_db_available_size() const {
