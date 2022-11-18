@@ -214,10 +214,10 @@ struct pending_state {
 
    bool is_backup() const {
       if( _block_stage.contains<building_block>() )
-         return _block_stage.get<building_block>()._pending_block_header_state.is_backup;
+         return _block_stage.get<building_block>()._pending_block_header_state.is_backup();
 
       if( _block_stage.contains<assembled_block>() )
-         return _block_stage.get<assembled_block>()._pending_block_header_state.is_backup;
+         return _block_stage.get<assembled_block>()._pending_block_header_state.is_backup();
 
       return _block_stage.get<completed_block>()._block_state->is_backup();
    }
@@ -2156,7 +2156,7 @@ struct controller_impl {
 
       } FC_LOG_AND_RETHROW( )
    }
-   
+
    void push_backup_block( std::future<block_state_ptr>& block_state_future ){
       auto reset_prod_light_validation = fc::make_scoped_exit([old_value=trusted_producer_light_validation, this]() {
          trusted_producer_light_validation = old_value;
@@ -2164,7 +2164,7 @@ struct controller_impl {
 
       try {
          block_state_ptr bsp = block_state_future.get();
-         
+
          EOS_ASSERT( bsp->is_backup(), block_validate_exception, "must be backup block" );
 
          const auto& b = bsp->block;
