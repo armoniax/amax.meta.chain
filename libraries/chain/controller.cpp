@@ -2180,13 +2180,13 @@ struct controller_impl {
          if( read_mode != db_read_mode::IRREVERSIBLE ){
             //main node receive backup block
             fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer node receive backup block....");
-            bool broadcast = false;
+            bool is_accepted_block = false;
             if( bsp->prev() == head->prev() ){
-               broadcast = fork_db.get_backup_head_block(head->prev()) == bsp;
+               is_accepted_block = fork_db.get_backup_head_block(head->prev()) == bsp;
             }else if( bsp->prev() == head->id ){
-               broadcast = fork_db.get_backup_head_block(head->id) == bsp;
+               is_accepted_block = fork_db.get_backup_head_block(head->id) == bsp;
             }
-            if( broadcast ) {
+            if( is_accepted_block ) {
                //accepted backup block need to be broadcast to peers.
                // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] broadcast best backup block to peers when receieved it...");
                emit( self.accepted_block, bsp );
@@ -3433,7 +3433,7 @@ bool controller::is_producing_block()const {
    return (my->pending->_block_status == block_status::incomplete);
 }
 
-bool controller::is_backup_producing()const{
+bool controller::pending_block_is_backup()const{
    return my->pending->is_backup();
 }
 

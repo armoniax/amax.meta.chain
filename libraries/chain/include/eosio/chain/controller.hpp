@@ -256,7 +256,7 @@ namespace eosio { namespace chain {
          void check_key_list( const public_key_type& key )const;
          bool is_building_block()const;
          bool is_producing_block()const;
-         bool is_backup_producing()const;
+         bool pending_block_is_backup()const;
          bool is_backup_verify()const;
 
          bool is_ram_billing_in_notify_allowed()const;

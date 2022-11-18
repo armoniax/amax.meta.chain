@@ -369,7 +369,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
             }
             return true;
          }
-         if ( _pending_block_mode == pending_block_mode::producing && chain.is_producing_block() && !chain.is_backup_producing() && chain.pending_block_producer() != block->producer ) {
+         if ( _pending_block_mode == pending_block_mode::producing && chain.is_producing_block() && !chain.pending_block_is_backup() ) {
             fc_wlog( _log, "dropped incoming block #${num} id: ${id}",
                   ("num", block->block_num())("id", block_id ? (*block_id).str() : "UNKNOWN") );
             return false;
