@@ -1773,11 +1773,18 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
                   ("num", hbs->block_num + 1)("features_to_activate", features_to_activate) );
          }
       }
-      block_id_type previous_backup;
+
+      backup_block_extension backup_ext;
+      backup_ext.is_backup = is_backup;
       if(!is_backup){
-         previous_backup = chain.get_backup_head_id();
+         auto backup_head = chain.get_backup_head();
+         if (backup_head) {
+            backup_ext.previous_backup          = backup_head->id;
+            backup_ext.previous_backup_producer = backup_head->header.producer;
+            backup_ext.contribution             = config::percent_100;  // TODO: backup producer contribution
+         }
       }
-      chain.start_block( block_time, blocks_to_confirm, features_to_activate , is_backup, previous_backup);
+      chain.start_block( block_time, blocks_to_confirm, features_to_activate, backup_ext);
    } LOG_AND_DROP();
 
    if( chain.is_building_block() ) {

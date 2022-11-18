@@ -32,7 +32,6 @@ namespace eosio { namespace chain {
 
       signed_block_ptr                                    block;
       //when add to fork_database ,need to know is backup about current block_state.
-      bool              is_backup() const { return is_header_backup();}
    private: // internal use only, not thread safe
       friend struct fc::reflector<block_state>;
       friend bool block_state_is_valid( const block_state& ); // work-around for multi-index access

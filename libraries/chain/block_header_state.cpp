@@ -98,7 +98,8 @@ namespace eosio { namespace chain {
    }
 
    pending_block_header_state  block_header_state::next( block_timestamp_type when,
-                                                         uint16_t num_prev_blocks_to_confirm ,bool is_backup, block_id_type pre_backup)const
+                                                         uint16_t num_prev_blocks_to_confirm,
+                                                         const backup_block_extension& backup_ext)const
    {
       pending_block_header_state result;
 
@@ -107,24 +108,24 @@ namespace eosio { namespace chain {
       } else {
         (when = header.timestamp).slot++;
       }
-      producer_authority proauth;
-      if(!is_backup){
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is main block......");
-         proauth = get_scheduled_producer(when);
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_schedule_producer: ${bp}",("bp",proauth.producer_name));
-      }else if(is_backup){
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is backup block......");
+      producer_authority prod_auth;
+      if(!is_backup()){
+         // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is main block......");
+         prod_auth = get_scheduled_producer(when);
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_schedule_producer: ${bp}", ("bp", prod_auth.producer_name));
+      }else {
+         // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is backup block......");
          auto temp = get_backup_scheduled_producer(when);
-         EOS_ASSERT(temp.valid(),block_validate_exception, "next backup block must has block BP");
-         proauth = *temp;
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_backup_schedule_producer: ${bp}",("bp",proauth.producer_name));
+         EOS_ASSERT(temp.valid(),block_validate_exception, "get next backup block scheduled producer failed");
+         prod_auth = *temp;
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_backup_schedule_producer: ${bp}", ("bp", prod_auth.producer_name));
       }
 
-      auto itr = producer_to_last_produced.find( proauth.producer_name );
+      auto itr = producer_to_last_produced.find( prod_auth.producer_name );
       if( itr != producer_to_last_produced.end() ) {
         EOS_ASSERT( itr->second < (block_num+1) - num_prev_blocks_to_confirm, producer_double_confirm,
                     "producer ${prod} double-confirming known range",
-                    ("prod", proauth.producer_name)("num", block_num+1)
+                    ("prod", prod_auth.producer_name)("num", block_num+1)
                     ("confirmed", num_prev_blocks_to_confirm)("last_produced", itr->second) );
       }
 
@@ -135,11 +136,10 @@ namespace eosio { namespace chain {
       result.active_schedule_version                         = active_schedule.version;
       result.prev_activated_protocol_features                = activated_protocol_features;
 
-      result.valid_block_signing_authority                   = proauth.authority;
-      result.producer                                        = proauth.producer_name;
-      result.is_backup                                       = is_backup;
-      result.previous_backup                                 = pre_backup;
-      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
+      result.valid_block_signing_authority                   = prod_auth.authority;
+      result.producer                                        = prod_auth.producer_name;
+      result.backup_ext                                       = backup_ext;
+      // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next block producer is: ${bp} .....",("bp",proauth.producer_name)); // TODO: remove?
 
       result.blockroot_merkle = blockroot_merkle;
       result.blockroot_merkle.append( id );
@@ -189,7 +189,7 @@ namespace eosio { namespace chain {
       }
 
       result.dpos_proposed_irreversible_blocknum   = new_dpos_proposed_irreversible_blocknum;
-      result.dpos_irreversible_blocknum            = calc_dpos_last_irreversible( proauth.producer_name );
+      result.dpos_irreversible_blocknum            = calc_dpos_last_irreversible( prod_auth.producer_name );
 
       result.prev_pending_schedule                 = pending_schedule;
 
@@ -235,7 +235,7 @@ namespace eosio { namespace chain {
          flat_map<account_name,uint32_t> new_producer_to_last_produced;
 
          for( const auto& pro : result.active_schedule.producers ) {
-            if( pro.producer_name == proauth.producer_name ) {
+            if( pro.producer_name == result.producer ) {
                new_producer_to_last_produced[pro.producer_name] = result.block_num;
             } else {
                auto existing = producer_to_last_produced.find( pro.producer_name );
@@ -246,14 +246,14 @@ namespace eosio { namespace chain {
                }
             }
          }
-         new_producer_to_last_produced[proauth.producer_name] = result.block_num;
+         new_producer_to_last_produced[result.producer] = result.block_num;
 
          result.producer_to_last_produced = std::move( new_producer_to_last_produced );
 
          flat_map<account_name,uint32_t> new_producer_to_last_implied_irb;
 
          for( const auto& pro : result.active_schedule.producers ) {
-            if( pro.producer_name == proauth.producer_name ) {
+            if( pro.producer_name == result.producer ) {
                new_producer_to_last_implied_irb[pro.producer_name] = dpos_proposed_irreversible_blocknum;
             } else {
                auto existing = producer_to_last_implied_irb.find( pro.producer_name );
@@ -271,9 +271,9 @@ namespace eosio { namespace chain {
       } else {
          result.active_schedule                  = active_schedule;
          result.producer_to_last_produced        = producer_to_last_produced;
-         result.producer_to_last_produced[proauth.producer_name] = result.block_num;
+         result.producer_to_last_produced[result.producer] = result.block_num;
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;
-         result.producer_to_last_implied_irb[proauth.producer_name] = dpos_proposed_irreversible_blocknum;
+         result.producer_to_last_implied_irb[result.producer] = dpos_proposed_irreversible_blocknum;
 
          result.active_backup_schedule.pre_schedule = active_backup_schedule.get_schedule();
       }
@@ -286,8 +286,7 @@ namespace eosio { namespace chain {
                                                       const checksum256_type& action_mroot,
                                                       const block_producer_schedule_change& producer_schedule_change,
                                                       vector<digest_type>&& new_protocol_feature_activations,
-                                                      const protocol_feature_set& pfs, bool is_backup, block_id_type pre_backup
-   )const
+                                                      const protocol_feature_set& pfs ) const
    {
       signed_block_header h;
 
@@ -295,12 +294,10 @@ namespace eosio { namespace chain {
       h.producer          = producer;
       h.confirmed         = confirmed;
       h.previous          = previous;
-      h._previous_backup   = pre_backup;
-      h._is_backup         = is_backup;
       h.transaction_mroot = transaction_mroot;
       h.action_mroot      = action_mroot;
       h.schedule_version  = active_schedule_version;
-      h.is_extracted      = true;
+      h.set_backup_ext(backup_ext);
 
       if( new_protocol_feature_activations.size() > 0 ) {
          emplace_extension(
@@ -317,7 +314,7 @@ namespace eosio { namespace chain {
          emplace_extension(
             h.header_extensions,
             backup_block_extension::extension_id(),
-            fc::raw::pack( backup_block_extension{pre_backup, is_backup})
+            fc::raw::pack( backup_ext )
          );
       }
 
@@ -440,7 +437,6 @@ namespace eosio { namespace chain {
       result.header  = h;
 
       result.header_exts = std::move(exts);
-      result.is_backup   = is_backup;
       if( maybe_new_producer_schedule.which() > 0 ) {
          result.pending_schedule.schedule = std::move(maybe_new_producer_schedule);
          result.pending_schedule.schedule_hash = std::move(*maybe_new_producer_schedule_hash);
@@ -530,7 +526,8 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed, h.is_backup(), h.previous_backup() ).finish_next( h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
+      return next( h.timestamp, h.confirmed, header.backup_ext() ).finish_next(
+                h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
    digest_type   block_header_state::sig_digest()const {

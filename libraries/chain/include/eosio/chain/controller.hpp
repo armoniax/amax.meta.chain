@@ -134,7 +134,8 @@ namespace eosio { namespace chain {
           */
          void start_block( block_timestamp_type time,
                            uint16_t confirm_block_count,
-                           const vector<digest_type>& new_protocol_feature_activations,bool is_backup = false, block_id_type prev_backup = block_id_type());
+                           const vector<digest_type>& new_protocol_feature_activations,
+                           const backup_block_extension& backup_ext);
 
          /**
           * @return transactions applied in aborted block
@@ -186,7 +187,7 @@ namespace eosio { namespace chain {
          authorization_manager&                get_mutable_authorization_manager();
          const protocol_feature_manager&       get_protocol_feature_manager()const;
          uint32_t                              get_max_nonprivileged_inline_action_size()const;
-         const block_id_type                   get_backup_head_id()const;
+         block_state_ptr                       get_backup_head() const;
 
          const flat_set<account_name>&   get_actor_whitelist() const;
          const flat_set<account_name>&   get_actor_blacklist() const;
