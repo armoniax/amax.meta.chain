@@ -109,7 +109,7 @@ namespace eosio { namespace chain {
         (when = header.timestamp).slot++;
       }
       producer_authority prod_auth;
-      if(!is_backup()){
+      if(!backup_ext.is_backup){
          // fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] next is main block......");
          prod_auth = get_scheduled_producer(when);
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] get_schedule_producer: ${bp}", ("bp", prod_auth.producer_name));
@@ -526,7 +526,7 @@ namespace eosio { namespace chain {
                                                   const vector<digest_type>& )>& validator,
                         bool skip_validate_signee )const
    {
-      return next( h.timestamp, h.confirmed, header.backup_ext() ).finish_next(
+      return next( h.timestamp, h.confirmed, h.backup_ext() ).finish_next(
                 h, std::move(_additional_signatures), pfs, validator, skip_validate_signee );
    }
 
