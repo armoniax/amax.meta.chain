@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE( activate_preactivate_feature ) try {
 
    auto t = c.control->pending_block_time();
    c.control->abort_block();
-   BOOST_REQUIRE_EXCEPTION( c.control->start_block( t, 0, {digest_type()} ), protocol_feature_exception,
+   BOOST_REQUIRE_EXCEPTION( c.control->start_block( t, 0, {digest_type()}, {} ), protocol_feature_exception,
                             fc_exception_message_is( "protocol feature with digest '0000000000000000000000000000000000000000000000000000000000000000' is unrecognized" )
    );
 
@@ -147,6 +147,7 @@ BOOST_AUTO_TEST_CASE( require_preactivation_test ) try {
    BOOST_CHECK_EXCEPTION( c.control->start_block(
                               c.control->head_block_time() + fc::milliseconds(config::block_interval_ms),
                               0,
+                              {},
                               {}
                           ),
                           block_validate_exception,

@@ -47,10 +47,10 @@ namespace eosio
           indexed_by<
               hashed_unique<tag<by_block_id>, member<block_header_state, block_id_type, &block_header_state::id>, std::hash<block_id_type>>,
               ordered_non_unique<tag<by_prev>, const_mem_fun<block_header_state, const block_id_type &, &block_header_state::prev>>,
-              ordered_unique<tag<best_backup_by_prev>, 
+              ordered_unique<tag<best_backup_by_prev>,
                            composite_key<block_header_state,
                                     const_mem_fun<block_header_state, const block_id_type &, &block_header_state::prev>,
-                                    member<block_header_state, bool, &block_header_state::is_backup>,
+                                    const_mem_fun<block_header_state, bool, &block_header_state::is_backup>,
                                     member<block_header_state, block_id_type, &block_header_state::id>>,
                            composite_key_compare<sha256_less, std::greater<bool> , sha256_less>>,
               ordered_unique<tag<by_lib_block_num>,
@@ -297,7 +297,7 @@ namespace eosio
          my->head = my->root;
 
          my->root_previous.reset();
-         
+
          // EOS_ASSERT(root_previous_bhs, fork_database_exception,
          //             "Root previous can not be empty. root_id:${id}", ("id", root_bhs.id));
          // EOS_ASSERT(root_bhs.prev() == root_previous_bhs->id, fork_database_exception,

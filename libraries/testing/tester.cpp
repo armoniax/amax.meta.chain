@@ -389,7 +389,10 @@ namespace eosio { namespace testing {
       );
 
       uint32_t confirms = is_backup_block_mode ? 0 : head_block_number - last_produced_block_num;
-      control->start_block( block_time, confirms, feature_to_be_activated, is_backup_block_mode );
+      backup_block_extension backup_ext;
+      backup_ext.is_backup = is_backup_block_mode;
+
+      control->start_block( block_time, confirms, feature_to_be_activated, backup_ext );
 
       // Clear the list, if start block finishes successfuly, the protocol features should be assumed to be activated
       protocol_features_to_be_activated_wo_preactivation.clear();
