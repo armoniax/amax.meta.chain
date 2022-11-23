@@ -196,8 +196,8 @@ namespace eosio { namespace testing {
          vector<transaction_id_type> get_scheduled_transactions() const;
          unapplied_transaction_queue& get_unapplied_transaction_queue() { return unapplied_transactions; }
 
-         transaction_trace_ptr    push_transaction( packed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US );
-         transaction_trace_ptr    push_transaction( signed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US, bool no_throw = false );
+         virtual transaction_trace_ptr    push_transaction( packed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US );
+         virtual transaction_trace_ptr    push_transaction( signed_transaction& trx, fc::time_point deadline = fc::time_point::maximum(), uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US, bool no_throw = false );
 
          [[nodiscard]]
          action_result            push_action(action&& cert_act, uint64_t authorizer); // TODO/QUESTION: Is this needed?
@@ -426,7 +426,7 @@ namespace eosio { namespace testing {
 
       protected:
          signed_block_ptr _produce_block( fc::microseconds skip_time, bool skip_pending_trxs );
-         signed_block_ptr _produce_block( fc::microseconds skip_time, bool skip_pending_trxs,
+         virtual signed_block_ptr _produce_block( fc::microseconds skip_time, bool skip_pending_trxs,
                                           bool no_throw, std::vector<transaction_trace_ptr>& traces );
 
          void             _start_block(fc::time_point block_time);
@@ -465,6 +465,10 @@ namespace eosio { namespace testing {
          init(config);
       }
 
+      tester(controller::config config, protocol_feature_set&& pfs) {
+         init(config, std::move(pfs));
+      }
+
       tester(controller::config config, protocol_feature_set&& pfs, const genesis_state& genesis) {
          init(config, std::move(pfs), genesis);
       }
@@ -499,6 +503,12 @@ namespace eosio { namespace testing {
 
       signed_block_ptr produce_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
          return _produce_block(skip_time, false);
+      }
+
+
+      signed_block_ptr produce_block( fc::microseconds skip_time, bool skip_pending_trxs,
+                                       bool no_throw, std::vector<transaction_trace_ptr>& traces ) {
+         return _produce_block(skip_time, skip_pending_trxs, no_throw, traces);
       }
 
       signed_block_ptr produce_empty_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
@@ -647,74 +657,177 @@ namespace eosio { namespace testing {
       }
 
       unique_ptr<controller>   validating_node;
-      uint32_t                 num_blocks_to_producer_before_shutdown = 0;
-      bool                     skip_validate = false;
+      uint32_t                 num_blocks_to_producer_before_shutdown   = 0;
+      bool                     skip_validate                            = false;
    };
 
+
    class backup_block_tester : public base_tester {
-      public:
-         backup_block_tester(db_read_mode read_mode = db_read_mode::SPECULATIVE, optional<uint32_t> genesis_max_inline_action_size = optional<uint32_t>{}, optional<uint32_t> config_max_nonprivileged_inline_action_size = optional<uint32_t>{}) {
-            is_backup_block_mode = true;
-            init(setup_policy::none, read_mode, genesis_max_inline_action_size, config_max_nonprivileged_inline_action_size);
+   public:
+      virtual ~backup_block_tester() {
+         if( !backup_node ) {
+            elog( "~backup_block_tester() called with empty backup_node; likely in the middle of failure" );
+            return;
          }
-         backup_block_tester(controller::config config, const genesis_state& genesis) {
-            is_backup_block_mode = true;
-            init(config, genesis);
+         try {
+            if( num_blocks_to_producer_before_shutdown > 0 )
+               produce_blocks( num_blocks_to_producer_before_shutdown );
+            if (!skip_validate)
+               BOOST_REQUIRE_EQUAL( validate(), true );
+         } catch( const fc::exception& e ) {
+            wdump((e.to_detail_string()));
          }
+      }
+      controller::config vcfg;
 
-         backup_block_tester(controller::config config) {
-            is_backup_block_mode = true;
-            init(config);
+      backup_block_tester(const flat_set<account_name>& trusted_producers = flat_set<account_name>()) {
+         auto def_conf = default_config(tempdir);
+
+         vcfg = def_conf.first;
+         config_validator(vcfg);
+         vcfg.trusted_producers = trusted_producers;
+
+         backup_node = create_backup_node(vcfg, def_conf.second, true);
+
+         init(def_conf.first, def_conf.second);
+         execute_setup_policy(setup_policy::full);
+      }
+
+      static void config_validator(controller::config& vcfg) {
+         FC_ASSERT( vcfg.blocks_dir.filename().generic_string() != "."
+                    && vcfg.state_dir.filename().generic_string() != ".", "invalid path names in controller::config" );
+
+         vcfg.blocks_dir = vcfg.blocks_dir.parent_path() / std::string("v_").append( vcfg.blocks_dir.filename().generic_string() );
+         vcfg.state_dir  = vcfg.state_dir.parent_path() / std::string("v_").append( vcfg.state_dir.filename().generic_string() );
+
+         vcfg.contracts_console = false;
+      }
+
+      static unique_ptr<tester> create_backup_node(controller::config vcfg, const genesis_state& genesis, bool use_genesis) {
+         unique_ptr<tester> backup_node;
+
+         if (use_genesis) {
+            backup_node = std::make_unique<tester>(vcfg, make_protocol_feature_set(), genesis);
+         } else {
+            backup_node = std::make_unique<tester>(vcfg, make_protocol_feature_set());
          }
+         backup_node->is_backup_block_mode = true;
+         return backup_node;
+      }
 
-         backup_block_tester(controller::config config, protocol_feature_set&& pfs, const genesis_state& genesis) {
-            is_backup_block_mode = true;
-            init(config, std::move(pfs), genesis);
+      backup_block_tester(const fc::temp_directory& tempdir, bool use_genesis) {
+         auto def_conf = default_config(tempdir);
+         vcfg = def_conf.first;
+         config_validator(vcfg);
+         backup_node = create_backup_node(vcfg, def_conf.second, use_genesis);
+
+         if (use_genesis) {
+            init(def_conf.first, def_conf.second);
          }
-
-         backup_block_tester(const fc::temp_directory& tempdir, bool use_genesis) {
-            is_backup_block_mode = true;
-            auto def_conf = default_config(tempdir);
-            cfg = def_conf.first;
-
-            if (use_genesis) {
-               init(cfg, def_conf.second);
-            }
-            else {
-               init(cfg);
-            }
+         else {
+            init(def_conf.first);
          }
+      }
 
-         template <typename Lambda>
-         backup_block_tester(const fc::temp_directory& tempdir, Lambda conf_edit, bool use_genesis) {
-            auto def_conf = default_config(tempdir);
-            cfg = def_conf.first;
-            conf_edit(cfg);
+      template <typename Lambda>
+      backup_block_tester(const fc::temp_directory& tempdir, Lambda conf_edit, bool use_genesis) {
+         auto def_conf = default_config(tempdir);
+         conf_edit(def_conf.first);
+         vcfg = def_conf.first;
+         config_validator(vcfg);
+         backup_node = create_backup_node(vcfg, def_conf.second, use_genesis);
 
-            if (use_genesis) {
-               init(cfg, def_conf.second);
-            }
-            else {
-               init(cfg);
-            }
+         if (use_genesis) {
+            init(def_conf.first, def_conf.second);
          }
-
-         using base_tester::produce_block;
-
-         signed_block_ptr produce_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
-            return _produce_block(skip_time, false);
+         else {
+            init(def_conf.first);
          }
+      }
 
-         signed_block_ptr produce_empty_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
-            unapplied_transactions.add_aborted( control->abort_block() );
-            return _produce_block(skip_time, true);
+
+      transaction_trace_ptr push_transaction( packed_transaction& trx,
+                  fc::time_point deadline = fc::time_point::maximum(),
+                  uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US ) override
+      {
+         if (producing_backup) {
+            try {
+               backup_node->push_transaction(trx, deadline, billed_cpu_time_us);
+            } FC_RETHROW_EXCEPTIONS( warn, "push transaction to backup node failed!")
          }
-
-         signed_block_ptr finish_block()override {
-            return _finish_block();
+         return base_tester::push_transaction(trx, deadline, billed_cpu_time_us);
+      }
+      transaction_trace_ptr push_transaction( signed_transaction& trx,
+                  fc::time_point deadline = fc::time_point::maximum(),
+                  uint32_t billed_cpu_time_us = DEFAULT_BILLED_CPU_TIME_US,
+                  bool no_throw = false ) override {
+         if (producing_backup) {
+            try {
+               backup_node->push_transaction(trx, deadline, billed_cpu_time_us, no_throw);
+            } FC_RETHROW_EXCEPTIONS( warn, "push transaction to backup node failed!")
          }
+         return base_tester::push_transaction(trx, deadline, billed_cpu_time_us, no_throw);
+      }
 
-         bool validate() { return true; }
+      signed_block_ptr produce_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
+         return base_tester::_produce_block(skip_time, false);
+      }
+
+      void push_block_to_backup_node(const signed_block_ptr& sb) {
+         backup_node->push_block( sb );
+      }
+
+      signed_block_ptr produce_empty_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) )override {
+         unapplied_transactions.add_aborted( control->abort_block() );
+         return base_tester::_produce_block(skip_time, true);
+      }
+
+      signed_block_ptr finish_block()override {
+         backup_node->finish_block();
+         return _finish_block();
+      }
+
+      void add_block_signing_key(const chain::public_key_type& public_key, const chain::private_key_type& private_key) {
+         backup_node->block_signing_private_keys[public_key] = private_key;
+         block_signing_private_keys[public_key] = private_key;
+      }
+
+      bool validate() {
+
+
+        auto hbh = control->head_block_state()->header;
+        auto vn_hbh = backup_node->control->head_block_state()->header;
+        bool ok = control->head_block_id() == backup_node->control->head_block_id() &&
+               hbh.previous == vn_hbh.previous &&
+               hbh.timestamp == vn_hbh.timestamp &&
+               hbh.transaction_mroot == vn_hbh.transaction_mroot &&
+               hbh.action_mroot == vn_hbh.action_mroot &&
+               hbh.producer == vn_hbh.producer;
+
+        backup_node.reset();
+        backup_node = create_backup_node(vcfg, {}, false);
+        return ok;
+      }
+
+      unique_ptr<tester>       backup_node;
+      uint32_t                 num_blocks_to_producer_before_shutdown   = 0;
+      bool                     skip_validate                            = false;
+      bool                     producing_backup                         = false;
+
+   protected:
+
+      signed_block_ptr _produce_block( fc::microseconds skip_time, bool skip_pending_trxs,
+                                          bool no_throw, std::vector<transaction_trace_ptr>& traces ) override {
+         if (producing_backup) {
+            try {
+               auto sbb = backup_node->produce_block(skip_time, skip_pending_trxs, no_throw, traces);
+               push_block(sbb);
+            } FC_RETHROW_EXCEPTIONS( warn, "produce block in backup node failed!")
+         }
+         auto sb = base_tester::_produce_block(skip_time, skip_pending_trxs, no_throw, traces);
+         backup_node->push_block( sb );
+         return sb;
+      }
    };
 
    /**
