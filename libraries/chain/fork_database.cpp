@@ -38,6 +38,23 @@ namespace eosio
        * Version 1: initial version of the new refactored fork database portable format
        */
 
+      enum class block_valid_status: uint8_t {
+         valid             = 0,  // valid block
+         invalid_main      = 1,  // invalid main block
+         invalid_backup    = 2,  // invalid backup block
+      };
+
+      inline block_valid_status get_block_valid_status(const block_state &bs) {
+         if (block_state_is_valid(bs)) {
+            return block_valid_status::valid;
+         } else if (!bs.is_backup()){
+            return block_valid_status::invalid_main;
+         } else { // unvalidated backup block
+            return block_valid_status::invalid_backup;
+         }
+      }
+
+
       struct by_block_id;
       struct by_lib_block_num;
       struct by_prev;
@@ -55,13 +72,13 @@ namespace eosio
                            composite_key_compare<sha256_less, std::greater<bool> , sha256_less>>,
               ordered_unique<tag<by_lib_block_num>,
                              composite_key<block_state,
-                                           global_fun<const block_state &, bool, &block_state_is_valid>,
+                                           global_fun<const block_state &, block_valid_status, &get_block_valid_status>,
+                                          //  global_fun<const block_state &, bool, &block_state_is_main>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::dpos_irreversible_blocknum>,
                                            member<detail::block_header_state_common, uint32_t, &detail::block_header_state_common::block_num>,
-                                          //  global_fun<const block_state &, bool, &block_state_is_main>,
                                            member<block_header_state, block_id_type, &block_header_state::id>>,
                              composite_key_compare<
-                                 std::greater<bool>,
+                                 std::less<block_valid_status>,
                                  std::greater<uint32_t>,
                                  std::greater<uint32_t>,
                                  // std::greater<bool>,
@@ -72,6 +89,31 @@ namespace eosio
       {
          return std::tie(lhs.dpos_irreversible_blocknum, lhs.block_num) > std::tie(rhs.dpos_irreversible_blocknum, rhs.block_num);
       }
+
+      template<typename Iterator>
+      struct iterator_range {
+            Iterator itr;
+            Iterator end;
+
+            iterator_range(Iterator itr, Iterator end): itr(itr), end(end) {}
+
+            inline bool has_value() const { return itr != end; }
+
+            void next() {
+               itr++;
+            }
+
+            static inline iterator_range* select_less(iterator_range* a, iterator_range* b) {
+               if (a && b && a->has_value() && b->has_value() ) {
+                  return first_preferred(**(a->itr), **(b->itr)) ? b : a;
+               } else if (a && a->has_value()) {
+                  return a;
+               } else if (b && b->has_value()) {
+                  return b;
+               }
+               return nullptr;
+            }
+      };
 
       struct fork_database_impl
       {
@@ -230,45 +272,34 @@ namespace eosio
 
          const auto &indx = my->index.get<by_lib_block_num>();
 
-         auto unvalidated_itr = indx.rbegin();
-         auto unvalidated_end = boost::make_reverse_iterator(indx.lower_bound(false));
+         auto unvalidated_backup_ir = iterator_range(
+            /* itr = */ indx.rbegin(),
+            /* end = */ boost::make_reverse_iterator(indx.lower_bound(block_valid_status::invalid_backup))
+         );
 
-         auto validated_itr = unvalidated_end;
-         auto validated_end = indx.rend();
+         auto unvalidated_main_ir = iterator_range(
+            /* itr = */ unvalidated_backup_ir.end,
+            /* end = */ boost::make_reverse_iterator(indx.lower_bound(block_valid_status::invalid_main))
+         );
 
-         for (bool unvalidated_remaining = (unvalidated_itr != unvalidated_end),
-                   validated_remaining = (validated_itr != validated_end);
+         auto validated_ir = iterator_range(
+            /* itr = */ unvalidated_main_ir.end,
+            /* end = */ indx.rend()
+         );
 
-              unvalidated_remaining || validated_remaining;
-
-              unvalidated_remaining = (unvalidated_itr != unvalidated_end),
-                   validated_remaining = (validated_itr != validated_end))
-         {
-            auto itr = (validated_remaining ? validated_itr : unvalidated_itr);
-
-            if (unvalidated_remaining && validated_remaining)
-            {
-               if (first_preferred(**validated_itr, **unvalidated_itr))
-               {
-                  itr = unvalidated_itr;
-                  ++unvalidated_itr;
-               }
-               else
-               {
-                  ++validated_itr;
-               }
-            }
-            else if (unvalidated_remaining)
-            {
-               ++unvalidated_itr;
-            }
-            else
-            {
-               ++validated_itr;
-            }
-
-            fc::raw::pack(out, *(*itr));
+         typedef decltype(validated_ir) iterator_range_type;
+         iterator_range_type* ir_ptr = nullptr;
+         size_t block_count = 0;
+         while (unvalidated_backup_ir.has_value() || unvalidated_main_ir.has_value() || validated_ir.has_value()) {
+            ir_ptr = iterator_range_type::select_less(&validated_ir, &unvalidated_main_ir);
+            ir_ptr = iterator_range_type::select_less(ir_ptr, &unvalidated_backup_ir);
+            EOS_ASSERT(ir_ptr != nullptr, fork_database_exception, "invalid index iterator range");
+            fc::raw::pack(out, *(*ir_ptr->itr));
+            ir_ptr->next();
+            block_count++;
          }
+
+         EOS_ASSERT(block_count == num_blocks_in_fork_db, fork_database_exception, "serialized block count(${bc}) mismatch with ${db_bc}", ("bc", block_count)("db_bc", num_blocks_in_fork_db));
 
          if (my->head)
          {
@@ -473,10 +504,10 @@ namespace eosio
       {
          const auto &indx = my->index.get<by_lib_block_num>();
 
-         auto itr = indx.lower_bound(false);
-         if (itr != indx.end() && !(*itr)->is_valid())
+         auto itr = indx.lower_bound(block_valid_status::invalid_main);
+         if (itr != indx.end() && !(*itr)->is_valid() && !(*itr)->is_backup())
          {
-            if (!(*itr)->is_backup()&&first_preferred(**itr, *my->head))
+            if (first_preferred(**itr, *my->head))
                return *itr;
          }
 
