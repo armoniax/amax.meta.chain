@@ -170,6 +170,13 @@ namespace eosio { namespace testing {
          void              open( const snapshot_reader_ptr& snapshot );
          void              open( const genesis_state& genesis );
          void              open( fc::optional<chain_id_type> expected_chain_id = {} );
+
+         void reopen() {
+            close();
+            auto cfg = get_config();
+            init( cfg );
+         }
+
          bool              is_same_chain( base_tester& other );
 
          virtual signed_block_ptr produce_block( fc::microseconds skip_time = fc::milliseconds(config::block_interval_ms) ) = 0;
@@ -807,6 +814,11 @@ namespace eosio { namespace testing {
         backup_node.reset();
         backup_node = create_backup_node(vcfg, {}, false);
         return ok;
+      }
+
+      void reopen() {
+         backup_node->reopen();
+         base_tester::reopen();
       }
 
       unique_ptr<tester>       backup_node;
