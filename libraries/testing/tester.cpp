@@ -302,17 +302,22 @@ namespace eosio { namespace testing {
    }
 
    void base_tester::push_block(signed_block_ptr b) {
-      auto bsf = control->create_block_state_future(b);
+      signed_block_ptr block_new = std::make_shared<signed_block>( b->clone() );
+      auto bsf = control->create_block_state_future(block_new);
       unapplied_transactions.add_aborted( control->abort_block() );
-      control->push_block( bsf, [this]( const branch_type& forked_branch ) {
-         unapplied_transactions.add_forked( forked_branch );
-      }, [this]( const transaction_id_type& id ) {
-         return unapplied_transactions.get_trx( id );
-      } );
+      if (!block_new->is_backup()) { // main block
+         control->push_block( bsf, [this]( const branch_type& forked_branch ) {
+            unapplied_transactions.add_forked( forked_branch );
+         }, [this]( const transaction_id_type& id ) {
+            return unapplied_transactions.get_trx( id );
+         } );
+      } else { // backup block
+         control->push_backup_block( bsf );
+      }
 
       auto itr = last_produced_block.find(b->producer);
-      if (itr == last_produced_block.end() || block_header::num_from_id(b->id()) > block_header::num_from_id(itr->second)) {
-         last_produced_block[b->producer] = b->id();
+      if (itr == last_produced_block.end() || block_header::num_from_id(block_new->id()) > block_header::num_from_id(itr->second)) {
+         last_produced_block[block_new->producer] = block_new->id();
       }
    }
 
@@ -363,12 +368,30 @@ namespace eosio { namespace testing {
 
    void base_tester::_start_block(fc::time_point block_time) {
       auto head_block_number = control->head_block_num();
-      auto producer = control->head_block_state()->get_scheduled_producer(block_time);
+      backup_block_extension backup_ext;
+      backup_ext.is_backup = is_backup_block_mode;
+      uint32_t confirms = 0;
+      producer_authority producer;
+      if (!is_backup_block_mode) { // main block
+         producer = control->head_block_state()->get_scheduled_producer( block_time );
+         auto backup_head = control->get_backup_head();
+         if (backup_head) {
+            backup_ext.previous_backup          = backup_head->id;
+            backup_ext.previous_backup_producer = backup_head->header.producer;
+            backup_ext.contribution             = config::percent_100;  // TODO: backup producer contribution
+         }
 
-      auto last_produced_block_num = control->last_irreversible_block_num();
-      auto itr = last_produced_block.find(producer.producer_name);
-      if (itr != last_produced_block.end()) {
-         last_produced_block_num = std::max(control->last_irreversible_block_num(), block_header::num_from_id(itr->second));
+         auto last_produced_block_num = control->last_irreversible_block_num();
+         auto itr = last_produced_block.find(producer.producer_name);
+         if (itr != last_produced_block.end()) {
+            last_produced_block_num = std::max(control->last_irreversible_block_num(), block_header::num_from_id(itr->second));
+         }
+         confirms = head_block_number - last_produced_block_num;
+
+      } else { // backup block
+         auto bp = control->head_block_state()->get_backup_scheduled_producer( block_time );
+         FC_ASSERT( bp, "no backup producer found" );
+         producer = *bp;
       }
 
       unapplied_transactions.add_aborted( control->abort_block() );
@@ -388,11 +411,9 @@ namespace eosio { namespace testing {
          preactivated_protocol_features.end()
       );
 
-      uint32_t confirms = is_backup_block_mode ? 0 : head_block_number - last_produced_block_num;
-      backup_block_extension backup_ext;
-      backup_ext.is_backup = is_backup_block_mode;
-
       control->start_block( block_time, confirms, feature_to_be_activated, backup_ext );
+      FC_ASSERT( producer.producer_name == control->pending_block_producer(), "produer:"+ producer.producer_name.to_string()
+                     + " mismatch with schedule:" + control->pending_block_producer().to_string() + " in start_block" );
 
       // Clear the list, if start block finishes successfuly, the protocol features should be assumed to be activated
       protocol_features_to_be_activated_wo_preactivation.clear();
@@ -409,6 +430,9 @@ namespace eosio { namespace testing {
          FC_ASSERT( bp, "no backup producer found" );
          producer = *bp;
       }
+
+      FC_ASSERT( producer.producer_name == control->pending_block_producer(), "produer:"+ producer.producer_name.to_string()
+                     + " mismatch with schedule:" + control->pending_block_producer().to_string() + " in finish_block" );
 
       vector<private_key_type> signing_keys;
       auto default_active_key = get_public_key( producer.producer_name, "active");
@@ -1068,7 +1092,15 @@ namespace eosio { namespace testing {
 
             auto block = a.control->fetch_block_by_number(i);
             if( block ) { //&& !b.control->is_known_block(block->id()) ) {
-               auto bsf = b.control->create_block_state_future( block );
+               if (!block->backup_ext().previous_backup.empty()) {
+                  auto backup_block = b.control->fetch_block_by_id(block->backup_ext().previous_backup);
+                  FC_ASSERT( backup_block, "backup block not found" );
+                  signed_block_ptr backup_block_new = std::make_shared<signed_block>( backup_block->clone() );
+                  auto bbsf = b.control->create_block_state_future( backup_block_new );
+                  b.control->push_backup_block(bbsf);
+               }
+               signed_block_ptr block_new = std::make_shared<signed_block>( block->clone() );
+               auto bsf = b.control->create_block_state_future( block_new );
                b.control->abort_block();
                b.control->push_block(bsf, forked_branch_callback{}, trx_meta_cache_lookup{}); //, eosio::chain::validation_steps::created_block);
             }
