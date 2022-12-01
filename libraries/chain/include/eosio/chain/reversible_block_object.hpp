@@ -15,33 +15,38 @@ namespace eosio { namespace chain {
       uint32_t       blocknum = 0; //< blocknum should not be changed within a chainbase modifier lambda
       shared_string  packedblock;
 
-      void set_block( const signed_block_ptr& b ) {
-         packedblock.resize( fc::raw::pack_size( *b ) );
+      void set_block( const full_block_ptr& b ) {
+         auto temp = b->pack();
+         packedblock.resize( temp.size() );
          fc::datastream<char*> ds( packedblock.data(), packedblock.size() );
-         fc::raw::pack( ds, *b );
+         ds.write(temp.data(), temp.size());
       }
 
       signed_block_ptr get_block()const {
+         auto result = get_full_block();
+         return result->main_block;
+      }
+
+      signed_block_ptr get_backup_block()const {
+         auto result = get_full_block();
+         return result->backup_block ;
+      }
+      
+      full_block_ptr get_full_block()const {
          fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         auto result = std::make_shared<signed_block>();
-         fc::raw::unpack( ds, *result );
+         auto result = std::make_shared<full_block>();
+         result->unpack(ds);
          return result;
       }
 
       block_id_type get_block_id()const {
-         fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         block_header h;
-         fc::raw::unpack( ds, h );
-         // Only need the block id to then look up the block state in fork database, so just unpack the block_header from the stored packed data.
-         // Avoid calling get_block() since that constructs a new signed_block in heap memory and unpacks the full signed_block from the stored packed data.
-         return h.id();
+         auto result = get_full_block();
+         return result->main_block->id();
       }
 
       block_id_type get_previous_backup_id()const {
-         fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         block_header h;
-         fc::raw::unpack( ds, h );
-         return h.previous_backup();
+         auto result = get_full_block();
+         return result->main_block->previous_backup();
       }
    };
 

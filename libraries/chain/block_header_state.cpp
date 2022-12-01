@@ -76,7 +76,7 @@ namespace eosio { namespace chain {
       auto schedule = active_backup_schedule.get_schedule();
       if (schedule && schedule->producers.size() > 0) {
          auto index = t.slot % (schedule->producers.size() * config::backup_producer_repetitions);
-         index /= config::producer_repetitions;
+         index /= config::backup_producer_repetitions;
          const auto& itr = schedule->producers.nth(index);
          return producer_authority{itr->first, itr->second};
       }

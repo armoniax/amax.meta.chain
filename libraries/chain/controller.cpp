@@ -521,10 +521,10 @@ struct controller_impl {
 
       std::exception_ptr except_ptr;
 
+      block_state_ptr prev_head;
       if( start_block_num <= blog_head->block_num() ) {
          ilog( "existing block log, attempting to replay from ${s} to ${n} blocks",
                ("s", start_block_num)("n", blog_head->block_num()) );
-         block_state_ptr prev_head;
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
                prev_head = head;
@@ -565,6 +565,12 @@ struct controller_impl {
          int rev = 0;
          while( auto obj = reversible_blocks.find<reversible_block_object,by_num>(head->block_num+1) ) {
             ++rev;
+            signed_block_ptr prev_backup = obj->get_backup_block();
+            if( prev_backup ){
+               //dlog("recover ====> id: ${id}",("id",include_backup->id()));
+               replay_push_backup_block( prev_backup, prev_head );
+            }
+            prev_head = head;
             replay_push_block( obj->get_block(), controller::block_status::validated );
          }
          ilog( "${n} reversible blocks replayed", ("n",rev) );
@@ -1872,7 +1878,10 @@ struct controller_impl {
          if( !replay_head_time && read_mode != db_read_mode::IRREVERSIBLE && !bsp->is_backup()) {
             reversible_blocks.create<reversible_block_object>( [&]( auto& ubo ) {
                ubo.blocknum = bsp->block_num;
-               ubo.set_block( bsp->block );
+               block_state_ptr bbsp = fork_db.get_block(bsp->block->previous_backup());
+               signed_block_ptr backup = bbsp ? bbsp->block: signed_block_ptr();
+               full_block_ptr temp = std::make_shared<full_block>(bsp->block, backup);
+               ubo.set_block( temp );
             });
          }
 
@@ -2247,6 +2256,35 @@ struct controller_impl {
          }
 
       } FC_LOG_AND_RETHROW( )
+   }
+   
+   void replay_push_backup_block( const signed_block_ptr& b, block_state_ptr prev_block ) {
+      self.validate_db_available_size();
+      self.validate_reversible_available_size();
+      
+      EOS_ASSERT(!pending, block_validate_exception, "it is not valid to push a block when there is a pending block");
+      EOS_ASSERT(b->is_backup(), block_validate_exception, "it is not valid to push a main block in replay_push_backup_block" );
+
+      try {
+         EOS_ASSERT( b, block_validate_exception, "trying to push empty backup block" );
+         emit( self.pre_accepted_block, b );
+         const bool skip_validate_signee = !conf.force_all_checks;
+
+         auto bsp = std::make_shared<block_state>(
+                        *prev_block,
+                        b,
+                        protocol_features.get_protocol_feature_set(),
+                        [this]( block_timestamp_type timestamp,
+                                const flat_set<digest_type>& cur_features,
+                                const vector<digest_type>& new_features )
+                        { check_protocol_features( timestamp, cur_features, new_features ); },
+                        skip_validate_signee
+         );
+
+         fork_db.add( bsp );
+
+         emit( self.accepted_block_header, bsp ); 
+      }FC_LOG_AND_RETHROW( )
    }
 
    void maybe_switch_forks( const block_state_ptr& new_head, controller::block_status s,

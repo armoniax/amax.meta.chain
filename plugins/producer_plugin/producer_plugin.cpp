@@ -334,6 +334,8 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          // start processing of block
          auto bsf = chain.create_block_state_future( block );
          if( block->is_backup() ){
+            //TODO: root cause of interrupting the production of main BPs.
+
             // push the new backup block
             try {
                chain.push_backup_block( bsf );
