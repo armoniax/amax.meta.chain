@@ -23,31 +23,30 @@ namespace eosio { namespace chain {
       }
 
       signed_block_ptr get_block()const {
-         fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         auto result = std::make_shared<full_block>();
-         result->unpack(ds);
+         auto result = get_full_block();
          return result->main_block;
       }
 
       signed_block_ptr get_backup_block()const {
+         auto result = get_full_block();
+         return result->backup_block ;
+      }
+      
+      full_block_ptr get_full_block()const {
          fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
          auto result = std::make_shared<full_block>();
          result->unpack(ds);
-         return result->backup_block ;
+         return result;
       }
 
       block_id_type get_block_id()const {
-         fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         full_block h;
-         h.unpack( ds );
-         return h.main_block->id();
+         auto result = get_full_block();
+         return result->main_block->id();
       }
 
       block_id_type get_previous_backup_id()const {
-         fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         full_block h;
-         h.unpack( ds );
-         return h.main_block->previous_backup();
+         auto result = get_full_block();
+         return result->main_block->previous_backup();
       }
    };
 

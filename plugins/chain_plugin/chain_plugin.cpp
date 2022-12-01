@@ -1324,7 +1324,7 @@ bool chain_plugin::recover_reversible_blocks( const fc::path& db_dir, uint32_t c
          reversible_blocks.write( itr->packedblock.data(), itr->packedblock.size() );
          new_reversible.create<reversible_block_object>( [&]( auto& ubo ) {
             ubo.blocknum = itr->blocknum;
-            full_block_ptr temp = std::make_shared<full_block>(itr->get_block(), itr->get_backup_block());
+            full_block_ptr temp = itr->get_full_block();
             ubo.set_block( temp ); // get_block and set_block rather than copying the packed data acts as additional validation
          });
          end = itr->blocknum;

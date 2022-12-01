@@ -565,10 +565,10 @@ struct controller_impl {
          int rev = 0;
          while( auto obj = reversible_blocks.find<reversible_block_object,by_num>(head->block_num+1) ) {
             ++rev;
-            signed_block_ptr include_backup = obj->get_backup_block();
-            if( include_backup ){
+            signed_block_ptr prev_backup = obj->get_backup_block();
+            if( prev_backup ){
                //dlog("recover ====> id: ${id}",("id",include_backup->id()));
-               replay_push_backup_block( include_backup, prev_head, controller::block_status::validated );
+               replay_push_backup_block( prev_backup, prev_head );
             }
             prev_head = head;
             replay_push_block( obj->get_block(), controller::block_status::validated );
@@ -2258,7 +2258,7 @@ struct controller_impl {
       } FC_LOG_AND_RETHROW( )
    }
    
-   void replay_push_backup_block( const signed_block_ptr& b, block_state_ptr backup_block_prev, controller::block_status s ) {
+   void replay_push_backup_block( const signed_block_ptr& b, block_state_ptr prev_block ) {
       self.validate_db_available_size();
       self.validate_reversible_available_size();
       
@@ -2267,13 +2267,11 @@ struct controller_impl {
 
       try {
          EOS_ASSERT( b, block_validate_exception, "trying to push empty backup block" );
-         EOS_ASSERT( s == controller::block_status::validated,
-                     block_validate_exception, "invalid block status for replay backup" );
          emit( self.pre_accepted_block, b );
          const bool skip_validate_signee = !conf.force_all_checks;
 
          auto bsp = std::make_shared<block_state>(
-                        *backup_block_prev,
+                        *prev_block,
                         b,
                         protocol_features.get_protocol_feature_set(),
                         [this]( block_timestamp_type timestamp,
