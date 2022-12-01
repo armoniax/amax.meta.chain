@@ -1324,7 +1324,8 @@ bool chain_plugin::recover_reversible_blocks( const fc::path& db_dir, uint32_t c
          reversible_blocks.write( itr->packedblock.data(), itr->packedblock.size() );
          new_reversible.create<reversible_block_object>( [&]( auto& ubo ) {
             ubo.blocknum = itr->blocknum;
-            ubo.set_block( itr->get_block() ); // get_block and set_block rather than copying the packed data acts as additional validation
+            full_block_ptr temp = std::make_shared<full_block>(itr->get_block(), itr->get_backup_block());
+            ubo.set_block( temp ); // get_block and set_block rather than copying the packed data acts as additional validation
          });
          end = itr->blocknum;
          ++num;
@@ -1366,8 +1367,8 @@ bool chain_plugin::import_reversible_blocks( const fc::path& reversible_dir,
    new_reversible.add_index<reversible_block_index>();
    try {
       while( reversible_blocks.tellg() < end_pos ) {
-         signed_block tmp;
-         fc::raw::unpack(reversible_blocks, tmp);
+         full_block tmp;
+         tmp.unpack(reversible_blocks);
          num = tmp.block_num();
 
          if( start == 0 ) {
@@ -1381,7 +1382,8 @@ bool chain_plugin::import_reversible_blocks( const fc::path& reversible_dir,
 
          new_reversible.create<reversible_block_object>( [&]( auto& ubo ) {
             ubo.blocknum = num;
-            ubo.set_block( std::make_shared<signed_block>(std::move(tmp)) );
+            full_block_ptr ftmp = std::make_shared<full_block>(tmp.main_block, tmp.backup_block);
+            ubo.set_block( ftmp );
          });
          end = num;
       }
@@ -1420,9 +1422,9 @@ bool chain_plugin::export_reversible_blocks( const fc::path& reversible_dir,
                      "gap in reversible block database between ${end} and ${blocknum}",
                      ("end", end)("blocknum", itr->blocknum)
                    );
-         signed_block tmp;
+         full_block tmp;
          fc::datastream<const char *> ds( itr->packedblock.data(), itr->packedblock.size() );
-         fc::raw::unpack(ds, tmp); // Verify that packed block has not been corrupted.
+         tmp.unpack(ds); // Verify that packed block has not been corrupted.
          reversible_blocks.write( itr->packedblock.data(), itr->packedblock.size() );
          end = itr->blocknum;
          ++num;
