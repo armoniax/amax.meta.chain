@@ -358,16 +358,17 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
             }
 
             if( fc::time_point::now() - block->timestamp < fc::minutes(5) || (blk_num % 1000 == 0) ) {
-               ilog("Received block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
+               if( chain.fetch_block_state_by_id(id) ){
+                  ilog("Received backup block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
                   ("p",block->producer)("id",id.str().substr(8,16))("n",blk_num)("t",block->timestamp)
                   ("count",block->transactions.size())("lib",chain.last_irreversible_block_num())
                   ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
-               if( chain.get_read_mode() != db_read_mode::IRREVERSIBLE && hbs->id != id && hbs->block != nullptr ) { // not applied to head
-                  ilog("Block not applied to head ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, dpos: ${dpos}, conf: ${confs}, latency: ${latency} ms]",
-                     ("p",hbs->block->producer)("id",hbs->id.str().substr(8,16))("n",hbs->block_num)("t",hbs->block->timestamp)
-                     ("count",hbs->block->transactions.size())("dpos", hbs->dpos_irreversible_blocknum)
-                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
-               }
+               }else{
+                  ilog("Refused backup block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
+                  ("p",block->producer)("id",id.str().substr(8,16))("n",blk_num)("t",block->timestamp)
+                  ("count",block->transactions.size())("lib",chain.last_irreversible_block_num())
+                  ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
+               }  
             }
             return true;
          }
@@ -2436,12 +2437,12 @@ void producer_plugin_impl::produce_block() {
    chain.commit_block();
 
    block_state_ptr new_bs = chain.head_block_state();
-
-   ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",
-        ("p",new_bs->header.producer)("id",new_bs->id.str().substr(8,16))
-        ("n",new_bs->block_num)("t",new_bs->header.timestamp)
-        ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));
-
+   if( hbs->block_num != new_bs->block_num ){
+      ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",
+         ("p",new_bs->header.producer)("id",new_bs->id.str().substr(8,16))
+         ("n",new_bs->block_num)("t",new_bs->header.timestamp)
+         ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));
+   }
 }
 
 void producer_plugin::log_failed_transaction(const transaction_id_type& trx_id, const char* reason) const {
