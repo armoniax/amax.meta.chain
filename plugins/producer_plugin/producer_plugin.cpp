@@ -1662,20 +1662,21 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       // determine if our watermark excludes us from producing at this point
       if (current_watermark) {
          const block_timestamp_type block_timestamp{block_time};
-         if (current_watermark->first > hbs->block_num && !is_backup) {
+         uint32_t ref_block_num = !is_backup ? hbs->block_num : hbs->block_num + 1;
+         if ( current_watermark->first > ref_block_num ) {
+            //only main bp can come here
             elog("Not producing block because \"${producer}\" signed a block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
-                 ("producer", scheduled_producer.producer_name)
+                 ("producer", current_producer.producer_name)
                  ("watermark", current_watermark->first)
                  ("head_block_num", hbs->block_num));
             _pending_block_mode = pending_block_mode::speculating;
-         } else if (current_watermark->second >= block_timestamp && !is_backup) {
+         } else if ( current_watermark->second >= block_timestamp ) {
+            //main bp can come here.
+            //backup bp also can come here.
             elog("Not producing block because \"${producer}\" signed a block at the next block time or later (${watermark}) than the pending block time (${block_timestamp})",
-                 ("producer", scheduled_producer.producer_name)
+                 ("producer", current_producer.producer_name)
                  ("watermark", current_watermark->second)
                  ("block_timestamp", block_timestamp));
-            _pending_block_mode = pending_block_mode::speculating;
-         } else if ( is_backup && current_watermark->first == hbs->block_num+1 && _producers.find(current_producer.producer_name) != _producers.end() ){
-            //producer has produced a backup block based on hbs.
             _pending_block_mode = pending_block_mode::speculating;
          }
       }
