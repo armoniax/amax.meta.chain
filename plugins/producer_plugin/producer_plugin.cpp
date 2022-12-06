@@ -358,16 +358,10 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
             }
 
             if( fc::time_point::now() - block->timestamp < fc::minutes(5) || (blk_num % 1000 == 0) ) {
-               ilog("Received block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
-                  ("p",block->producer)("id",id.str().substr(8,16))("n",blk_num)("t",block->timestamp)
-                  ("count",block->transactions.size())("lib",chain.last_irreversible_block_num())
-                  ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
-               if( chain.get_read_mode() != db_read_mode::IRREVERSIBLE && hbs->id != id && hbs->block != nullptr ) { // not applied to head
-                  ilog("Block not applied to head ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, dpos: ${dpos}, conf: ${confs}, latency: ${latency} ms]",
-                     ("p",hbs->block->producer)("id",hbs->id.str().substr(8,16))("n",hbs->block_num)("t",hbs->block->timestamp)
-                     ("count",hbs->block->transactions.size())("dpos", hbs->dpos_irreversible_blocknum)
-                     ("confs", hbs->block->confirmed)("latency", (fc::time_point::now() - hbs->block->timestamp).count()/1000 ) );
-               }
+               ilog("Received backup block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
+               ("p",block->producer)("id",id.str().substr(8,16))("n",blk_num)("t",block->timestamp)
+               ("count",block->transactions.size())("lib",chain.last_irreversible_block_num())
+               ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );  
             }
             return true;
          }
@@ -1602,7 +1596,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
    // Not our turn
    const auto& scheduled_producer = hbs->get_scheduled_producer(block_time);
    const auto& backup_scheduled_producer = hbs->get_backup_scheduled_producer(block_time);
-   const auto current_watermark = get_watermark(scheduled_producer.producer_name);
 
    size_t num_relevant_signatures = 0;
    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 1st: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
@@ -1638,19 +1631,21 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       });
    }
 
-   producer_authority check_producer;
+   producer_authority current_producer;
    if(!is_backup){
-      check_producer = scheduled_producer;
+      current_producer = scheduled_producer;
    }else{
-      check_producer = *backup_scheduled_producer;
+      current_producer = *backup_scheduled_producer;
    }
-
+   
+   const auto current_watermark = get_watermark(current_producer.producer_name);
+   
    auto irreversible_block_age = get_irreversible_block_age();
 
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled ) {
       _pending_block_mode = pending_block_mode::speculating;
-   } else if( _producers.find(check_producer.producer_name) == _producers.end()) {
+   } else if( _producers.find(current_producer.producer_name) == _producers.end()) {
       _pending_block_mode = pending_block_mode::speculating;
    } else if (num_relevant_signatures == 0) {
       elog("Not producing block because I don't have any private keys relevant to authority: ${authority}", ("authority", scheduled_producer.authority));
@@ -1667,20 +1662,32 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       // determine if our watermark excludes us from producing at this point
       if (current_watermark) {
          const block_timestamp_type block_timestamp{block_time};
-         if (current_watermark->first > hbs->block_num && !is_backup) {
+         uint32_t ref_block_num = !is_backup ? hbs->block_num : hbs->block_num + 1;
+         if ( current_watermark->first > ref_block_num ) {
+            //only main bp can come here
             elog("Not producing block because \"${producer}\" signed a block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
-                 ("producer", scheduled_producer.producer_name)
+                 ("producer", current_producer.producer_name)
                  ("watermark", current_watermark->first)
                  ("head_block_num", hbs->block_num));
             _pending_block_mode = pending_block_mode::speculating;
-         } else if (current_watermark->second >= block_timestamp && !is_backup) {
+         } else if ( current_watermark->second >= block_timestamp ) {
+            //main bp can come here.
+            //backup bp also can come here.
             elog("Not producing block because \"${producer}\" signed a block at the next block time or later (${watermark}) than the pending block time (${block_timestamp})",
-                 ("producer", scheduled_producer.producer_name)
+                 ("producer", current_producer.producer_name)
                  ("watermark", current_watermark->second)
                  ("block_timestamp", block_timestamp));
             _pending_block_mode = pending_block_mode::speculating;
          }
       }
+   }
+
+   if ( _pending_block_mode == pending_block_mode::speculating && is_backup ){
+      //based on next main block to schedule new production
+      const auto start_block_time = block_time;
+      fc_dlog(_log, "Not starting speculative backup block until ${bt}", ("bt", start_block_time) );
+      schedule_delayed_production_loop( weak_from_this(), start_block_time);
+      return start_block_result::waiting_for_production;
    }
 
    if (_pending_block_mode == pending_block_mode::speculating) {
@@ -2436,12 +2443,11 @@ void producer_plugin_impl::produce_block() {
    chain.commit_block();
 
    block_state_ptr new_bs = chain.head_block_state();
-
+   //main block log
    ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",
-        ("p",new_bs->header.producer)("id",new_bs->id.str().substr(8,16))
-        ("n",new_bs->block_num)("t",new_bs->header.timestamp)
-        ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));
-
+      ("p",new_bs->header.producer)("id",new_bs->id.str().substr(8,16))
+      ("n",new_bs->block_num)("t",new_bs->header.timestamp)
+      ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));
 }
 
 void producer_plugin::log_failed_transaction(const transaction_id_type& trx_id, const char* reason) const {
