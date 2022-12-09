@@ -378,12 +378,20 @@ def stepStartProducers():
     startProducers(firstProducer, firstProducer + numProducers)
     sleep(args.producer_sync_delay)
 def stepVote():
-    vote(0, 0 + args.num_voters)
+    vote(args.voter_started_idx, args.voter_started_idx + args.num_voters)
     sleep(1)
     listProducers()
     sleep(5)
 def stepProxyVotes():
-    proxyVotes(0, 0 + args.num_voters)
+    proxyVotes(args.voter_started_idx, args.voter_started_idx + args.num_voters)
+def stepUpgradeSystemContracts():
+    retry(args.amcli + 'set contract amax ' + args.upgraded_contracts_dir + '/amax.system/')
+def initApos():
+    # APOS
+    retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
+    sleep(1)
+
+    run(args.amcli + 'push action amax initelects' + jsonArg(['amax', args.num_backup_producer]) + '-p amax@active')
 def stepResign():
     resign('amax', 'amax.prods')
     for a in systemAccounts:
@@ -411,6 +419,9 @@ commands = [
     ('v', 'vote',               stepVote,                   True,    "Vote for producers"),
     # ('R', 'claim',              claimRewards,               True,    "Claim rewards"),
     ('x', 'proxy',              stepProxyVotes,             True,    "Proxy votes"),
+
+    ('U', 'upgrade-contracts',  stepUpgradeSystemContracts, True,    "Upgrade contracts"),
+    ('', 'init-apos',           initApos,                   True,    "Init apos"),
     ('q', 'resign',             stepResign,                 True,    "Resign amax"),
     ('m', 'msg-replace',        msigReplaceSystem,          False,   "Replace system contract using msig"),
     ('X', 'xfer',               stepTransfer,               False,   "Random transfer tokens (infinite loop)"),
@@ -424,6 +435,8 @@ parser.add_argument('--amcli', metavar='', help="Amcli command", default='amcli 
 parser.add_argument('--amnod', metavar='', help="Path to amnod binary", default='amnod')
 parser.add_argument('--amkey', metavar='', help="Path to amkey binary", default='amkey')
 parser.add_argument('--contracts-dir', metavar='', help="Path to latest contracts directory", default='${HOME}/amax/contracts/amax.contracts')
+parser.add_argument('--upgraded-contracts-dir', metavar='', help="Path to upgraded contracts directory", default='${HOME}/amax/contracts/upgraded.amax.contracts')
+# parser.add_argument('--nodes-dir', metavar='', help="Path to nodes directory", default='./nodes/')
 parser.add_argument('--genesis', metavar='', help="Path to genesis.json", default="./genesis.json")
 parser.add_argument('--wallet-dir', metavar='', help="Path to wallet directory", default='./wallet/')
 parser.add_argument('--log-path', metavar='', help="Path to log file", default='./output.log')
@@ -438,7 +451,9 @@ parser.add_argument('--min-producer-funds', metavar='', help="Minimum producer f
 parser.add_argument('--num-producers', metavar='', help="Number of producers to generate", type=int, default=21)
 parser.add_argument('--num-users', metavar='', help="Number of users", type=int, default=10)
 parser.add_argument('--num-producers-vote', metavar='', help="Number of producers for which each user votes", type=int, default=20)
+parser.add_argument('--voter-started-idx', metavar='', help="Started index of voters", type=int, default=0)
 parser.add_argument('--num-voters', metavar='', help="Number of voters", type=int, default=10)
+parser.add_argument('--num-backup-producer', metavar='', help="Number of backup producers", type=int, default=100)
 parser.add_argument('--num-senders', metavar='', help="Number of users to transfer funds randomly", type=int, default=10)
 parser.add_argument('--producer-sync-delay', metavar='', help="Time (s) to sleep to allow producers to sync", type=int, default=80)
 parser.add_argument('-a', '--all', action='store_true', help="Do everything marked with (*)")
