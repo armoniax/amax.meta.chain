@@ -287,26 +287,22 @@ public:
    struct get_block_params {
       string block_num_or_id;
    };
-   
+
    struct get_last_blocks_params {
       string block_count;
    };
 
    fc::variant get_block(const get_block_params& params) const;
-   
+
    fc::variants get_last_blocks(const get_last_blocks_params& params) const;
-   
+
    struct get_apos_producers_params {
-      bool is_backup = false;
-      uint32_t limit = 50;
    };
 
    struct get_apos_producers_result {
-      bool  is_backup = false;
       fc::variant active;
       fc::variant pending;
       fc::variant proposed;
-      uint32_t sys_total_bps;
    };
 
    get_apos_producers_result get_apos_producers(const get_apos_producers_params& params) const;
@@ -681,7 +677,7 @@ public:
             // which is the format used by secondary index
             uint8_t buffer[32];
             memcpy(buffer, v.data(), 32);
-            fixed_bytes<32> fb(buffer); 
+            fixed_bytes<32> fb(buffer);
             return chain::key256_t(fb.get_array());
         };
      }
@@ -699,7 +695,7 @@ public:
             // which is the format used by secondary index
             uint8_t buffer[20];
             memcpy(buffer, v.data(), 20);
-            fixed_bytes<20> fb(buffer); 
+            fixed_bytes<20> fb(buffer);
             return chain::key256_t(fb.get_array());
         };
      }
@@ -800,8 +796,8 @@ FC_REFLECT(eosio::chain_apis::read_only::get_activated_protocol_features_params,
 FC_REFLECT(eosio::chain_apis::read_only::get_activated_protocol_features_results, (activated_protocol_features)(more) )
 FC_REFLECT(eosio::chain_apis::read_only::get_block_params, (block_num_or_id))
 FC_REFLECT(eosio::chain_apis::read_only::get_last_blocks_params, (block_count))
-FC_REFLECT(eosio::chain_apis::read_only::get_apos_producers_params, (is_backup)(limit))
-FC_REFLECT(eosio::chain_apis::read_only::get_apos_producers_result, (is_backup)(active)(pending)(proposed)(sys_total_bps))
+FC_REFLECT_EMPTY(eosio::chain_apis::read_only::get_apos_producers_params )
+FC_REFLECT(eosio::chain_apis::read_only::get_apos_producers_result, (active)(pending)(proposed))
 FC_REFLECT(eosio::chain_apis::read_only::get_block_header_state_params, (block_num_or_id))
 
 FC_REFLECT( eosio::chain_apis::read_write::push_transaction_results, (transaction_id)(processed) )
