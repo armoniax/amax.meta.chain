@@ -7,6 +7,10 @@
             "type": "variant_block_signing_authority_v0"
         },
         {
+            "new_type_name": "extensions_type",
+            "type": "pair_uint16_bytes[]"
+        },
+        {
             "new_type_name": "producer_change_record",
             "type": "variant_producer_authority_add_producer_authority_modify_producer_authority_del"
         }
@@ -97,8 +101,8 @@
                     "type": "asset"
                 },
                 {
-                    "name": "reward_dispatcher",
-                    "type": "name"
+                    "name": "reverved",
+                    "type": "uint64"
                 },
                 {
                     "name": "revision",
@@ -180,7 +184,7 @@
             "fields": [
                 {
                     "name": "timestamp",
-                    "type": "uint32"
+                    "type": "block_timestamp_type"
                 },
                 {
                     "name": "producer",
@@ -209,6 +213,10 @@
                 {
                     "name": "new_producers",
                     "type": "producer_schedule?"
+                },
+                {
+                    "name": "header_extensions",
+                    "type": "extensions_type"
                 }
             ]
         },
@@ -657,10 +665,6 @@
             "base": "",
             "fields": [
                 {
-                    "name": "payer",
-                    "type": "name"
-                },
-                {
                     "name": "max_backup_producer_count",
                     "type": "uint32"
                 }
@@ -823,6 +827,20 @@
                 {
                     "name": "value",
                     "type": "int64"
+                }
+            ]
+        },
+        {
+            "name": "pair_uint16_bytes",
+            "base": "",
+            "fields": [
+                {
+                    "name": "first",
+                    "type": "uint16"
+                },
+                {
+                    "name": "second",
+                    "type": "bytes"
                 }
             ]
         },
@@ -1221,6 +1239,10 @@
                 {
                     "name": "elected_votes",
                     "type": "float64"
+                },
+                {
+                    "name": "reward_shared_ratio",
+                    "type": "uint32"
                 }
             ]
         },

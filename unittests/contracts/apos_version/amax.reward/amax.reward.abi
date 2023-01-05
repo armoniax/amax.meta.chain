@@ -1,0 +1,200 @@
+{
+    "____comment": "This file was generated with amax-abigen. DO NOT EDIT ",
+    "version": "amax::abi/1.1",
+    "types": [],
+    "structs": [
+        {
+            "name": "addrewards",
+            "base": "",
+            "fields": [
+                {
+                    "name": "producer_name",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "claimrewards",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter_name",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "global_state",
+            "base": "",
+            "fields": [
+                {
+                    "name": "reward_balance",
+                    "type": "asset"
+                },
+                {
+                    "name": "total_rewards",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "pair_name_vote_reward_info",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "name"
+                },
+                {
+                    "name": "value",
+                    "type": "vote_reward_info"
+                }
+            ]
+        },
+        {
+            "name": "producer",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "unallocated_rewards",
+                    "type": "asset"
+                },
+                {
+                    "name": "allocating_rewards",
+                    "type": "asset"
+                },
+                {
+                    "name": "allocated_rewards",
+                    "type": "asset"
+                },
+                {
+                    "name": "votes",
+                    "type": "float64"
+                },
+                {
+                    "name": "reward_per_vote",
+                    "type": "float64"
+                },
+                {
+                    "name": "update_at",
+                    "type": "block_timestamp_type"
+                }
+            ]
+        },
+        {
+            "name": "updatevotes",
+            "base": "",
+            "fields": [
+                {
+                    "name": "voter_name",
+                    "type": "name"
+                },
+                {
+                    "name": "producers",
+                    "type": "name[]"
+                },
+                {
+                    "name": "votes",
+                    "type": "float64"
+                }
+            ]
+        },
+        {
+            "name": "vote_reward_info",
+            "base": "",
+            "fields": [
+                {
+                    "name": "last_reward_per_vote",
+                    "type": "float64"
+                }
+            ]
+        },
+        {
+            "name": "voter",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "votes",
+                    "type": "float64"
+                },
+                {
+                    "name": "producers",
+                    "type": "pair_name_vote_reward_info[]"
+                },
+                {
+                    "name": "unclaimed_rewards",
+                    "type": "asset"
+                },
+                {
+                    "name": "claimed_rewards",
+                    "type": "asset"
+                },
+                {
+                    "name": "update_at",
+                    "type": "block_timestamp_type"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "addrewards",
+            "type": "addrewards",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claimrewards",
+            "type": "claimrewards",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "updatevotes",
+            "type": "updatevotes",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "global_state",
+            "type": "global_state",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "producers",
+            "type": "producer",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "vote_reward_info",
+            "type": "vote_reward_info",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "voters",
+            "type": "voter",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [],
+    "variants": []
+}
