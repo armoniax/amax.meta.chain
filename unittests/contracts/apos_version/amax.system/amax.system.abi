@@ -1339,6 +1339,10 @@
                 {
                     "name": "location",
                     "type": "uint16"
+                },
+                {
+                    "name": "reward_shared_ratio",
+                    "type": "uint32"
                 }
             ]
         },
@@ -1361,6 +1365,10 @@
                 {
                     "name": "location",
                     "type": "uint16"
+                },
+                {
+                    "name": "reward_shared_ratio",
+                    "type": "uint32"
                 }
             ]
         },

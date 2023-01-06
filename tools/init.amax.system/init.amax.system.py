@@ -24,6 +24,7 @@ systemAccounts = [
     'amax.stake',
     'amax.token',
     'amax.rex',
+    'amax.reward',
 ]
 
 def jsonArg(a):
@@ -201,13 +202,13 @@ def vote(b, e):
         prods = ' '.join(map(lambda x: accounts[x]['name'], prods))
         retry(args.amcli + 'system voteproducer prods ' + voter + ' ' + prods)
 
-# def claimRewards():
-#     table = getJsonOutput(args.amcli + 'get table amax amax producers -l 100')
-#     times = []
-#     for row in table['rows']:
-#         if row['unpaid_blocks'] and not row['last_claim_time']:
-#             times.append(getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])['processed']['elapsed'])
-#     print('Elapsed time for claimrewards:', times)
+def claimRewards():
+    table = getJsonOutput(args.amcli + 'get table amax amax producers -l 100')
+    times = []
+    for row in table['rows']:
+        if row['unpaid_blocks'] and not row['last_claim_time']:
+            times.append(getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])['processed']['elapsed'])
+    print('Elapsed time for claimrewards:', times)
 
 def proxyVotes(b, e):
     vote(firstProducer, firstProducer + 1)
@@ -386,6 +387,7 @@ def stepProxyVotes():
     proxyVotes(args.voter_started_idx, args.voter_started_idx + args.num_voters)
 def stepUpgradeSystemContracts():
     retry(args.amcli + 'set contract amax ' + args.upgraded_contracts_dir + '/amax.system/')
+    retry(args.amcli + 'set contract amax.reward ' + args.upgraded_contracts_dir + '/amax.reward/')
 def initApos():
     # APOS
     retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
@@ -417,7 +419,7 @@ commands = [
     ('T', 'stake',              stepCreateStakedAccounts,   True,    "Create staked accounts"),
     ('p', 'reg-prod',           stepRegProducers,           True,    "Register producers"),
     ('v', 'vote',               stepVote,                   True,    "Vote for producers"),
-    # ('R', 'claim',              claimRewards,               True,    "Claim rewards"),
+    ('R', 'claim',              claimRewards,               True,    "Claim rewards"),
     ('x', 'proxy',              stepProxyVotes,             True,    "Proxy votes"),
 
     ('U', 'upgrade-contracts',  stepUpgradeSystemContracts, True,    "Upgrade contracts"),

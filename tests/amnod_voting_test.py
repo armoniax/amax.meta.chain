@@ -204,7 +204,7 @@ try:
         node=cluster.getNode(i)
         node.producers=Cluster.parseProducers(i)
         for prod in node.producers:
-            trans=node.regproducer(cluster.defProducerAccounts[prod], "http::/mysite.com", 0, waitForTransBlock=False, exitOnError=True)
+            trans=node.regproducer(cluster.defProducerAccounts[prod], "http::/mysite.com", 0, 0, waitForTransBlock=False, exitOnError=True)
 
     node0=cluster.getNode(0)
     node1=cluster.getNode(1)

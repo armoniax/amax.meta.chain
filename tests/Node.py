@@ -1023,10 +1023,10 @@ class Node(object):
 
         return self.waitForTransBlockIfNeeded(trans, waitForTransBlock, exitOnError=exitOnError)
 
-    def regproducer(self, producer, url, location, waitForTransBlock=False, exitOnError=False):
+    def regproducer(self, producer, url, location, reward_shared_ratio=0, waitForTransBlock=False, exitOnError=False):
         cmdDesc="system regproducer"
-        cmd="%s -j %s %s %s %s" % (
-            cmdDesc, producer.name, producer.activePublicKey, url, location)
+        cmd="%s -j %s %s %s %s %d" % (
+            cmdDesc, producer.name, producer.activePublicKey, url, location, reward_shared_ratio)
         msg="producer=%s" % (producer.name);
         trans=self.processAmcliCmd(cmd, cmdDesc, exitOnError=exitOnError, exitMsg=msg)
         self.trackCmdTransaction(trans)

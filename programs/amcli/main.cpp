@@ -615,12 +615,13 @@ chain::action create_delegate(const name& from, const name& receiver, const asse
                         config::system_account_name, N(delegatebw), act_payload);
 }
 
-fc::variant regproducer_variant(const account_name& producer, const public_key_type& key, const string& url, uint16_t location) {
+fc::variant regproducer_variant(const account_name& producer, const public_key_type& key, const string& url, uint16_t location, uint32_t reward_shared_ratio) {
    return fc::mutable_variant_object()
             ("producer", producer)
             ("producer_key", key)
             ("url", url)
             ("location", location)
+            ("reward_shared_ratio", reward_shared_ratio)
             ;
 }
 
@@ -1004,6 +1005,7 @@ struct register_producer_subcommand {
    string producer_key_str;
    string url;
    uint16_t loc = 0;
+   uint32_t reward_shared_ratio = 0;
 
    register_producer_subcommand(CLI::App* actionRoot) {
       auto register_producer = actionRoot->add_subcommand("regproducer", localized("Register a new producer"));
@@ -1011,6 +1013,7 @@ struct register_producer_subcommand {
       register_producer->add_option("producer_key", producer_key_str, localized("The producer's public key"))->required();
       register_producer->add_option("url", url, localized("url where info about producer can be found"), true);
       register_producer->add_option("location", loc, localized("relative location for purpose of nearest neighbor scheduling"), true);
+      register_producer->add_option("reward_shared_ratio", reward_shared_ratio, localized("reward shared ratio"), true);
       add_standard_transaction_options(register_producer, "account@active");
 
 
@@ -1020,7 +1023,7 @@ struct register_producer_subcommand {
             producer_key = public_key_type(producer_key_str);
          } EOS_RETHROW_EXCEPTIONS(public_key_type_exception, "Invalid producer public key: ${public_key}", ("public_key", producer_key_str))
 
-         auto regprod_var = regproducer_variant(name(producer_str), producer_key, url, loc );
+         auto regprod_var = regproducer_variant(name(producer_str), producer_key, url, loc, reward_shared_ratio );
          auto accountPermissions = get_account_permissions(tx_permission, {name(producer_str), config::active_name});
          send_actions({create_action(accountPermissions, config::system_account_name, N(regproducer), regprod_var)});
       });
@@ -2126,7 +2129,7 @@ struct activate_subcommand {
                ("feature_digest", feature_digest);
             auto accountPermissions = get_account_permissions(tx_permission, {config::system_account_name, config::active_name});
             send_actions({
-                action{ accountPermissions, activate { .feature_digest   = feature_digest } } 
+                action{ accountPermissions, activate { .feature_digest   = feature_digest } }
             });
       });
    }

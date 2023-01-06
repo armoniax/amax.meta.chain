@@ -147,6 +147,7 @@ public:
                        ("producer_key", get_public_key( producer, "active" ) )
                        ("url", "" )
                        ("location", 0 )
+                       ("reward_shared_ratio", 0 )
                     );
        produce_block();
        return r;
@@ -324,7 +325,7 @@ BOOST_FIXTURE_TEST_CASE( bootseq_test, bootseq_tester ) {
         // Spend some time so the producer pay pool is filled by the inflation rate
         produce_min_num_of_blocks_to_spend_time_wo_inactive_prod(fc::seconds(30 * 24 * 3600)); // 30 days
         // Since the total activated stake is larger than 150,000,000, pool should be filled reward should be bigger than zero
-        // But claimrewards is not supported now 
+        // But claimrewards is not supported now
         BOOST_REQUIRE_THROW(claim_rewards(N(runnerup1)), eosio_assert_message_exception);
       //   claim_rewards(N(runnerup1));
       //   BOOST_TEST(get_balance(N(runnerup1)).get_amount() > 0);

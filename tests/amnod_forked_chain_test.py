@@ -219,7 +219,7 @@ try:
                 Utils.errorExit("More than one non-producing nodes")
         else:
             for prod in node.producers:
-                trans=node.regproducer(cluster.defProducerAccounts[prod], "http::/mysite.com", 0, waitForTransBlock=False, exitOnError=True)
+                trans=node.regproducer(cluster.defProducerAccounts[prod], "http::/mysite.com", 0, 0, waitForTransBlock=False, exitOnError=True)
 
             prodNodes.append(node)
             producers.extend(node.producers)
