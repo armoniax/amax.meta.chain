@@ -31,6 +31,7 @@ using namespace eosio;
 using namespace eosio::chain;
 using namespace eosio::testing;
 using namespace fc;
+using mvo = mutable_variant_object;
 
 BOOST_AUTO_TEST_SUITE(get_table_tests)
 
@@ -317,7 +318,7 @@ BOOST_FIXTURE_TEST_CASE( get_table_by_seckey_test, TESTER ) try {
    produce_blocks(2);
 
    create_accounts({ N(amax.token), N(amax.ram), N(amax.ramfee), N(amax.stake),
-      N(amax.bpay), N(amax.vpay), N(amax.saving), N(amax.names) });
+      N(amax.rex), N(amax.names) });
 
    std::vector<account_name> accs{N(inita), N(initb), N(initc), N(initd)};
    create_accounts(accs);
@@ -669,5 +670,53 @@ BOOST_FIXTURE_TEST_CASE( get_table_next_key_test, TESTER ) try {
    BOOST_TEST(more2_res_8.rows[0].get_object()["hash_input"].as<string>() == "secondinput");
 
 } FC_LOG_AND_RETHROW() /// get_table_next_key_test
+
+template<typename Tester>
+bool transaction_success(Tester* t, transaction_trace_ptr trx) {
+   t->produce_block();
+   return t->chain_has_transaction(trx->id);
+}
+
+#define REQUIRE_TRX_SUCCESS(trx) BOOST_REQUIRE(transaction_success(this, trx))
+
+BOOST_FIXTURE_TEST_CASE( access_other_table_in_modify, TESTER ) try {
+   produce_blocks(2);
+
+   create_accounts({ N(test), N(voter1),  N(voter2),  N(voter3),
+      N(producer1), N(producer2), N(producer3) });
+
+   // setup contract and abi
+   set_code( N(test), contracts::get_table_test_wasm() );
+   set_abi( N(test), contracts::get_table_test_abi().data() );
+
+   produce_blocks(1);
+
+   // void addreward(const name& owner, const eosio::asset& rewards)
+   REQUIRE_TRX_SUCCESS( push_action( N(test), N(addreward), N(producer1), mvo()
+      ("owner", "producer1")
+      ("rewards", "100.00000000 AMAX") ) );
+
+   // void vote(const name& owner, const name& producer_name, const eosio::asset& stakes);
+   REQUIRE_TRX_SUCCESS( push_action(N(test), N(vote), N(voter1), mvo()
+      ("owner", "voter1")
+      ("producer_name", "producer1")
+      ("votes", "10.00000000 AMAX") ) );
+
+   REQUIRE_TRX_SUCCESS( push_action(N(test), N(vote), N(voter2), mvo()
+      ("owner", "voter2")
+      ("producer_name", "producer1")
+      ("votes", "10.00000000 AMAX") ) );
+
+   REQUIRE_TRX_SUCCESS( push_action(N(test), N(vote), N(voter1), mvo()
+      ("owner", "voter1")
+      ("producer_name", "producer1")
+      ("votes", "30.00000000 AMAX") ) );
+
+   REQUIRE_TRX_SUCCESS( push_action(N(test), N(vote), N(voter2), mvo()
+      ("owner", "voter2")
+      ("producer_name", "producer1")
+      ("votes", "50.00000000 AMAX") ) );
+
+} FC_LOG_AND_RETHROW()
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -6,8 +6,12 @@
 
 #include <eosio/eosio.hpp>
 #include <eosio/crypto.hpp>
+#include <eosio/asset.hpp>
 
 using namespace eosio;
+
+static const  eosio::symbol    CORE_SYMBOL     = symbol("AMAX", 8);
+#define CORE_ASSET(amount) eosio::asset(amount, CORE_SYMBOL)
 
 class [[eosio::contract]] get_table_test : public eosio::contract {
     public:
@@ -40,17 +44,40 @@ class [[eosio::contract]] get_table_test : public eosio::contract {
         checksum256 sec160_key() const { return checksum256(sec160.get_array()); }
     };
 
-    typedef eosio::multi_index< "numobjs"_n, numobj, 
+    typedef eosio::multi_index< "numobjs"_n, numobj,
                                 indexed_by<"bysec1"_n, const_mem_fun<numobj, uint64_t, &numobj::sec64_key>>,
                                 indexed_by<"bysec2"_n, const_mem_fun<numobj, uint128_t, &numobj::sec128_key>>,
                                 indexed_by<"bysec3"_n, const_mem_fun<numobj, double, &numobj::secdouble_key>>,
                                 indexed_by<"bysec4"_n, const_mem_fun<numobj, long double, &numobj::secldouble_key>>
                                 > numobjs;
 
-    typedef eosio::multi_index< "hashobjs"_n, hashobj, 
+    typedef eosio::multi_index< "hashobjs"_n, hashobj,
                             indexed_by<"bysec1"_n, const_mem_fun<hashobj, checksum256, &hashobj::sec256_key>>,
                             indexed_by<"bysec2"_n, const_mem_fun<hashobj, checksum256, &hashobj::sec160_key>>
                             > hashobjs;
+
+
+    struct [[eosio::table]] producer {
+        name            owner;
+        eosio::asset    total_votes                 = CORE_ASSET(0);
+        eosio::asset    unallocated_rewards         = CORE_ASSET(0);
+        eosio::asset    allocating_rewards          = CORE_ASSET(0);
+        double          rewards_per_vote           = 0;
+
+        uint64_t primary_key() const { return owner.value; }
+        typedef eosio::multi_index< "producers"_n, producer> table;
+    };
+
+    struct [[eosio::table]] voter {
+        name            owner;
+        name            producer_name;
+        eosio::asset    votes                       = CORE_ASSET(0);
+        eosio::asset    rewards                     = CORE_ASSET(0);
+        double          rewards_per_vote_paid      = 0;
+
+        uint64_t primary_key() const { return owner.value; }
+        typedef eosio::multi_index< "voters"_n, voter> table;
+    };
 
    [[eosio::action]]
    void addnumobj(uint64_t input);
@@ -59,5 +86,10 @@ class [[eosio::contract]] get_table_test : public eosio::contract {
    [[eosio::action]]
    void addhashobj(std::string hashinput);
 
+   [[eosio::action]]
+   void addreward(const name& owner, const eosio::asset& rewards);
+
+   [[eosio::action]]
+   void vote(const name& owner, const name& producer_name, const eosio::asset& votes);
 
 };
