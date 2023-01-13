@@ -26,7 +26,7 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/signals2/connection.hpp>
-#include <eosio/chain/fork_database.hpp>
+#include <eosio/chain/main_backup_similarity.hpp>
 
 namespace bmi = boost::multi_index;
 using bmi::indexed_by;
@@ -176,131 +176,6 @@ enum class pending_block_mode {
    speculating
 };
 
-class main_backup_similarity
-   {
-   private:
-      signed_block_ptr main_block;
-      signed_block_ptr best_backup_block;
-      std::set<transaction_id_type> common_txs;
-      std::set<transaction_id_type> reference_txs;
-
-   public:
-      chain_plugin *chain_plug = nullptr;
-      main_backup_similarity() {}
-
-      bool is_ready(uint32_t block_num)
-      {  
-         fc_dlog(_backup_block_trace_log, "[MAIN_BACKUP_SIMILARITY] block_num: ${block_num}",("block_num",block_num));
-         chain::controller &chain = chain_plug->chain();
-         const eosio::chain::fork_database &db = chain.fork_db();
-         if (best_backup_block && main_block){  
-            if(best_backup_block->block_num() == main_block->block_num()){
-               fc_dlog(_backup_block_trace_log, "[MAIN_BACKUP_SIMILARITY] main_num: ${block_num}",("block_num",main_block->block_num()));
-               if(db.get_backup_head_block(main_block->previous)->id == best_backup_block->id()){
-                  fc_dlog(_backup_block_trace_log, "[MAIN_BACKUP_SIMILARITY] backup_hash: ${bhash}",("bhash",best_backup_block->id()));
-                  if(main_block->block_num() == block_num){
-                     return true;
-                  }
-               }
-            }
-         }
-         return false;
-      }
-      void add_main_block_txs(signed_block_ptr block)
-      {
-         main_block = block;
-         if (best_backup_block && best_backup_block->block_num() != block->block_num())
-         {
-            reference_txs.clear();
-            for (auto &receipt : block->transactions)
-            {
-               if (receipt.trx.contains<transaction_id_type>())
-               {
-                  reference_txs.insert(receipt.trx.get<transaction_id_type>());
-               }
-               else
-               {
-                  reference_txs.insert(receipt.trx.get<packed_transaction>().packed_digest());
-               }
-            }
-         }
-         else if (best_backup_block && best_backup_block->block_num() == block->block_num())
-         {  
-            common_txs.clear();
-            for (auto &receipt : block->transactions)
-            {
-               if (receipt.trx.contains<transaction_id_type>() && reference_txs.find(receipt.trx.get<transaction_id_type>()) != reference_txs.end())
-               {
-                  common_txs.insert(receipt.trx.get<transaction_id_type>());
-               }
-               else if (reference_txs.find(receipt.trx.get<packed_transaction>().packed_digest()) != reference_txs.end())
-               {
-                  common_txs.insert(receipt.trx.get<packed_transaction>().packed_digest());
-               }
-            }
-         }
-      }
-
-      void add_backup_block_txs(signed_block_ptr block)
-      {
-         chain::controller &chain = chain_plug->chain();
-         const eosio::chain::fork_database &db = chain.fork_db();
-         block_state_ptr temp = db.get_backup_head_block(chain.head_block_id());
-         block_state_ptr temp2 = db.get_backup_head_block(chain.head_block_state()->prev());
-         if(temp && temp->id != block->id() && temp2 && temp2->id != block->id()){
-            return;
-         }
-         if(!temp && temp2 &&  temp2->id != block->id()){
-            return;
-         }
-         if(!temp2 && temp && temp->id != block->id()){
-            return;
-         }
-         EOS_ASSERT(block, producer_exception, "added backup block is NULL");
-         if (main_block && block->block_num() == main_block->block_num())
-         {
-            common_txs.clear();
-            for (auto &receipt : block->transactions)
-            {
-               if (receipt.trx.contains<transaction_id_type>() && reference_txs.find(receipt.trx.get<transaction_id_type>()) != reference_txs.end())
-               {
-                  common_txs.insert(receipt.trx.get<transaction_id_type>());
-               }
-               else if (reference_txs.find(receipt.trx.get<packed_transaction>().packed_digest()) != reference_txs.end())
-               {
-                  common_txs.insert(receipt.trx.get<packed_transaction>().packed_digest());
-               }
-            }
-            best_backup_block = block;
-         }
-         else if (main_block && main_block->block_num() < block->block_num())
-         {
-            reference_txs.clear();
-            for (auto &receipt : block->transactions)
-            {
-               if (receipt.trx.contains<transaction_id_type>())
-               {
-                  reference_txs.insert(receipt.trx.get<transaction_id_type>());
-               }
-               else
-               {
-                  reference_txs.insert(receipt.trx.get<packed_transaction>().packed_digest());
-               }
-            }
-            best_backup_block = block;
-         }
-      }
-
-      uint32_t get_similarity_degree()
-      {
-         if( main_block->transactions.size()==0 ) return config::percent_100;
-         fc_dlog(_backup_block_trace_log, "[ADD_BACKUP_BLOCK_TXS] common size: ${size}",("size",common_txs.size()));
-         fc_dlog(_backup_block_trace_log, "[ADD_BACKUP_BLOCK_TXS] main size: ${size}",("size",main_block->transactions.size()));
-         uint32_t degree = common_txs.size() * config::percent_100 / main_block->transactions.size();
-         return degree;
-      }
-   };
-
 class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin_impl> {
    public:
       producer_plugin_impl(boost::asio::io_service& io)
@@ -352,8 +227,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
       bool                                                      _protocol_features_signaled = false; // to mark whether it has been signaled in start_block
 
       chain_plugin* chain_plug = nullptr;
-      main_backup_similarity _main_backup_similarity;
-
+      main_backup_similarity                                  _main_backup_similarity;
       incoming::channels::block::channel_type::handle         _incoming_block_subscription;
       incoming::channels::transaction::channel_type::handle   _incoming_transaction_subscription;
 
@@ -465,8 +339,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
             // push the new backup block
             try {
                chain.push_backup_block( bsf );
-	       // 3, 3rd situation.
-               _main_backup_similarity.add_backup_block_txs(block);
             } catch ( const guard_exception& e ) {
                chain_plugin::handle_guard_exception(e);
                return false;
@@ -503,10 +375,6 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
          // exceptions throw out, make sure we restart our loop
          auto ensure = fc::make_scoped_exit([this](){
             schedule_production_loop();
-	    //4, 4th situation.
-            chain::controller& chain = chain_plug->chain();
-            signed_block_ptr received_block = chain.head_block_state()->block;
-            _main_backup_similarity.add_main_block_txs( received_block );
          });
 
          // push the new block
@@ -977,7 +845,6 @@ void producer_plugin::plugin_initialize(const boost::program_options::variables_
 { try {
    my->chain_plug = app().find_plugin<chain_plugin>();
    EOS_ASSERT( my->chain_plug, plugin_config_exception, "chain_plugin not found" );
-   my->_main_backup_similarity.chain_plug = app().find_plugin<chain_plugin>();
 
    my->_options = &options;
    LOAD_VALUE_SET(options, "producer-name", my->_producers)
@@ -1924,16 +1791,10 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          if (backup_head) {
             backup_ext.previous_backup          = backup_head->id;
             backup_ext.previous_backup_producer = backup_head->header.producer;
-	    uint32_t ctr = config::percent_100;
-            if(_main_backup_similarity.is_ready(hbs->block_num)){
-               ctr = _main_backup_similarity.get_similarity_degree();
-            }else{
-               //low probability
-               _main_backup_similarity.add_main_block_txs(hbs->block);
-               _main_backup_similarity.add_backup_block_txs(backup_head->block);
-               ctr = _main_backup_similarity.get_similarity_degree();
-            }
-            backup_ext.contribution             = ctr;
+	         uint32_t ctr = config::percent_100;
+            _main_backup_similarity.add_main_block_txs(hbs->block);
+            _main_backup_similarity.add_backup_block_txs(backup_head->block);
+            backup_ext.contribution             = _main_backup_similarity.get_similarity_degree();
          }
       }
       chain.start_block( block_time, blocks_to_confirm, features_to_activate, backup_ext);
@@ -2513,23 +2374,9 @@ void producer_plugin_impl::schedule_delayed_production_loop(const std::weak_ptr<
 }
 
 
-bool producer_plugin_impl::maybe_produce_block() {
-   chain::controller &chain = chain_plug->chain();
-   bool is_backup = chain.pending_block_is_backup();	
-   auto reschedule = fc::make_scoped_exit([this, &is_backup]{
+bool producer_plugin_impl::maybe_produce_block() {	
+   auto reschedule = fc::make_scoped_exit([this]{
       schedule_production_loop();
-      if(!is_backup){
-         //1,first situation
-         chain::controller& chain = chain_plug->chain();
-         signed_block_ptr produced_block = chain.head_block_state()->block;
-         _main_backup_similarity.add_main_block_txs( produced_block );
-      }else{
-         //2, second situation
-         chain::controller& chain = chain_plug->chain();
-         const eosio::chain::fork_database& db = chain.fork_db();
-         signed_block_ptr best_backup_block = db.get_backup_head_block(chain.head_block_id())->block;
-         _main_backup_similarity.add_backup_block_txs(best_backup_block);
-      }
    });
 
    try {
