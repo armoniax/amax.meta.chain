@@ -18,6 +18,7 @@
 #include <eosio/chain/genesis_intrinsics.hpp>
 #include <eosio/chain/whitelisted_intrinsics.hpp>
 #include <eosio/chain/database_header_object.hpp>
+#include <eosio/chain/block_contribution.hpp>
 
 #include <eosio/chain/protocol_feature_manager.hpp>
 #include <eosio/chain/authorization_manager.hpp>
@@ -268,7 +269,7 @@ struct controller_impl {
    typedef pair<scope_name,action_name>                   handler_key;
    map< account_name, map<handler_key, apply_handler> >   apply_handlers;
    unordered_map< builtin_protocol_feature_t, std::function<void(controller_impl&)>, enum_hash<builtin_protocol_feature_t> > protocol_feature_activation_handlers;
-
+   block_contribution bc;
    void pop_block() {
       auto prev = fork_db.get_block( head->header.previous );
 
@@ -1249,6 +1250,28 @@ struct controller_impl {
       db.remove( gto );
       return ram_delta;
    }
+   
+   uint32_t calculate_block_contribution( signed_block_ptr main_block, signed_block_ptr backup_block ) {
+      return bc.calculate_block_contribution_percent( main_block, backup_block );  
+   }
+
+   void validate_block_contribution( const signed_block_ptr block ){
+      if(!block->is_backup() && !block->previous_backup().empty()){
+         //validate block contribution
+         signed_block_ptr previous = self.fetch_block_by_id( block->previous);
+         signed_block_ptr previous_backup = self.fetch_block_by_id( block->previous_backup());
+         uint32_t contribution = bc.calculate_block_contribution_percent( previous, previous_backup );
+         EOS_ASSERT(block->backup_ext().contribution == contribution, block_validate_exception, 
+                   "expected contribution: ${expected}, real: ${real}",("expected", block->backup_ext().contribution)("real",contribution));
+      }else if(!block->is_backup() && block->previous_backup().empty()){
+         EOS_ASSERT(block->backup_ext().contribution == 0, block_validate_exception, 
+                   "expected contribution: 0, real: ${real}",("real", block->backup_ext().contribution));
+      }
+
+      if(block->is_backup()){
+         EOS_ASSERT( false, block_validate_exception, "It is no sense to talk about contribution for a backup block");
+      }
+   }
 
    bool failure_is_subjective( const fc::exception& e ) const {
       auto code = e.code();
@@ -2147,6 +2170,14 @@ struct controller_impl {
 
          const auto& b = bsp->block;
 
+         if(!b->previous_backup().empty()){
+            auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
+            EOS_ASSERT( prev_backup, unlinkable_block_exception,
+                     "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup()));
+         }
+         
+         self.validate_block_contribution(b);
+
          emit( self.pre_accepted_block, b );
 
          fork_db.add( bsp );
@@ -2212,7 +2243,12 @@ struct controller_impl {
       self.validate_reversible_available_size();
 
       EOS_ASSERT(!pending, block_validate_exception, "it is not valid to push a block when there is a pending block");
-
+      if(!b->previous_backup().empty()){
+            auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
+            EOS_ASSERT( prev_backup, unlinkable_block_exception,
+                     "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup()));
+      }
+      self.validate_block_contribution(b);
       try {
          EOS_ASSERT( b, block_validate_exception, "trying to push empty block" );
          EOS_ASSERT( (s == controller::block_status::irreversible || s == controller::block_status::validated),
@@ -3091,7 +3127,7 @@ signed_block_ptr controller::fetch_block_by_id( block_id_type id )const {
       bptr = fetch_block_by_number( block_header::num_from_id(id) , true );
       fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] fetch backup block by id in controller, find: ${found}",("found",bptr != nullptr? true: false));
       if( bptr ){
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] found id: ${fid}: wanted: ${wid}",("fid",bptr->id())("wid",id));
+         //fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] found id: ${fid}: wanted: ${wid}",("fid",bptr->id())("wid",id));
          if( bptr->id() == id ){
             return bptr;
          }
@@ -3477,10 +3513,6 @@ bool controller::pending_block_is_backup()const{
    return my->pending->is_backup();
 }
 
-bool controller::is_backup_verify()const{
-   return is_backup_verify_mode;
-}
-
 bool controller::is_ram_billing_in_notify_allowed()const {
    return my->conf.disable_all_subjective_mitigations || !is_producing_block() || my->conf.allow_ram_billing_in_notify;
 }
@@ -3523,6 +3555,10 @@ void controller::validate_reversible_available_size() const {
    const auto free = my->reversible_blocks.get_segment_manager()->get_free_memory();
    const auto guard = my->conf.reversible_guard_size;
    EOS_ASSERT(free >= guard, reversible_guard_exception, "reversible free: ${f}, guard size: ${g}", ("f", free)("g",guard));
+}
+
+void controller::validate_block_contribution( const signed_block_ptr block ) {
+   my->validate_block_contribution( block );
 }
 
 bool controller::is_protocol_feature_activated( const digest_type& feature_digest )const {
@@ -3569,6 +3605,9 @@ uint32_t controller::get_greylist_limit()const {
    return my->conf.greylist_limit;
 }
 
+uint32_t controller::calculate_block_contribution( signed_block_ptr main_block, signed_block_ptr backup_block ) {
+   return my->calculate_block_contribution( main_block, backup_block );
+}
 void controller::add_resource_greylist(const account_name &name) {
    my->conf.resource_greylist.insert(name);
 }

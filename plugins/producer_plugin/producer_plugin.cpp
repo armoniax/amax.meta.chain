@@ -26,7 +26,7 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/signals2/connection.hpp>
-#include <eosio/chain/main_backup_similarity.hpp>
+
 
 namespace bmi = boost::multi_index;
 using bmi::indexed_by;
@@ -227,7 +227,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
       bool                                                      _protocol_features_signaled = false; // to mark whether it has been signaled in start_block
 
       chain_plugin* chain_plug = nullptr;
-      main_backup_similarity                                  _main_backup_similarity;
+      
       incoming::channels::block::channel_type::handle         _incoming_block_subscription;
       incoming::channels::transaction::channel_type::handle   _incoming_transaction_subscription;
 
@@ -1791,10 +1791,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          if (backup_head) {
             backup_ext.previous_backup          = backup_head->id;
             backup_ext.previous_backup_producer = backup_head->header.producer;
-	         uint32_t ctr = config::percent_100;
-            _main_backup_similarity.add_main_block_txs(hbs->block);
-            _main_backup_similarity.add_backup_block_txs(backup_head->block);
-            backup_ext.contribution             = _main_backup_similarity.get_similarity_degree();
+            backup_ext.contribution             = chain.calculate_block_contribution( hbs->block, backup_head->block );
          }
       }
       chain.start_block( block_time, blocks_to_confirm, features_to_activate, backup_ext);
