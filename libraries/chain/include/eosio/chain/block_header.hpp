@@ -23,7 +23,7 @@ namespace eosio { namespace chain {
       bool           is_backup                  = false;                // is backup block
       block_id_type  previous_backup;                                   // previous backup block id
       account_name   previous_backup_producer;                          // previous backup block producer
-      uint32_t       contribution               = config::percent_100;  // boost 10000
+      uint32_t       contribution               = 0;                    // need to boost 10000
    };
 
    using block_header_extension_types = detail::block_header_extension_types<

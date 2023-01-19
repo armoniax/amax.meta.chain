@@ -18,11 +18,14 @@ class block_contribution
             bf =  bloom_filter(p);
         }
 
-        uint32_t calculate_block_contribution_percent( signed_block_ptr main_block , signed_block_ptr backup_block ){
+        uint32_t calculate( signed_block_ptr main_block , signed_block_ptr backup_block ){
             EOS_ASSERT( main_block, producer_exception, "added main block is NULL" );
             EOS_ASSERT( backup_block, producer_exception, "added backup block is NULL" );
             bf.clear();
             common_txs = 0;
+            
+            if( main_block->transactions.size()==0 ) return config::percent_100;
+
             for (auto &receipt : main_block->transactions)
             {
                 if (receipt.trx.contains<transaction_id_type>())
@@ -51,7 +54,6 @@ class block_contribution
                 }
             }
                 
-            if( main_block->transactions.size()==0 ) return config::percent_100;
             fc_dlog(_backup_block_trace_log, "[ADD_BACKUP_BLOCK_TXS] common size: ${size}",("size",common_txs));
             fc_dlog(_backup_block_trace_log, "[ADD_BACKUP_BLOCK_TXS] main size: ${size}",("size",main_block->transactions.size()));
             uint32_t percent = common_txs * config::percent_100 / main_block->transactions.size();

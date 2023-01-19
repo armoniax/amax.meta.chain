@@ -1252,24 +1252,22 @@ struct controller_impl {
    }
    
    uint32_t calculate_block_contribution( signed_block_ptr main_block, signed_block_ptr backup_block ) {
-      return bc.calculate_block_contribution_percent( main_block, backup_block );  
+      return bc.calculate( main_block, backup_block );  
    }
 
    void validate_block_contribution( const signed_block_ptr block ){
+      EOS_ASSERT(!block->is_backup(), block_validate_exception, "It is no sense to talk about contribution for a backup block");
+      
       if(!block->is_backup() && !block->previous_backup().empty()){
          //validate block contribution
          signed_block_ptr previous = self.fetch_block_by_id( block->previous);
          signed_block_ptr previous_backup = self.fetch_block_by_id( block->previous_backup());
-         uint32_t contribution = bc.calculate_block_contribution_percent( previous, previous_backup );
+         uint32_t contribution = bc.calculate( previous, previous_backup );
          EOS_ASSERT(block->backup_ext().contribution == contribution, block_validate_exception, 
-                   "expected contribution: ${expected}, real: ${real}",("expected", block->backup_ext().contribution)("real",contribution));
+                  "expected contribution: ${expected}, actual: ${actual}",("expected", block->backup_ext().contribution)("actual",contribution));
       }else if(!block->is_backup() && block->previous_backup().empty()){
          EOS_ASSERT(block->backup_ext().contribution == 0, block_validate_exception, 
-                   "expected contribution: 0, real: ${real}",("real", block->backup_ext().contribution));
-      }
-
-      if(block->is_backup()){
-         EOS_ASSERT( false, block_validate_exception, "It is no sense to talk about contribution for a backup block");
+                  "expected contribution: 0, actual: ${actual}",("actual", block->backup_ext().contribution));
       }
    }
 
@@ -2246,7 +2244,7 @@ struct controller_impl {
       if(!b->previous_backup().empty()){
             auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
             EOS_ASSERT( prev_backup, unlinkable_block_exception,
-                     "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup()));
+                     "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", b->id())("previous_backup", b->previous_backup()));
       }
       self.validate_block_contribution(b);
       try {
