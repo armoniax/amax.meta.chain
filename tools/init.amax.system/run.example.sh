@@ -38,7 +38,7 @@ function tester() {
         --num-producers 88 \
         $@
 
-    [[ $? -ne 0 ]] && echo "${COLOR_RED}Execute init.amax.system.py failed!" && exit 1
+    [[ $? -ne 0 ]] && echo "${COLOR_RED}Execute init.amax.system.py failed" && exit 1
 }
 
 #3. start test

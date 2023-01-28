@@ -9,6 +9,8 @@ import re
 import subprocess
 import sys
 import time
+from datetime import timedelta
+from datetime import datetime
 
 args = None
 logFile = None
@@ -187,7 +189,7 @@ def createStakedAccounts(b, e):
 def regProducers(b, e):
     for i in range(b, e):
         a = accounts[i]
-        retry(args.amcli + 'system regproducer ' + a['name'] + ' ' + a['pub'] + ' https://' + a['name'] + '.com' + '/' + a['pub'])
+        retry(args.amcli + 'system regproducer ' + a['name'] + ' ' + a['pub'] + ' https://' + a['name'] + '.com' + '/' + a['pub'] + ' 0 8000')
 
 def listProducers():
     run(args.amcli + 'system listproducers')
@@ -393,7 +395,10 @@ def initApos():
     retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
     sleep(1)
 
-    run(args.amcli + 'push action amax initelects' + jsonArg(['amax', args.num_backup_producer]) + '-p amax@active')
+    run(args.amcli + 'push action amax initelects' + jsonArg([args.num_backup_producer]) + '-p amax@active')
+    sleep(1)
+    run(args.amcli + 'push action amax setinflation' + jsonArg(['1970-01-01T00:00:00', '0.20000000 AMAX']) + '-p amax@active')
+    sleep(1)
 def stepResign():
     resign('amax', 'amax.prods')
     for a in systemAccounts:
@@ -445,7 +450,7 @@ parser.add_argument('--log-path', metavar='', help="Path to log file", default='
 parser.add_argument('--symbol', metavar='', help="The amax.system symbol", default='AMAX')
 parser.add_argument('--user-limit', metavar='', help="Max number of users. (0 = no limit)", type=int, default=3000)
 parser.add_argument('--max-user-keys', metavar='', help="Maximum user keys to import into wallet", type=int, default=10)
-parser.add_argument('--ram-funds', metavar='', help="How much funds for each user to spend on ram", type=float, default=0.1)
+parser.add_argument('--ram-funds', metavar='', help="How much funds for each user to spend on ram", type=float, default=1.0)
 parser.add_argument('--min-stake', metavar='', help="Minimum stake before allocating unstaked funds", type=float, default=0.9)
 parser.add_argument('--max-unstaked', metavar='', help="Maximum unstaked funds", type=float, default=10)
 parser.add_argument('--producer-limit', metavar='', help="Maximum number of producers. (0 = no limit)", type=int, default=0)

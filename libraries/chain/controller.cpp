@@ -1724,44 +1724,44 @@ struct controller_impl {
          const auto& gpo = db.get<global_property_object>();
 
          if( gpo.proposed_schedule_block_num.valid() && // if there is a proposed schedule that was proposed in a block ...
-               ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) ) { // ... that has now become irreversible ...
-
-               if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
-               if (pbhs.prev_pending_schedule.data_empty()) { // ... and there was room for a new pending schedule prior to any possible promotion
-
-                  // Promote proposed schedule to pending schedule.
-                  if( !replay_head_time ) {
-                     ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
-                           ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
-                           ("lib", pbhs.dpos_irreversible_blocknum)
-                           ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
-                  }
-
-
-                  EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
-                              producer_schedule_exception, "wrong producer schedule version specified" );
-
-                  pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
-                  db.modify( gpo, [&]( auto& gp ) {
-                     gp.proposed_schedule_block_num = optional<block_num_type>();
-                     gp.proposed_schedule.version=0;
-                     gp.proposed_schedule.producers.clear();
-                     // gp.proposed_schedule_change.clear();
-                  });
+               ( *gpo.proposed_schedule_block_num <= pbhs.dpos_irreversible_blocknum ) && // ... that has now become irreversible ...
+               pbhs.prev_pending_schedule.data_empty() ) { // ... and there was room for a new pending schedule prior to any possible promotion
+            if (gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0) {
+               // Promote proposed schedule to pending schedule.
+               if( !replay_head_time ) {
+                  ilog( "promoting proposed schedule (set in block ${proposed_num}) to pending; current block: ${n} lib: ${lib} schedule: ${schedule} ",
+                        ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
+                        ("lib", pbhs.dpos_irreversible_blocknum)
+                        ("schedule", producer_authority_schedule::from_shared(gpo.proposed_schedule) ) );
                }
-               } else {
-                  // TODO: if (!prev_pending_schedule_change.empty())
-                  // TODO: check version with active schedule change
-                  // if (pbhs.prev_pending_schedule.schedule.producers.size() == 0) { // ... and there was room for a new pending schedule prior to any possible promotion
-                  EOS_ASSERT( gpo.proposed_schedule_change.version == pbhs.active_schedule_version + 1,
-                              producer_schedule_exception, "wrong producer schedule version specified" );
 
-                  pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
-                  db.modify( gpo, [&]( auto& gp ) {
-                     gp.proposed_schedule_block_num = optional<block_num_type>();
-                     gp.proposed_schedule_change.clear();
-                  });
-               }
+               EOS_ASSERT( gpo.proposed_schedule.version == pbhs.active_schedule_version + 1,
+                           producer_schedule_exception, "wrong producer schedule version specified" );
+
+               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_authority_schedule::from_shared(gpo.proposed_schedule);
+               db.modify( gpo, [&]( auto& gp ) {
+                  gp.proposed_schedule_block_num = optional<block_num_type>();
+                  gp.proposed_schedule.version=0;
+                  gp.proposed_schedule.producers.clear();
+               });
+            } else {
+               EOS_ASSERT( gpo.proposed_schedule_change.main_changes.changes.size() + gpo.proposed_schedule_change.backup_changes.changes.size() > 0,
+                           producer_schedule_exception, "proposed schedule change is empty" );
+               EOS_ASSERT( gpo.proposed_schedule_change.version == pbhs.active_schedule_version + 1,
+                           producer_schedule_exception, "wrong proposed schedule change version specified" );
+
+               pending->_block_stage.get<building_block>()._new_pending_producer_schedule = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+
+               dlog( "promoting proposed schedule change (set in block ${proposed_num}); current block: ${n} lib: ${lib} changes: ${changes} ",
+                     ("proposed_num", *gpo.proposed_schedule_block_num)("n", pbhs.block_num)
+                     ("lib", pbhs.dpos_irreversible_blocknum)
+                     ("changes", pending->_block_stage.get<building_block>()._new_pending_producer_schedule ) );
+
+               db.modify( gpo, [&]( auto& gp ) {
+                  gp.proposed_schedule_block_num = optional<block_num_type>();
+                  gp.proposed_schedule_change.clear();
+               });
+            }
          }
 
          try {
@@ -2291,11 +2291,11 @@ struct controller_impl {
 
       } FC_LOG_AND_RETHROW( )
    }
-   
+
    void replay_push_backup_block( const signed_block_ptr& b, block_state_ptr prev_block ) {
       self.validate_db_available_size();
       self.validate_reversible_available_size();
-      
+
       EOS_ASSERT(!pending, block_validate_exception, "it is not valid to push a block when there is a pending block");
       EOS_ASSERT(b->is_backup(), block_validate_exception, "it is not valid to push a main block in replay_push_backup_block" );
 
@@ -2317,7 +2317,7 @@ struct controller_impl {
 
          fork_db.add( bsp );
 
-         emit( self.accepted_block_header, bsp ); 
+         emit( self.accepted_block_header, bsp );
       }FC_LOG_AND_RETHROW( )
    }
 
@@ -3317,6 +3317,9 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
       return version;
    }
 
+   dlog( "set proposed schedule; current block: ${n} lib: ${lib} changes: ${changes} ",
+         ("n", hbs->block_num)("lib", hbs->dpos_irreversible_blocknum)
+         ("changes", changes ) );
    try {
       producer_change_merger::validate(changes, active_main_sch.producers, active_backup_sch->producers);
    } catch( const producer_schedule_exception& e ) {

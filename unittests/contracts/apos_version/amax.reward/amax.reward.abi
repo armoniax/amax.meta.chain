@@ -80,7 +80,7 @@
                     "type": "float64"
                 },
                 {
-                    "name": "reward_per_vote",
+                    "name": "rewards_per_vote",
                     "type": "float64"
                 },
                 {
@@ -112,7 +112,7 @@
             "base": "",
             "fields": [
                 {
-                    "name": "last_reward_per_vote",
+                    "name": "last_rewards_per_vote",
                     "type": "float64"
                 }
             ]
@@ -167,7 +167,7 @@
     ],
     "tables": [
         {
-            "name": "global_state",
+            "name": "global",
             "type": "global_state",
             "index_type": "i64",
             "key_names": [],
@@ -176,13 +176,6 @@
         {
             "name": "producers",
             "type": "producer",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "vote_reward_info",
-            "type": "vote_reward_info",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
