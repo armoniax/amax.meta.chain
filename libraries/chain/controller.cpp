@@ -1258,14 +1258,14 @@ struct controller_impl {
    void validate_block_contribution( const signed_block_ptr block ){
       EOS_ASSERT(!block->is_backup(), block_validate_exception, "It is no sense to talk about contribution for a backup block");
       
-      if(!block->is_backup() && !block->previous_backup().empty()){
+      if(!block->previous_backup().empty()){
          //validate block contribution
          signed_block_ptr previous = self.fetch_block_by_id( block->previous);
          signed_block_ptr previous_backup = self.fetch_block_by_id( block->previous_backup());
          uint32_t contribution = bc.calculate( previous, previous_backup );
          EOS_ASSERT(block->backup_ext().contribution == contribution, block_validate_exception, 
                   "expected contribution: ${expected}, actual: ${actual}",("expected", block->backup_ext().contribution)("actual",contribution));
-      }else if(!block->is_backup() && block->previous_backup().empty()){
+      }else{
          EOS_ASSERT(block->backup_ext().contribution == 0, block_validate_exception, 
                   "expected contribution: 0, actual: ${actual}",("actual", block->backup_ext().contribution));
       }

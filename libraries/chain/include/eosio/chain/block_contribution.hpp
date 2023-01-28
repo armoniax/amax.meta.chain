@@ -19,8 +19,8 @@ class block_contribution
         }
 
         uint32_t calculate( signed_block_ptr main_block , signed_block_ptr backup_block ){
-            EOS_ASSERT( main_block, producer_exception, "added main block is NULL" );
-            EOS_ASSERT( backup_block, producer_exception, "added backup block is NULL" );
+            EOS_ASSERT( main_block, producer_exception, "main block is NULL" );
+            EOS_ASSERT( backup_block, producer_exception, "backup block is NULL" );
             bf.clear();
             common_txs = 0;
             
@@ -28,29 +28,13 @@ class block_contribution
 
             for (auto &receipt : main_block->transactions)
             {
-                if (receipt.trx.contains<transaction_id_type>())
-                {
-                    bf.insert(receipt.trx.get<transaction_id_type>());
-                }
-                else
-                {
-                    bf.insert(receipt.trx.get<packed_transaction>().id());
-                }
+                bf.insert(receipt.get_transaction_id());
             }
                 
             for (auto &receipt : backup_block->transactions)
-            {
-                if (receipt.trx.contains<transaction_id_type>())
-                {
-                    if(bf.contains(receipt.trx.get<transaction_id_type>())){
+            {    
+                if(bf.contains(receipt.get_transaction_id())){
                     common_txs++;
-                    }
-                }
-                else
-                {
-                    if(bf.contains(receipt.trx.get<packed_transaction>().id())){
-                    common_txs++;
-                    }
                 }
             }
                 
