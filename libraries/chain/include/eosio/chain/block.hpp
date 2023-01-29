@@ -54,7 +54,7 @@ namespace eosio { namespace chain {
          if (trx.contains<transaction_id_type>())
          {
             return trx.get<transaction_id_type>();
-         }else{
+         } else {
             return trx.get<packed_transaction>().id();
          }
       }
