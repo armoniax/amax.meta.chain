@@ -49,6 +49,15 @@ namespace eosio { namespace chain {
             fc::raw::pack( enc, trx.get<packed_transaction>().packed_digest() );
          return enc.result();
       }
+
+      transaction_id_type get_transaction_id() const {
+         if (trx.contains<transaction_id_type>())
+         {
+            return trx.get<transaction_id_type>();
+         } else {
+            return trx.get<packed_transaction>().id();
+         }
+      }
    };
 
    struct additional_block_signatures_extension : fc::reflect_init {

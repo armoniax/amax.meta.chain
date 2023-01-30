@@ -202,8 +202,8 @@ namespace eosio { namespace chain {
          void   set_contract_blacklist( const flat_set<account_name>& );
          void   set_action_blacklist( const flat_set< pair<account_name, action_name> >& );
          void   set_key_blacklist( const flat_set<public_key_type>& );
-         void   set_produce_mode(bool is_backup){this->is_backup_mode = is_backup;}
-         void   set_verify_mode(bool is_backup){this->is_backup_verify_mode = is_backup;}
+         
+         
 
          uint32_t             head_block_num()const;
          time_point           head_block_time()const;
@@ -258,7 +258,7 @@ namespace eosio { namespace chain {
          bool is_building_block()const;
          bool is_producing_block()const;
          bool pending_block_is_backup()const;
-         bool is_backup_verify()const;
+         
 
          bool is_ram_billing_in_notify_allowed()const;
 
@@ -276,7 +276,7 @@ namespace eosio { namespace chain {
          void validate_tapos( const transaction& t )const;
          void validate_db_available_size() const;
          void validate_reversible_available_size() const;
-
+         void validate_block_contribution( const signed_block_ptr block );
          bool is_protocol_feature_activated( const digest_type& feature_digest )const;
          bool is_builtin_activated( builtin_protocol_feature_t f )const;
 
@@ -303,11 +303,11 @@ namespace eosio { namespace chain {
          fc::optional<fc::microseconds> get_subjective_cpu_leeway() const;
          void set_greylist_limit( uint32_t limit );
          uint32_t get_greylist_limit()const;
-
+         uint32_t calculate_block_contribution( signed_block_ptr main_block, signed_block_ptr backup_block );
          void add_to_ram_correction( account_name account, uint64_t ram_bytes );
          bool all_subjective_mitigations_disabled()const;
-         bool is_backup_mode = false;
-         bool is_backup_verify_mode = false;
+
+
 
 #if defined(AMAX_EOS_VM_RUNTIME_ENABLED) || defined(AMAX_EOS_VM_JIT_RUNTIME_ENABLED)
          vm::wasm_allocator&  get_wasm_allocator();

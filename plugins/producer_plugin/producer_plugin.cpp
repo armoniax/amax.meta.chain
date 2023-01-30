@@ -27,6 +27,7 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/signals2/connection.hpp>
 
+
 namespace bmi = boost::multi_index;
 using bmi::indexed_by;
 using bmi::ordered_non_unique;
@@ -175,7 +176,6 @@ enum class pending_block_mode {
    speculating
 };
 
-
 class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin_impl> {
    public:
       producer_plugin_impl(boost::asio::io_service& io)
@@ -227,7 +227,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
       bool                                                      _protocol_features_signaled = false; // to mark whether it has been signaled in start_block
 
       chain_plugin* chain_plug = nullptr;
-
+      
       incoming::channels::block::channel_type::handle         _incoming_block_subscription;
       incoming::channels::transaction::channel_type::handle   _incoming_transaction_subscription;
 
@@ -845,6 +845,7 @@ void producer_plugin::plugin_initialize(const boost::program_options::variables_
 { try {
    my->chain_plug = app().find_plugin<chain_plugin>();
    EOS_ASSERT( my->chain_plug, plugin_config_exception, "chain_plugin not found" );
+
    my->_options = &options;
    LOAD_VALUE_SET(options, "producer-name", my->_producers)
 
@@ -1790,7 +1791,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
          if (backup_head) {
             backup_ext.previous_backup          = backup_head->id;
             backup_ext.previous_backup_producer = backup_head->header.producer;
-            backup_ext.contribution             = config::percent_100;  // TODO: backup producer contribution
+            backup_ext.contribution             = chain.calculate_block_contribution( hbs->block, backup_head->block );
          }
       }
       chain.start_block( block_time, blocks_to_confirm, features_to_activate, backup_ext);
@@ -2370,7 +2371,7 @@ void producer_plugin_impl::schedule_delayed_production_loop(const std::weak_ptr<
 }
 
 
-bool producer_plugin_impl::maybe_produce_block() {
+bool producer_plugin_impl::maybe_produce_block() {	
    auto reschedule = fc::make_scoped_exit([this]{
       schedule_production_loop();
    });
