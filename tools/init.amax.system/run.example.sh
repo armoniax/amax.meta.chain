@@ -46,7 +46,7 @@ function tester() {
 
 # start wallet
 echo "${COLOR_GREEN}Start wallet"
-tester --kill --wallet --max-user-keys=500
+tester --wallet --max-user-keys=300
 # ps -ef | grep amkey
 
 # deploy amax system contract
@@ -59,7 +59,7 @@ cmds=(
     '--sys-contract'
     '--init-sys-contract'
     '--stake'
-    '--reg-prod'
+    '--reg-prod --producer-limit=150'
     '--vote --num-voters=30'
 )
 tester ${cmds[@]}
@@ -78,6 +78,12 @@ echo "${COLOR_GREEN}Init apos"
 tester --init-apos --num-backup-producer 100
 
 # vote
+echo "${COLOR_GREEN}Test vote"
 tester --vote --voter-started-idx=0 --num-voters=200
 tester --proxy --voter-started-idx=201 --num-voters=10
 
+# producer claim rewards
+tester --prod-claim
+
+# voter claim rewards
+tester --voter-claim

@@ -11,6 +11,7 @@ import sys
 import time
 from datetime import timedelta
 from datetime import datetime
+import decimal
 
 args = None
 logFile = None
@@ -66,6 +67,29 @@ def getOutput(args):
 
 def getJsonOutput(args):
     return json.loads(getOutput(args))
+
+def getAssetAmount(s):
+    assert(isinstance(s, str))
+    s = s.split()[0].replace(".", "")
+    return int(decimal.Decimal(s))
+
+def getTableRows(args, contract, scope, table):
+    more = True
+    nextKey = 0
+    rows = []
+    while(more):
+        tableInfo = getJsonOutput(args.amcli + 'get table %s %s %s --limit 100 --index 1 -L %s' % (str(contract), str(scope), str(table), nextKey))
+        rows = rows + tableInfo['rows']
+        more = tableInfo['more']
+        nextKey = tableInfo['next_key']
+    return rows
+
+def getTableRow(args, contract, scope, table, pk):
+    pkStr = str(pk)
+    tableInfo = getJsonOutput(args.amcli + 'get table %s %s %s --index 1 -L %s -U %s --key-type i64' % (str(contract), str(scope), str(table), pkStr, pkStr))
+    if (len(tableInfo['rows']) > 0):
+        return tableInfo['rows'][0]
+    return None
 
 def sleep(t):
     print('sleep', t, '...')
@@ -204,18 +228,43 @@ def vote(b, e):
         prods = ' '.join(map(lambda x: accounts[x]['name'], prods))
         retry(args.amcli + 'system voteproducer prods ' + voter + ' ' + prods)
 
-def claimRewards():
-    table = getJsonOutput(args.amcli + 'get table amax amax producers -l 100')
+def producerClaimRewards():
+    rows = getTableRows(args, "amax", "amax", "producers")
     times = []
-    for row in table['rows']:
-        if row['unpaid_blocks'] and not row['last_claim_time']:
-            times.append(getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])['processed']['elapsed'])
+    for row in rows:
+        rewards = row['unclaimed_rewards']
+        if rewards and getAssetAmount(rewards) > 0:
+            ret = getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])
+            times.append(ret['processed']['elapsed'])
+    print('Elapsed time for claimrewards:', times)
+
+def voterClaimRewards():
+    rows = getTableRows(args, "amax.reward", "amax.reward", "producers")
+    prods = {}
+    for row in rows:
+        prods[row["owner"]] = decimal.Decimal(row["rewards_per_vote"])
+    rows = getTableRows(args, "amax.reward", "amax.reward", "voters")
+    times = []
+    for row in rows:
+        if decimal.Decimal(row["votes"]) > 0 and row["producers"] :
+            has_rewards = False
+            for prod in row["producers"] :
+                pn = prod["key"]
+                last_rewards_per_vote = decimal.Decimal(prod["value"]["last_rewards_per_vote"])
+                if prods[pn] and last_rewards_per_vote < prods[pn] :
+                    has_rewards = True
+                    break
+            if has_rewards :
+                voter = row['owner']
+                ret = getJsonOutput(args.amcli + 'push action -j amax.reward claimrewards \'["' + voter + '"]\' -p ' + voter)
+                times.append(ret['processed']['elapsed'])
     print('Elapsed time for claimrewards:', times)
 
 def proxyVotes(b, e):
     vote(firstProducer, firstProducer + 1)
     proxy = accounts[firstProducer]['name']
-    retry(args.amcli + 'system regproxy ' + proxy)
+    if (not getTableRow(args, "amax", "amax", "voters", proxy)):
+        retry(args.amcli + 'system regproxy ' + proxy)
     sleep(1.0)
     for i in range(b, e):
         voter = accounts[i]['name']
@@ -390,6 +439,7 @@ def stepProxyVotes():
 def stepUpgradeSystemContracts():
     retry(args.amcli + 'set contract amax ' + args.upgraded_contracts_dir + '/amax.system/')
     retry(args.amcli + 'set contract amax.reward ' + args.upgraded_contracts_dir + '/amax.reward/')
+    retry(args.amcli + 'set account permission amax.reward active --add-code')
 def initApos():
     # APOS
     retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
@@ -424,7 +474,8 @@ commands = [
     ('T', 'stake',              stepCreateStakedAccounts,   True,    "Create staked accounts"),
     ('p', 'reg-prod',           stepRegProducers,           True,    "Register producers"),
     ('v', 'vote',               stepVote,                   True,    "Vote for producers"),
-    ('R', 'claim',              claimRewards,               True,    "Claim rewards"),
+    ('',  'prod-claim',         producerClaimRewards,       True,    "Producer claim rewards"),
+    ('',  'voter-claim',        voterClaimRewards,          True,    "Voter claim rewards"),
     ('x', 'proxy',              stepProxyVotes,             True,    "Proxy votes"),
 
     ('U', 'upgrade-contracts',  stepUpgradeSystemContracts, True,    "Upgrade contracts"),
