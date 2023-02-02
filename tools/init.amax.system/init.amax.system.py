@@ -263,7 +263,8 @@ def voterClaimRewards():
 def proxyVotes(b, e):
     vote(firstProducer, firstProducer + 1)
     proxy = accounts[firstProducer]['name']
-    if (not getTableRow(args, "amax", "amax", "voters", proxy)):
+    proxyInfo = getTableRow(args, "amax", "amax", "voters", proxy)
+    if not proxyInfo or not proxyInfo["is_proxy"]:
         retry(args.amcli + 'system regproxy ' + proxy)
     sleep(1.0)
     for i in range(b, e):
@@ -445,9 +446,9 @@ def initApos():
     retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
     sleep(1)
 
-    run(args.amcli + 'push action amax initelects' + jsonArg([args.num_backup_producer]) + '-p amax@active')
+    retry(args.amcli + 'push action amax initelects' + jsonArg([args.num_backup_producer]) + '-p amax@active')
     sleep(1)
-    run(args.amcli + 'push action amax setinflation' + jsonArg(['1970-01-01T00:00:00', '0.20000000 AMAX']) + '-p amax@active')
+    retry(args.amcli + 'push action amax setinflation' + jsonArg(['1970-01-01T00:00:00', '0.20000000 AMAX']) + '-p amax@active')
     sleep(1)
 def stepResign():
     resign('amax', 'amax.prods')

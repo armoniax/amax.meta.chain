@@ -35,7 +35,8 @@ function tester() {
         --genesis="${root_dir}"/config/genesis.json \
         --contracts-dir="${contracts_dir}" \
         --public-key="${amax_pubkey}" --private-key="${amax_privkey}" \
-        --num-producers 88 \
+        --num-producers=150 \
+        --producer-limit=150 --num-backup-producer 100 \
         $@
 
     [[ $? -ne 0 ]] && echo "${COLOR_RED}Execute init.amax.system.py failed" && exit 1
@@ -59,7 +60,7 @@ cmds=(
     '--sys-contract'
     '--init-sys-contract'
     '--stake'
-    '--reg-prod --producer-limit=150'
+    '--reg-prod'
     '--vote --num-voters=30'
 )
 tester ${cmds[@]}
@@ -75,7 +76,7 @@ tester --reg-prod
 
 # init apos
 echo "${COLOR_GREEN}Init apos"
-tester --init-apos --num-backup-producer 100
+tester --init-apos
 
 # vote
 echo "${COLOR_GREEN}Test vote"
