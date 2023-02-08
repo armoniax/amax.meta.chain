@@ -101,7 +101,7 @@
                     "type": "asset"
                 },
                 {
-                    "name": "reverved",
+                    "name": "reserved",
                     "type": "uint64"
                 },
                 {
@@ -555,6 +555,10 @@
                 {
                     "name": "elected_version",
                     "type": "uint8"
+                },
+                {
+                    "name": "total_producer_elected_votes",
+                    "type": "int128"
                 },
                 {
                     "name": "max_main_producer_count",
@@ -1156,7 +1160,7 @@
                 },
                 {
                     "name": "elected_votes",
-                    "type": "float64"
+                    "type": "int64"
                 },
                 {
                     "name": "authority",
@@ -1238,7 +1242,7 @@
             "fields": [
                 {
                     "name": "elected_votes",
-                    "type": "float64"
+                    "type": "int64"
                 },
                 {
                     "name": "reward_shared_ratio",
@@ -2047,12 +2051,16 @@
                     "type": "uint32"
                 },
                 {
-                    "name": "reserved2",
-                    "type": "uint32"
+                    "name": "last_elected_votes",
+                    "type": "int64"
                 },
                 {
-                    "name": "reserved3",
-                    "type": "asset"
+                    "name": "proxied_elected_votes",
+                    "type": "int64"
+                },
+                {
+                    "name": "reserved",
+                    "type": "uint32"
                 }
             ]
         },

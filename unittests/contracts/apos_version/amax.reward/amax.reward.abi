@@ -77,11 +77,11 @@
                 },
                 {
                     "name": "votes",
-                    "type": "float64"
+                    "type": "int64"
                 },
                 {
                     "name": "rewards_per_vote",
-                    "type": "float64"
+                    "type": "int128"
                 },
                 {
                     "name": "update_at",
@@ -103,7 +103,7 @@
                 },
                 {
                     "name": "votes",
-                    "type": "float64"
+                    "type": "int64"
                 }
             ]
         },
@@ -113,7 +113,7 @@
             "fields": [
                 {
                     "name": "last_rewards_per_vote",
-                    "type": "float64"
+                    "type": "int128"
                 }
             ]
         },
@@ -127,7 +127,7 @@
                 },
                 {
                     "name": "votes",
-                    "type": "float64"
+                    "type": "int64"
                 },
                 {
                     "name": "producers",

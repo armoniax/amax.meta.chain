@@ -72,7 +72,7 @@ tester --upgrade-contracts --upgraded-contracts-dir=${apos_contracts_dir}
 
 # upgrade producers first
 echo "${COLOR_GREEN}Upgrade producers"
-tester --reg-prod
+tester --reg-prod --vote --num-voters=30
 
 # init apos
 echo "${COLOR_GREEN}Init apos"
