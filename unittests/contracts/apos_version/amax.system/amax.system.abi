@@ -1346,7 +1346,7 @@
                 },
                 {
                     "name": "reward_shared_ratio",
-                    "type": "uint32"
+                    "type": "uint32?"
                 }
             ]
         },
@@ -1372,7 +1372,7 @@
                 },
                 {
                     "name": "reward_shared_ratio",
-                    "type": "uint32"
+                    "type": "uint32?"
                 }
             ]
         },
