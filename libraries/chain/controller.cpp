@@ -3321,7 +3321,11 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
          ("n", hbs->block_num)("lib", hbs->dpos_irreversible_blocknum)
          ("changes", changes ) );
    try {
-      producer_change_merger::validate(changes, active_main_sch.producers, active_backup_sch->producers);
+      if ( active_backup_sch ) {
+         producer_change_merger::validate(changes, active_main_sch.producers, active_backup_sch->producers);
+      } else {
+         producer_change_merger::validate(changes, active_main_sch.producers, {});
+      }
    } catch( const producer_schedule_exception& e ) {
       wlog( "producer changes validate failed" );
       wdump((e.to_detail_string()));
