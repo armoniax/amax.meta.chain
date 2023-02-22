@@ -32,7 +32,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
    /**
     * main_producers should be sorted by producer_name
     */
-   inline void validate(const proposed_producer_changes& changes, const vector<producer_authority>& main_producers, flat_map<name, block_signing_authority>& backup_producers)
+   inline void validate(const proposed_producer_changes& changes, const vector<producer_authority>& main_producers, const flat_map<name, block_signing_authority>& backup_producers)
    {
       auto exist_in_main_producers = [&main_producers](const name &producer_name) {
          return std::find_if(main_producers.begin(), main_producers.end(), [&producer_name](const auto& item) {
