@@ -192,6 +192,7 @@ namespace eosio { namespace chain {
       result.dpos_irreversible_blocknum            = calc_dpos_last_irreversible( prod_auth.producer_name );
 
       result.prev_pending_schedule                 = pending_schedule;
+      const auto& pre_backup_schedule = active_backup_schedule.get_schedule();
 
       if( !pending_schedule.data_empty() &&
           result.dpos_irreversible_blocknum >= pending_schedule.schedule_lib_num )
@@ -221,7 +222,6 @@ namespace eosio { namespace chain {
             }
 
             const auto& backup_changes = schedule_change.backup_changes;
-            const auto& pre_backup_schedule = active_backup_schedule.get_schedule();
             auto new_backup_schedule = std::make_shared<backup_producer_schedule>();
             if (pre_backup_schedule && !backup_changes.clear_existed) {
                *new_backup_schedule = *pre_backup_schedule; // deep copy
@@ -229,7 +229,6 @@ namespace eosio { namespace chain {
             producer_change_merger::merge(backup_changes, new_backup_schedule->producers);
             new_backup_schedule->version = schedule_change.version;
             result.active_backup_schedule.schedule = new_backup_schedule;
-            result.active_backup_schedule.pre_schedule = pre_backup_schedule;
          }
 
          flat_map<account_name,uint32_t> new_producer_to_last_produced;
@@ -275,8 +274,8 @@ namespace eosio { namespace chain {
          result.producer_to_last_implied_irb     = producer_to_last_implied_irb;
          result.producer_to_last_implied_irb[result.producer] = dpos_proposed_irreversible_blocknum;
 
-         result.active_backup_schedule.pre_schedule = active_backup_schedule.get_schedule();
       }
+      result.active_backup_schedule.pre_schedule = pre_backup_schedule;
 
       return result;
    }
