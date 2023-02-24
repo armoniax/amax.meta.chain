@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-VERS_10_13=`sw_vers -productVersion | awk '/10\.13\..*/{print $0}'`
-VERS_10_14=`sw_vers -productVersion | awk '/10\.14\..*/{print $0}'`
-VERS_12=`sw_vers -productVersion | awk '/12\..*/{print $0}'`
-if [[ -n "$VERS_10_13" ]];
-then
+OS_VER=$(sw_vers -productVersion)
+OS_MAJ=$(echo "${OS_VER}" | cut -d'.' -f1)
+OS_MIN=$(echo "${OS_VER}" | cut -d'.' -f2)
+OS_PATCH=$(echo "${OS_VER}" | cut -d'.' -f3)
+
+if [[ ${OS_MAJ} -eq 10 ]] && [[ ${OS_MIN} -eq 13 ]]; then
    MAC_VERSION="high_sierra"
-elif [[ -n "$VERS_10_14" ]];
-then
+elif [[ ${OS_MAJ} -eq 10 ]] && [[ ${OS_MIN} -eq 14 ]]; then
    MAC_VERSION="mojave"
-elif [[ -n "$VERS_12" ]];
-then
+elif [[ ${OS_MAJ} -eq 12 ]]; then
    MAC_VERSION="monterey"
+elif [[ ${OS_MAJ} -eq 13 ]]; then
+   MAC_VERSION="ventura"
 else
-   echo "Error, unsupported OS X version"
+   echo "Error, unsupported OS X version:${OS_VER}"
    exit -1
 fi
 
