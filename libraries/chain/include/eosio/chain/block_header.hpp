@@ -127,5 +127,5 @@ FC_REFLECT(eosio::chain::block_header,
            (timestamp)(producer)(confirmed)(previous)
            (transaction_mroot)(action_mroot)
            (schedule_version)(new_producers)(header_extensions))
-FC_REFLECT(eosio::chain::backup_block_extension,(previous_backup)(is_backup)(previous_backup_producer)(contribution));
+FC_REFLECT(eosio::chain::backup_block_extension,(is_backup)(previous_backup)(previous_backup_producer)(contribution));
 FC_REFLECT_DERIVED(eosio::chain::signed_block_header, (eosio::chain::block_header), (producer_signature))

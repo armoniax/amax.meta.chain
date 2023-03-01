@@ -177,8 +177,8 @@ extern const char* const state_history_plugin_abi = R"({
         },
         {
             "name": "backup_block_extension", "fields": [
-                { "name": "previous_backup", "type": "checksum256" },
                 { "name": "is_backup", "type": "bool"},
+                { "name": "previous_backup", "type": "checksum256" },
                 { "name": "previous_backup_producer", "type": "name" },
                 { "name": "contribution", "type": "uint32" }
             ]
