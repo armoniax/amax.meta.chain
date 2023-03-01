@@ -440,8 +440,6 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
    }
 
    void on_block_start(uint32_t block_num) {
-      //main-->main : no effection
-      //main-->backup: no effection because time soft equal
       clear_caches();
    }
 
