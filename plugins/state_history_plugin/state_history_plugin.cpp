@@ -423,15 +423,19 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
    }
 
    void on_accepted_block(const block_state_ptr& block_state) {
-      store_traces(block_state);
-      store_chain_state(block_state);
-      for (auto& s : sessions) {
-         auto& p = s.second;
-         if (p) {
-            if (p->current_request && block_state->block_num < p->current_request->start_block_num)
-               p->current_request->start_block_num = block_state->block_num;
-            p->send_update(block_state);
+      if ( !block_state->is_backup() ) {
+         store_traces(block_state);
+         store_chain_state(block_state);
+         for (auto& s : sessions) {
+            auto& p = s.second;
+            if (p) {
+               if (p->current_request && block_state->block_num < p->current_request->start_block_num)
+                  p->current_request->start_block_num = block_state->block_num;
+               p->send_update(block_state);
+            }
          }
+      } else {
+         //TODO deal with backup block
       }
    }
 
