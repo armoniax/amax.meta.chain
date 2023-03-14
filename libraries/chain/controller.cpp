@@ -2242,8 +2242,9 @@ struct controller_impl {
 
       EOS_ASSERT(!pending, block_validate_exception, "it is not valid to push a block when there is a pending block");
       if(!b->previous_backup().empty()){
+	    auto prev_backup_head = blog.read_block_by_num(block_header::num_from_id(b->previous_backup()) , true);
             auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
-            EOS_ASSERT( prev_backup, unlinkable_block_exception,
+            EOS_ASSERT( prev_backup_head || prev_backup, unlinkable_block_exception,
                      "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", b->id())("previous_backup", b->previous_backup()));
       }
       self.validate_block_contribution(b);
