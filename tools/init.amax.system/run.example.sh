@@ -67,7 +67,7 @@ tester ${cmds[@]}
 
 
 # upgrade apos version contracts
-echo "${COLOR_GREEN}Deploy and initialize old version of amax system contract"
+echo "${COLOR_GREEN}Deploy and initialize apos version of amax system contract"
 tester --upgrade-contracts --upgraded-contracts-dir=${apos_contracts_dir}
 
 # upgrade producers first
