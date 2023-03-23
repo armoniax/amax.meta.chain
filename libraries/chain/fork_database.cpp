@@ -418,11 +418,16 @@ namespace eosio
          {
             return my->root;
          }
+
          auto itr = my->index.find(id);
          if (itr != my->index.end())
             return *itr;
+
          if(finding_root_previous && my->root_previous && id == my->root_previous->id)
             return my->root_previous;
+
+         std::map<block_id_type,block_state_ptr>::iterator it = my->backup_siblings_to_root.find(id);
+         return it==my->backup_siblings_to_root.end() ? block_state_ptr() : it->second;
 
          return block_header_state_ptr();
       }
@@ -675,6 +680,19 @@ namespace eosio
          auto best_backup_state = previdx.lower_bound( head_prev );
          if( best_backup_state != previdx.end() && (*best_backup_state)->header.is_backup() && (*best_backup_state)->header.previous == head_prev ){
             return *best_backup_state;
+         }
+         return block_state_ptr();
+      }
+
+      block_state_ptr  fork_database::get_producer_backup_block( name prod, const block_id_type head_prev ) const
+      {
+         const auto &previdx = my->index.get<best_backup_by_prev>();
+         auto best_backup_state = previdx.lower_bound( head_prev );
+         while( best_backup_state != previdx.end() ){
+            if( (*best_backup_state)->header.producer == prod ){
+               return *best_backup_state;
+            }
+            best_backup_state++;
          }
          return block_state_ptr();
       }

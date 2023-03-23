@@ -403,11 +403,11 @@ struct controller_impl {
 
    void log_full_irreversible( std::reverse_iterator<eosio::chain::branch_type::const_iterator> it ) {
       block_id_type backup_id = (*it)->block->previous_backup();
-      full_block_ptr fptr;
+      full_signed_block_ptr fptr;
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
          EOS_ASSERT(backup_block,fork_database_exception,"can not find backup block: ${id}",("id",backup_id));
-         fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
+         fptr = std::make_shared<full_signed_block>((*it)->block, backup_block->block);
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block: ${hash}, NO. ${num}",("hash",backup_id)("num",backup_block->block_num));
          // if( backup_block != nullptr ){
          //    fptr = std::make_shared<full_block>((*it)->block, backup_block->block);
@@ -417,7 +417,7 @@ struct controller_impl {
          //    fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
          // }
       }else{
-         fptr = std::make_shared<full_block>((*it)->block, signed_block_ptr());
+         fptr = std::make_shared<full_signed_block>((*it)->block, signed_block_ptr());
       }
 
       fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block begin append...");
@@ -528,8 +528,20 @@ struct controller_impl {
                ("s", start_block_num)("n", blog_head->block_num()) );
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
+               if( next->backup_block ){
+                  replay_push_backup_block( next->backup_block, prev_head, controller::block_status::irreversible );
+               }
                prev_head = head;
-               replay_push_block( next, controller::block_status::irreversible );
+               if( !next->main_block->previous_backup().empty() ){
+                  EOS_ASSERT( next->backup_block, unlinkable_block_exception,
+                     "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", next->main_block->id())("previous_backup", next->main_block->previous_backup()));
+                  EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup(), unlinkable_block_exception,
+                     "mismatch backup block ${id} and main block previous backup ${previous_backup}", ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup()));
+               }else{
+                  EOS_ASSERT( !next->backup_block, unlinkable_block_exception,
+                     "unlinkable block_log main block's previous backup is empty but block log's backup block is not empty");
+               }
+               replay_push_block( next->main_block, controller::block_status::irreversible );
                if( next->block_num() % 500 == 0 ) {
                   ilog( "${n} of ${head}", ("n", next->block_num())("head", blog_head->block_num()) );
                   if( shutdown() ) break;
@@ -569,7 +581,7 @@ struct controller_impl {
             signed_block_ptr prev_backup = obj->get_backup_block();
             if( prev_backup ){
                //dlog("recover ====> id: ${id}",("id",include_backup->id()));
-               replay_push_backup_block( prev_backup, prev_head );
+               replay_push_backup_block( prev_backup, prev_head, controller::block_status::validated );
             }
             prev_head = head;
             replay_push_block( obj->get_block(), controller::block_status::validated );
@@ -642,8 +654,8 @@ struct controller_impl {
                      "block log does not start with genesis block"
          );
       } else {
-         full_block_ptr fptr;
-         fptr = std::make_shared<full_block>(head->block, signed_block_ptr());
+         full_signed_block_ptr fptr;
+         fptr = std::make_shared<full_signed_block>(head->block, signed_block_ptr());
          blog.reset( genesis, fptr );
       }
       init(shutdown);
@@ -1901,7 +1913,7 @@ struct controller_impl {
                ubo.blocknum = bsp->block_num;
                block_state_ptr bbsp = fork_db.get_block(bsp->block->previous_backup());
                signed_block_ptr backup = bbsp ? bbsp->block: signed_block_ptr();
-               full_block_ptr temp = std::make_shared<full_block>(bsp->block, backup);
+               full_signed_block_ptr temp = std::make_shared<full_signed_block>(bsp->block, backup);
                ubo.set_block( temp );
             });
          }
@@ -2169,7 +2181,7 @@ struct controller_impl {
          const auto& b = bsp->block;
 
          if(!b->previous_backup().empty()){
-            auto prev_backup = fork_db.get_block( b->previous_backup() );
+            auto prev_backup = fork_db.get_block_header( b->previous_backup() , false);
             EOS_ASSERT( prev_backup, unlinkable_block_exception,
                      "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup()));
          }
@@ -2241,10 +2253,9 @@ struct controller_impl {
       self.validate_reversible_available_size();
 
       EOS_ASSERT(!pending, block_validate_exception, "it is not valid to push a block when there is a pending block");
-      if(!b->previous_backup().empty()){
-	    auto prev_backup_head = blog.read_block_by_num(block_header::num_from_id(b->previous_backup()) , true);
-            auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
-            EOS_ASSERT( prev_backup_head || prev_backup, unlinkable_block_exception,
+      if(!b->previous_backup().empty() && s != controller::block_status::irreversible ){
+         auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
+         EOS_ASSERT( prev_backup, unlinkable_block_exception,
                      "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", b->id())("previous_backup", b->previous_backup()));
       }
       self.validate_block_contribution(b);
@@ -2293,7 +2304,7 @@ struct controller_impl {
       } FC_LOG_AND_RETHROW( )
    }
 
-   void replay_push_backup_block( const signed_block_ptr& b, block_state_ptr prev_block ) {
+   void replay_push_backup_block( const signed_block_ptr& b, block_state_ptr prev_block, controller::block_status s ) {
       self.validate_db_available_size();
       self.validate_reversible_available_size();
 
@@ -2316,7 +2327,9 @@ struct controller_impl {
                         skip_validate_signee
          );
 
-         fork_db.add( bsp );
+         if( s != controller::block_status::irreversible ){
+            fork_db.add( bsp );
+         }
 
          emit( self.accepted_block_header, bsp );
       }FC_LOG_AND_RETHROW( )
@@ -2680,6 +2693,7 @@ uint32_t controller::get_max_nonprivileged_inline_action_size()const
 {
    return my->conf.max_nonprivileged_inline_action_size;
 }
+
 /**
 *when produce block backup head block may only exist in fork db.
 */
@@ -2687,6 +2701,12 @@ block_state_ptr controller::get_backup_head() const
 {
    return my->fork_db.get_backup_head_block( my->head->prev());
 }
+
+block_state_ptr controller::get_producer_backup_block( name prod, const block_id_type head_prev ) const
+{
+   return my->fork_db.get_producer_backup_block( prod, head_prev );
+}
+
 controller::controller( const controller::config& cfg, const chain_id_type& chain_id )
 :my( new controller_impl( cfg, *this, protocol_feature_set{}, chain_id ) )
 {
@@ -3140,8 +3160,9 @@ signed_block_ptr controller::fetch_block_by_number( uint32_t block_num , bool is
    if( blk_state ) {
       return blk_state->block;
    }
-   signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
-   return candinate;
+   full_signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
+   if( !candinate ) return signed_block_ptr();
+   return !is_backup ? candinate->main_block : candinate->backup_block;
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_state_ptr controller::fetch_block_state_by_id( block_id_type id )const {

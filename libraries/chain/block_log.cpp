@@ -64,7 +64,7 @@ namespace eosio { namespace chain {
             }
 
             template<typename T>
-            void reset( const T& t, const full_block_ptr& genesis_block, uint32_t first_block_num );
+            void reset( const T& t, const full_signed_block_ptr& genesis_block, uint32_t first_block_num );
 
             void write( const genesis_state& gs );
 
@@ -72,7 +72,7 @@ namespace eosio { namespace chain {
 
             void flush();
 
-            uint64_t append(const full_block_ptr& b);
+            uint64_t append(const full_signed_block_ptr& b);
 
             template <typename ChainContext, typename Lambda>
             static fc::optional<ChainContext> extract_chain_context( const fc::path& data_dir, Lambda&& lambda );
@@ -286,11 +286,11 @@ namespace eosio { namespace chain {
       }
    }
 
-   uint64_t block_log::append(const full_block_ptr& b) {
+   uint64_t block_log::append(const full_signed_block_ptr& b) {
       return my->append(b);
    }
 
-   uint64_t detail::block_log_impl::append(const full_block_ptr& b) {
+   uint64_t detail::block_log_impl::append(const full_signed_block_ptr& b) {
       try {
          EOS_ASSERT( genesis_written_to_block_log, block_log_append_fail, "Cannot append to block log until the genesis is first written" );
 
@@ -328,7 +328,7 @@ namespace eosio { namespace chain {
    }
 
    template<typename T>
-   void detail::block_log_impl::reset( const T& t, const full_block_ptr& first_block, uint32_t first_bnum ) {
+   void detail::block_log_impl::reset( const T& t, const full_signed_block_ptr& first_block, uint32_t first_bnum ) {
       close();
 
       fc::remove_all( block_file.get_file_path() );
@@ -369,14 +369,14 @@ namespace eosio { namespace chain {
       flush();
    }
 
-   void block_log::reset( const genesis_state& gs, const full_block_ptr& first_block ) {
+   void block_log::reset( const genesis_state& gs, const full_signed_block_ptr& first_block ) {
       my->reset(gs, first_block, 1);
    }
 
    void block_log::reset( const chain_id_type& chain_id, uint32_t first_block_num ) {
       EOS_ASSERT( first_block_num > 1, block_log_exception,
                   "Block log version ${ver} needs to be created with a genesis state if starting from block number 1." );
-      my->reset(chain_id, full_block_ptr(), first_block_num);
+      my->reset(chain_id, full_signed_block_ptr(), first_block_num);
    }
 
    void detail::block_log_impl::write( const genesis_state& gs ) {
@@ -388,11 +388,11 @@ namespace eosio { namespace chain {
       block_file << chain_id;
    }
 
-   full_block_ptr block_log::read_block(uint64_t pos)const {
+   full_signed_block_ptr block_log::read_block(uint64_t pos)const {
       my->check_open_files();
 
       my->block_file.seek(pos);
-      full_block_ptr result = std::make_shared<full_block>();
+      full_signed_block_ptr result = std::make_shared<full_signed_block>();
       auto ds = my->block_file.create_datastream();
       result->unpack(ds);
       return result;
@@ -406,24 +406,17 @@ namespace eosio { namespace chain {
       fc::raw::unpack(ds, bh);
    }
 
-   signed_block_ptr block_log::read_block_by_num(uint32_t block_num ,bool is_backup)const {
+   full_signed_block_ptr block_log::read_block_by_num(uint32_t block_num ,bool is_backup)const {
       try {
          if( is_backup ) ++block_num;
-         full_block_ptr b;
+         full_signed_block_ptr b;
          uint64_t pos = get_block_pos(block_num);
          if (pos != npos) {
             b = read_block(pos);
             EOS_ASSERT(b->block_num() == block_num, reversible_blocks_exception,
                       "Wrong block was read from block log.", ("returned", b->block_num())("expected", block_num));
          }
-         if(b){
-            if(is_backup){
-               return b->backup_block;
-            }else{
-               return b->main_block;
-            }
-         }
-         return signed_block_ptr();
+         return b;
       } FC_LOG_AND_RETHROW()
    }
 
@@ -619,14 +612,14 @@ namespace eosio { namespace chain {
 
       std::exception_ptr     except_ptr;
       vector<char>           incomplete_block_data;
-      optional<full_block> bad_block;
+      optional<full_signed_block> bad_block;
       uint32_t               block_num = 0;
 
       block_id_type previous;
 
       uint64_t pos = old_block_stream.tellg();
       while( pos < end_pos ) {
-         full_block tmp;
+         full_signed_block tmp;
 
          try {
             tmp.unpack(old_block_stream);
@@ -831,7 +824,7 @@ namespace eosio { namespace chain {
          _current_position_in_file = block_log::npos;
          return _current_position_in_file;
       }
-	 
+
       if (_start_of_buffer_position > _current_position_in_file) {
          update_buffer();
       }

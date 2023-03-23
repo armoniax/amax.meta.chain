@@ -1311,7 +1311,8 @@ namespace eosio {
          return create_send_buffer(sb);
       }
       fc_dlog( logger, "sending block ${bn} and previous backup block", ("bn", sb->block_num()) );
-      return create_send_buffer( full_signed_block_which, full_signed_block_packer::make_packer(*sb, backup_block) );
+      full_signed_block fsb(sb, backup_block);
+      return create_send_buffer( full_signed_block_which, fsb );
    }
 
    static std::shared_ptr<std::vector<char>> create_send_buffer( const packed_transaction& trx ) {
@@ -2491,7 +2492,13 @@ namespace eosio {
          fc::raw::unpack( peek_ds, which );
          if( which == signed_block_which || which == full_signed_block_which ) {
             block_header bh;
-            fc::raw::unpack( peek_ds, bh );
+            if(which == signed_block_which){
+               fc::raw::unpack( peek_ds, bh );
+            }else{
+               shared_ptr<signed_block> pb = std::make_shared<signed_block>();
+               fc::raw::unpack( peek_ds, pb );
+               bh = *pb;
+            }
 
             const block_id_type blk_id = bh.id();
             const uint32_t blk_num = bh.block_num();
@@ -2536,10 +2543,11 @@ namespace eosio {
                fc::raw::unpack( ds, *main_block );
                return handle_message( blk_id, std::move( main_block ) );
             } else { // which == full_signed_block_which
-               signed_block_ptr backup_block;
-               full_signed_block_packer::unpack(ds, *main_block, backup_block);
-
-               if (backup_block) {
+               full_signed_block_ptr fptr = std::make_shared<full_signed_block>();
+               fptr->unpack( ds );
+               signed_block_ptr backup_block = fptr->backup_block;
+               main_block =fptr->main_block;
+               if ( backup_block ) {
                   auto received_backup_id = backup_block->id();
                   auto backup_blk_num = backup_block->block_num();
                   if (main_block->previous_backup() != received_backup_id) {

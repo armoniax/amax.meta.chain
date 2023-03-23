@@ -170,7 +170,7 @@ namespace eosio { namespace chain {
          void push_block( std::future<block_state_ptr>& block_state_future,
                           const forked_branch_callback& cb,
                           const trx_meta_cache_lookup& trx_lookup );
-         
+
          void push_backup_block( std::future<block_state_ptr>& block_state_future );
          boost::asio::io_context& get_thread_pool();
 
@@ -188,6 +188,7 @@ namespace eosio { namespace chain {
          const protocol_feature_manager&       get_protocol_feature_manager()const;
          uint32_t                              get_max_nonprivileged_inline_action_size()const;
          block_state_ptr                       get_backup_head() const;
+         block_state_ptr                       get_producer_backup_block( name prod, const block_id_type head_prev ) const;
 
          const flat_set<account_name>&   get_actor_whitelist() const;
          const flat_set<account_name>&   get_actor_blacklist() const;
@@ -202,8 +203,8 @@ namespace eosio { namespace chain {
          void   set_contract_blacklist( const flat_set<account_name>& );
          void   set_action_blacklist( const flat_set< pair<account_name, action_name> >& );
          void   set_key_blacklist( const flat_set<public_key_type>& );
-         
-         
+
+
 
          uint32_t             head_block_num()const;
          time_point           head_block_time()const;
@@ -258,7 +259,7 @@ namespace eosio { namespace chain {
          bool is_building_block()const;
          bool is_producing_block()const;
          bool pending_block_is_backup()const;
-         
+
 
          bool is_ram_billing_in_notify_allowed()const;
 
