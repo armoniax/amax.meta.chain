@@ -125,15 +125,21 @@ namespace eosio { namespace chain {
       full_signed_block() = default;
       full_signed_block( signed_block_ptr main_block, signed_block_ptr backup_block )
       :main_block(main_block), backup_block(backup_block){}
-      uint32_t block_num(){ return main_block->block_num(); }
-      block_id_type id(){ return main_block->id(); }
+      uint32_t main_block_num(){ return main_block->block_num(); }
+      block_id_type main_block_id(){ return main_block->id(); }
 
-      inline auto make_packer( const signed_block_ptr& main_block, const signed_block_ptr& backup_block_ptr) const {
-         return std::pair<const signed_block_ptr, const signed_block_ptr&>(main_block, backup_block_ptr);
+      inline static auto make_packer( const signed_block_ptr& main_block, const signed_block_ptr& backup_block_ptr) {
+         return std::pair<const signed_block&, const signed_block_ptr&>(*main_block, backup_block_ptr);
+      }
+
+      template<typename Stream>
+      inline static void unpack( Stream& s, signed_block &main_block, signed_block_ptr &backup_block_ptr) {
+         fc::raw::unpack( s, main_block);
+         fc::raw::unpack( s, backup_block_ptr);
       }
 
       inline auto make_packer( signed_block_ptr& main_block, signed_block_ptr& backup_block_ptr) const {
-         return std::pair< signed_block_ptr&, signed_block_ptr&>(main_block, backup_block_ptr);
+         return std::pair< signed_block&, signed_block_ptr&>(*main_block, backup_block_ptr);
       }
 
       std::vector<char> pack() const {

@@ -376,9 +376,11 @@ namespace eosio { namespace testing {
          producer = control->head_block_state()->get_scheduled_producer( block_time );
          auto backup_head = control->get_backup_head();
          if (backup_head) {
-            backup_ext.previous_backup          = backup_head->id;
-            backup_ext.previous_backup_producer = backup_head->header.producer;
-            backup_ext.contribution             = config::percent_100;  // TODO: backup producer contribution
+            previous_backup_info backup_info;
+            backup_info.id                       = backup_head->id;
+            backup_info.producer                 = backup_head->header.producer;
+            backup_info.contribution             = config::percent_100;  // TODO: backup producer contribution
+            backup_ext.previous_backup.emplace(backup_info);
          }
 
          auto last_produced_block_num = control->last_irreversible_block_num();
@@ -1092,8 +1094,8 @@ namespace eosio { namespace testing {
 
             auto block = a.control->fetch_block_by_number(i);
             if( block ) { //&& !b.control->is_known_block(block->id()) ) {
-               if (!block->backup_ext().previous_backup.empty()) {
-                  auto backup_block = b.control->fetch_block_by_id(block->backup_ext().previous_backup);
+               if ( block->previous_backup() ) {
+                  auto backup_block = b.control->fetch_block_by_id(block->previous_backup()->id);
                   FC_ASSERT( backup_block, "backup block not found" );
                   signed_block_ptr backup_block_new = std::make_shared<signed_block>( backup_block->clone() );
                   auto bbsf = b.control->create_block_state_future( backup_block_new );

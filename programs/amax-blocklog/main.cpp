@@ -145,9 +145,10 @@ void blocklog::read_log() {
       next = temp->main_block;
       if (as_json_array && contains_obj)
          *out << ",";
-      if( !next->previous_backup().empty() ){
+      if( !next->previous_backup_id().empty() ){
          backup_of_next = block_logger.read_block_by_num( block_num-1 , true)->backup_block;
          print_block( backup_of_next );
+         *out << ",";
       }
       print_block(next);
       ++block_num;
@@ -160,9 +161,10 @@ void blocklog::read_log() {
          if (as_json_array && contains_obj)
             *out << ",";
          auto next = obj->get_block();
-         if( !next->previous_backup().empty() ){
+         if( !next->previous_backup_id().empty() ){
             backup_of_next = obj->get_backup_block();
             print_block( backup_of_next );
+            *out << ",";
          }
          print_block(next);
          ++block_num;
@@ -188,7 +190,7 @@ void blocklog::set_program_options(options_description& cli)
           "the last block number to log or the last to keep if trim-blocklog")
          ("no-pretty-print", bpo::bool_switch(&no_pretty_print)->default_value(false),
           "Do not pretty print the output.  Useful if piping to jq to improve performance.")
-         ("as-json-array", bpo::bool_switch(&as_json_array)->default_value(false),
+         ("as-json-array", bpo::bool_switch(&as_json_array)->default_value(true),
           "Print out json blocks wrapped in json array (otherwise the output is free-standing json objects).")
          ("make-index", bpo::bool_switch(&make_index)->default_value(false),
           "Create blocks.index from blocks.log. Must give 'blocks-dir'. Give 'output-file' relative to current directory or absolute path (default is <blocks-dir>/blocks.index).")

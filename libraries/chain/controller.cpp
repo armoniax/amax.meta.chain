@@ -402,7 +402,7 @@ struct controller_impl {
    }
 
    void log_full_irreversible( std::reverse_iterator<eosio::chain::branch_type::const_iterator> it ) {
-      block_id_type backup_id = (*it)->block->previous_backup();
+      block_id_type backup_id = (*it)->block->previous_backup_id();
       full_signed_block_ptr fptr;
       if( backup_id != sha256() ){
          block_state_ptr backup_block = fork_db.get_block(backup_id);
@@ -529,21 +529,25 @@ struct controller_impl {
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
                if( next->backup_block ){
+                  EOS_ASSERT( !next->main_block->previous_backup() , block_validate_exception,
+                     "backup block ${id} previous backup info invalid", ("id", next->backup_block->id()));
+                  EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup_id(), unlinkable_block_exception,
+                     "the backup block ${id} and the previous backup ${previous_backup} of main block don't match", ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup_id()));
                   replay_push_backup_block( next->backup_block, prev_head, controller::block_status::irreversible );
                }
                prev_head = head;
-               if( !next->main_block->previous_backup().empty() ){
+               if ( next->main_block->previous_backup() ) {
+                  EOS_ASSERT( !next->main_block->previous_backup()->id.empty() && !next->main_block->previous_backup()->producer.empty() , block_validate_exception,
+                     "block ${id} previous backup info invalid", ("id", next->main_block->id()));
                   EOS_ASSERT( next->backup_block, unlinkable_block_exception,
-                     "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", next->main_block->id())("previous_backup", next->main_block->previous_backup()));
-                  EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup(), unlinkable_block_exception,
-                     "mismatch backup block ${id} and main block previous backup ${previous_backup}", ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup()));
+                     "The previous backup block of the main block ${id} isn't NULL,but the backup block ${previous_backup} is indeed empty", ("id", next->main_block->id())("previous_backup", next->main_block->previous_backup_id()));
                }else{
                   EOS_ASSERT( !next->backup_block, unlinkable_block_exception,
-                     "unlinkable block_log main block's previous backup is empty but block log's backup block is not empty");
+                     "The previous backup block of the main block is NULL,but the backup block isn't indeed empty");
                }
                replay_push_block( next->main_block, controller::block_status::irreversible );
-               if( next->block_num() % 500 == 0 ) {
-                  ilog( "${n} of ${head}", ("n", next->block_num())("head", blog_head->block_num()) );
+               if( next->main_block_num() % 500 == 0 ) {
+                  ilog( "${n} of ${head}", ("n", next->main_block_num())("head", blog_head->block_num()) );
                   if( shutdown() ) break;
                }
             }
@@ -1270,16 +1274,13 @@ struct controller_impl {
    void validate_block_contribution( const signed_block_ptr block ){
       EOS_ASSERT(!block->is_backup(), block_validate_exception, "It is no sense to talk about contribution for a backup block");
 
-      if(!block->previous_backup().empty()){
+      if ( block->previous_backup() ) {
          //validate block contribution
          signed_block_ptr previous = self.fetch_block_by_id( block->previous);
-         signed_block_ptr previous_backup = self.fetch_block_by_id( block->previous_backup());
+         signed_block_ptr previous_backup = self.fetch_block_by_id( block->previous_backup_id());
          uint32_t contribution = bc.calculate( previous, previous_backup );
-         EOS_ASSERT(block->backup_ext().contribution == contribution, block_validate_exception,
-                  "expected contribution: ${expected}, actual: ${actual}",("expected", block->backup_ext().contribution)("actual",contribution));
-      }else{
-         EOS_ASSERT(block->backup_ext().contribution == 0, block_validate_exception,
-                  "expected contribution: 0, actual: ${actual}",("actual", block->backup_ext().contribution));
+         EOS_ASSERT(block->previous_backup()->contribution == contribution, block_validate_exception,
+                  "expected contribution: ${expected}, actual: ${actual}",("expected", block->previous_backup()->contribution)("actual",contribution));
       }
    }
 
@@ -1646,8 +1647,8 @@ struct controller_impl {
       });
 
       if(backup_ext.is_backup) { // backup block
-         EOS_ASSERT( backup_ext.previous_backup.empty() && backup_ext.previous_backup_producer.empty(),
-                     block_validate_exception, "previous backup must be mepty for backup block" );
+         EOS_ASSERT( !backup_ext.previous_backup,
+                     block_validate_exception, "previous backup must be NULL for backup block" );
          pending.emplace( maybe_session(db), *head, when, confirm_block_count, new_protocol_feature_activations, backup_ext );
       }else { // main block
          if (!self.skip_db_sessions(s)) {
@@ -1846,12 +1847,12 @@ struct controller_impl {
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup producer: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup block's previous main block num: ${mnum}",("mnum",head->block_num));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced backup block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-      } else if( !pbhs.backup_ext.previous_backup.empty() ) { // !pbhs.is_backup
+      } else if( pbhs.backup_ext.previous_backup ) { // !pbhs.is_backup
          //backup node receive main block will verify.
          //main node produce also need composite.
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] main producer producing mode: ${bprod} ,block time: ${time}",("bprod",block_ptr->producer)("time",block_ptr->timestamp));
          fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] new produced main block num: ${mnum} irreversible block num: ${inum}",("mnum",block_ptr->block_num())("inum",pbhs.dpos_irreversible_blocknum));
-         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previous_backup id: ${id}",("id",pbhs.backup_ext.previous_backup));
+         fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] previous_backup id: ${id}",("id",pbhs.backup_ext.previous_backup->id));
       }
 
       block_ptr->transactions = std::move( bb._pending_trx_receipts );
@@ -1911,7 +1912,7 @@ struct controller_impl {
          if( !replay_head_time && read_mode != db_read_mode::IRREVERSIBLE && !bsp->is_backup()) {
             reversible_blocks.create<reversible_block_object>( [&]( auto& ubo ) {
                ubo.blocknum = bsp->block_num;
-               block_state_ptr bbsp = fork_db.get_block(bsp->block->previous_backup());
+               block_state_ptr bbsp = fork_db.get_block(bsp->block->previous_backup_id());
                signed_block_ptr backup = bbsp ? bbsp->block: signed_block_ptr();
                full_signed_block_ptr temp = std::make_shared<full_signed_block>(bsp->block, backup);
                ubo.set_block( temp );
@@ -2180,10 +2181,12 @@ struct controller_impl {
 
          const auto& b = bsp->block;
 
-         if(!b->previous_backup().empty()){
-            auto prev_backup = fork_db.get_block_header( b->previous_backup() , false);
+         if ( b->previous_backup() ) {
+            EOS_ASSERT( !b->previous_backup()->id.empty() && !b->previous_backup()->producer.empty() , block_validate_exception,
+                     "block ${id} previous backup info invalid", ("id", b->id()));
+            auto prev_backup = fork_db.get_block_header( b->previous_backup_id() , false);
             EOS_ASSERT( prev_backup, unlinkable_block_exception,
-                     "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup()));
+                     "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup_id()));
          }
 
          self.validate_block_contribution(b);
@@ -2216,7 +2219,8 @@ struct controller_impl {
          block_state_ptr bsp = block_state_future.get();
 
          EOS_ASSERT( bsp->is_backup(), block_validate_exception, "must be backup block" );
-
+         EOS_ASSERT( !bsp->block->previous_backup() , block_validate_exception,
+                     "backup block ${id} previous backup info invalid", ("id", bsp->block->id()));
          const auto& b = bsp->block;
 
          emit( self.pre_accepted_block, b );
@@ -2253,10 +2257,10 @@ struct controller_impl {
       self.validate_reversible_available_size();
 
       EOS_ASSERT(!pending, block_validate_exception, "it is not valid to push a block when there is a pending block");
-      if(!b->previous_backup().empty() && s != controller::block_status::irreversible ){
-         auto prev_backup = fork_db.get_block_header( b->previous_backup(), false );
+      if(!b->previous_backup_id().empty() && s != controller::block_status::irreversible ){
+         auto prev_backup = fork_db.get_block_header( b->previous_backup_id(), false );
          EOS_ASSERT( prev_backup, unlinkable_block_exception,
-                     "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", b->id())("previous_backup", b->previous_backup()));
+                     "unlinkable main block ${id} previous backup ${previous_backup} not found", ("id", b->id())("previous_backup", b->previous_backup_id()));
       }
       self.validate_block_contribution(b);
       try {

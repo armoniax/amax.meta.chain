@@ -1604,9 +1604,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       if(iter != _signature_providers.end()) {
          num_relevant_signatures++;
       }
-      /**
-      *@Description: process producing mode switching
-      */
+
       if(num_relevant_signatures > 0){
          is_backup = false;
          current_producer = scheduled_producer;
@@ -1614,8 +1612,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
    });
 
    optional<producer_authority> backup_scheduled_producer;
-   // TODO: should not enter backup producing mode when main producer is valid
-   if(!current_producer.producer_name.good()){
+   if( current_producer.producer_name.empty() ){
       backup_scheduled_producer = hbs->get_backup_scheduled_producer(block_time);
       if( backup_scheduled_producer.valid() ){
          backup_scheduled_producer->for_each_key([&](const public_key_type& key){
@@ -1628,9 +1625,6 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
             if( ptr == nullptr ){
                current_producer = *backup_scheduled_producer;
             }
-            /**
-            *@Description: for test 2 producing mode switch
-            */
             if(num_relevant_signatures > 0){
                is_backup = true;
             }
@@ -1645,7 +1639,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled ) {
       _pending_block_mode = pending_block_mode::speculating;
-   } else if( !current_producer.producer_name.good() || _producers.find(current_producer.producer_name) == _producers.end()) {
+   } else if( current_producer.producer_name.empty() || _producers.find(current_producer.producer_name) == _producers.end()) {
       _pending_block_mode = pending_block_mode::speculating;
    } else if (num_relevant_signatures == 0) {
       elog("Not producing block because I don't have any private keys relevant to authority: ${authority}", ("authority", scheduled_producer.authority));
@@ -1787,10 +1781,12 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       backup_ext.is_backup = is_backup;
       if(!is_backup){
          auto backup_head = chain.get_backup_head();
-         if (backup_head) {
-            backup_ext.previous_backup          = backup_head->id;
-            backup_ext.previous_backup_producer = backup_head->header.producer;
-            backup_ext.contribution             = chain.calculate_block_contribution( hbs->block, backup_head->block );
+         if ( backup_head ) {
+            backup_ext.previous_backup = previous_backup_info {
+               backup_head->id,
+               backup_head->header.producer,
+               chain.calculate_block_contribution( hbs->block, backup_head->block )
+            };
          }
       }
       chain.start_block( block_time, blocks_to_confirm, features_to_activate, backup_ext);

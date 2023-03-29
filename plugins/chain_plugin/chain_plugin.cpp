@@ -1369,7 +1369,7 @@ bool chain_plugin::import_reversible_blocks( const fc::path& reversible_dir,
       while( reversible_blocks.tellg() < end_pos ) {
          full_signed_block tmp;
          tmp.unpack(reversible_blocks);
-         num = tmp.block_num();
+         num = tmp.main_block_num();
 
          if( start == 0 ) {
             start = num;

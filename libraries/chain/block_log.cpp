@@ -299,17 +299,17 @@ namespace eosio { namespace chain {
          block_file.seek_end(0);
          index_file.seek_end(0);
          uint64_t pos = block_file.tellp();
-         EOS_ASSERT(index_file.tellp() == sizeof(uint64_t) * (b->block_num() - first_block_num),
+         EOS_ASSERT(index_file.tellp() == sizeof(uint64_t) * (b->main_block_num() - first_block_num),
                    block_log_append_fail,
                    "Append to index file occuring at wrong position.",
                    ("position", (uint64_t) index_file.tellp())
-                   ("expected", (b->block_num() - first_block_num) * sizeof(uint64_t)));
+                   ("expected", (b->main_block_num() - first_block_num) * sizeof(uint64_t)));
          auto data = b->pack();
          block_file.write(data.data(), data.size());
          block_file.write((char*)&pos, sizeof(pos));
          index_file.write((char*)&pos, sizeof(pos));
          head = b->main_block;
-         head_id = b->id();
+         head_id = b->main_block_id();
 
          flush();
 
@@ -413,8 +413,8 @@ namespace eosio { namespace chain {
          uint64_t pos = get_block_pos(block_num);
          if (pos != npos) {
             b = read_block(pos);
-            EOS_ASSERT(b->block_num() == block_num, reversible_blocks_exception,
-                      "Wrong block was read from block log.", ("returned", b->block_num())("expected", block_num));
+            EOS_ASSERT(b->main_block_num() == block_num, reversible_blocks_exception,
+                      "Wrong block was read from block log.", ("returned", b->main_block_num())("expected", block_num));
          }
          return b;
       } FC_LOG_AND_RETHROW()
@@ -630,7 +630,7 @@ namespace eosio { namespace chain {
             break;
          }
 
-         auto id = tmp.id();
+         auto id = tmp.main_block_id();
          if( block_header::num_from_id(previous) + 1 != block_header::num_from_id(id) ) {
             elog( "Block ${num} (${id}) skips blocks. Previous block in block log is block ${prev_num} (${previous})",
                   ("num", block_header::num_from_id(id))("id", id)
@@ -655,7 +655,7 @@ namespace eosio { namespace chain {
          auto data = tmp.pack();
          new_block_stream.write( data.data(), data.size() );
          new_block_stream.write( reinterpret_cast<char*>(&pos), sizeof(pos) );
-         block_num = tmp.block_num();
+         block_num = tmp.main_block_num();
          if(block_num % 1000 == 0)
             ilog( "Recovered block ${num}", ("num", block_num) );
          pos = new_block_stream.tellp();

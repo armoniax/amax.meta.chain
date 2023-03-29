@@ -46,7 +46,7 @@ namespace eosio { namespace chain {
 
       block_id_type get_previous_backup_id()const {
          auto result = get_full_block();
-         return result->main_block->previous_backup();
+         return result->main_block->previous_backup_id();
       }
    };
 

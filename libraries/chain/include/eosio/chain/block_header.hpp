@@ -6,7 +6,7 @@
 #include <type_traits>
 
 namespace eosio { namespace chain {
-
+   static const block_id_type block_id_empty = {};
    namespace detail {
       template<typename... Ts>
       struct block_header_extension_types {
@@ -15,15 +15,19 @@ namespace eosio { namespace chain {
       };
    }
 
+   struct previous_backup_info{
+      block_id_type  id;                                // previous backup block id
+      account_name   producer;                          // previous backup block producer
+      uint32_t       contribution               = 0;    // need to boost 10000
+   };
+
    struct backup_block_extension{
 
       static constexpr uint16_t extension_id() { return 3; }
       static constexpr bool     enforce_unique() { return true; }
 
       bool           is_backup                  = false;                // is backup block
-      block_id_type  previous_backup;                                   // previous backup block id
-      account_name   previous_backup_producer;                          // previous backup block producer
-      uint32_t       contribution               = 0;                    // need to boost 10000
+      optional<previous_backup_info>            previous_backup;
    };
 
    using block_header_extension_types = detail::block_header_extension_types<
@@ -96,7 +100,13 @@ namespace eosio { namespace chain {
          return backup_ext().is_backup;
       }
 
-      inline const block_id_type& previous_backup() const {
+      inline const block_id_type& previous_backup_id() const {
+         if( !backup_ext().previous_backup )
+            return block_id_empty;
+         return backup_ext().previous_backup->id;
+      }
+
+      inline const optional<previous_backup_info>& previous_backup() {
          return backup_ext().previous_backup;
       }
 
@@ -127,5 +137,6 @@ FC_REFLECT(eosio::chain::block_header,
            (timestamp)(producer)(confirmed)(previous)
            (transaction_mroot)(action_mroot)
            (schedule_version)(new_producers)(header_extensions))
-FC_REFLECT(eosio::chain::backup_block_extension,(is_backup)(previous_backup)(previous_backup_producer)(contribution));
+FC_REFLECT(eosio::chain::previous_backup_info,(id)(producer)(contribution));
+FC_REFLECT(eosio::chain::backup_block_extension,(is_backup)(previous_backup));
 FC_REFLECT_DERIVED(eosio::chain::signed_block_header, (eosio::chain::block_header), (producer_signature))

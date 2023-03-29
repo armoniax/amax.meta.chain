@@ -684,11 +684,11 @@ namespace eosio
          return block_state_ptr();
       }
 
-      block_state_ptr  fork_database::get_producer_backup_block( name prod, const block_id_type head_prev ) const
+      block_state_ptr  fork_database::get_producer_backup_block( name prod, const block_id_type prev ) const
       {
          const auto &previdx = my->index.get<best_backup_by_prev>();
-         auto best_backup_state = previdx.lower_bound( head_prev );
-         while( best_backup_state != previdx.end() ){
+         auto best_backup_state = previdx.lower_bound( prev );
+         while( best_backup_state != previdx.end() && (*best_backup_state)->header.previous == prev ){
             if( (*best_backup_state)->header.producer == prod ){
                return *best_backup_state;
             }
