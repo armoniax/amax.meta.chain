@@ -376,11 +376,11 @@ namespace eosio { namespace testing {
          producer = control->head_block_state()->get_scheduled_producer( block_time );
          auto backup_head = control->get_backup_head();
          if (backup_head) {
-            previous_backup_info backup_info;
-            backup_info.id                       = backup_head->id;
-            backup_info.producer                 = backup_head->header.producer;
-            backup_info.contribution             = config::percent_100;  // TODO: backup producer contribution
-            backup_ext.previous_backup.emplace(backup_info);
+            backup_ext.previous_backup = previous_backup_info{
+               backup_head->id,
+               backup_head->header.producer,
+               config::percent_100
+            };
          }
 
          auto last_produced_block_num = control->last_irreversible_block_num();
