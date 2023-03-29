@@ -529,22 +529,18 @@ struct controller_impl {
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
                if( next->backup_block ){
-                  EOS_ASSERT( !next->main_block->previous_backup() , block_validate_exception,
-                     "backup block ${id} previous backup info invalid", ("id", next->backup_block->id()));
+                  EOS_ASSERT( !next->backup_block->previous_backup() , block_validate_exception,
+                     "backup block ${id} is invalid, previous backup info must be empty", ("id", next->backup_block->id()));
+                  EOS_ASSERT( next->main_block->previous_backup() , block_validate_exception,
+                     "main block ${id} is invalid, previous backup info mustn't be empty", ("id", next->main_block->id()));
                   EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup_id(), unlinkable_block_exception,
                      "the backup block ${id} and the previous backup ${previous_backup} of main block don't match", ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup_id()));
                   replay_push_backup_block( next->backup_block, prev_head, controller::block_status::irreversible );
+               } else {
+                  EOS_ASSERT( !next->main_block->previous_backup() , block_validate_exception,
+                     "main block ${id} is invalid, previous backup info must be empty", ("id", next->main_block->id()));
                }
                prev_head = head;
-               if ( next->main_block->previous_backup() ) {
-                  EOS_ASSERT( !next->main_block->previous_backup()->id.empty() && !next->main_block->previous_backup()->producer.empty() , block_validate_exception,
-                     "block ${id} previous backup info invalid", ("id", next->main_block->id()));
-                  EOS_ASSERT( next->backup_block, unlinkable_block_exception,
-                     "The previous backup block of the main block ${id} isn't NULL,but the backup block ${previous_backup} is indeed empty", ("id", next->main_block->id())("previous_backup", next->main_block->previous_backup_id()));
-               }else{
-                  EOS_ASSERT( !next->backup_block, unlinkable_block_exception,
-                     "The previous backup block of the main block is NULL,but the backup block isn't indeed empty");
-               }
                replay_push_block( next->main_block, controller::block_status::irreversible );
                if( next->main_block_num() % 500 == 0 ) {
                   ilog( "${n} of ${head}", ("n", next->main_block_num())("head", blog_head->block_num()) );
@@ -2143,7 +2139,7 @@ struct controller_impl {
 
       auto prev = fork_db.get_block_header( b->previous, b->is_backup() );
       EOS_ASSERT( prev, unlinkable_block_exception,
-                  "unlinkable block ${id} ${previous}", ("id", id)("previous", b->previous) );
+                  "unlinkable block ${id},previous block ${previous} not found", ("id", id)("previous", b->previous) );
 
       return async_thread_pool( thread_pool.get_executor(), [b, prev, control=this]() {
          const bool skip_validate_signee = false;
@@ -2186,7 +2182,7 @@ struct controller_impl {
                      "block ${id} previous backup info invalid", ("id", b->id()));
             auto prev_backup = fork_db.get_block_header( b->previous_backup_id() , false);
             EOS_ASSERT( prev_backup, unlinkable_block_exception,
-                     "unlinkable main block ${id} ${previous_backup}", ("id", b->id())("previous_backup", b->previous_backup_id()));
+                     "unlinkable main block ${id}, previous backup block ${previous_backup} not found", ("id", b->id())("previous_backup", b->previous_backup_id()));
          }
 
          self.validate_block_contribution(b);
