@@ -190,7 +190,7 @@ void blocklog::set_program_options(options_description& cli)
           "the last block number to log or the last to keep if trim-blocklog")
          ("no-pretty-print", bpo::bool_switch(&no_pretty_print)->default_value(false),
           "Do not pretty print the output.  Useful if piping to jq to improve performance.")
-         ("as-json-array", bpo::bool_switch(&as_json_array)->default_value(true),
+         ("as-json-array", bpo::bool_switch(&as_json_array)->default_value(false),
           "Print out json blocks wrapped in json array (otherwise the output is free-standing json objects).")
          ("make-index", bpo::bool_switch(&make_index)->default_value(false),
           "Create blocks.index from blocks.log. Must give 'blocks-dir'. Give 'output-file' relative to current directory or absolute path (default is <blocks-dir>/blocks.index).")
