@@ -528,17 +528,16 @@ struct controller_impl {
                ("s", start_block_num)("n", blog_head->block_num()) );
          try {
             while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
+
+               EOS_ASSERT( bool(next->main_block->previous_backup()) == bool(next->backup_block) , block_validate_exception,
+                  "previous backup of main block ${id} mismatch with the one in block data", ("id", next->main_block->id()));
                if( next->backup_block ){
                   EOS_ASSERT( !next->backup_block->previous_backup() , block_validate_exception,
-                     "backup block ${id} is invalid, previous backup info must be empty", ("id", next->backup_block->id()));
-                  EOS_ASSERT( next->main_block->previous_backup() , block_validate_exception,
-                     "main block ${id} is invalid, previous backup info mustn't be empty", ("id", next->main_block->id()));
-                  EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup_id(), unlinkable_block_exception,
-                     "the backup block ${id} and the previous backup ${previous_backup} of main block don't match", ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup_id()));
+                     "previous backup of backup block ${id} must be empty", ("id", next->backup_block->id()));
+                  EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup_id(), block_validate_exception,
+                     "previous backup id ${previous_backup} of main block ${id} mismatch with the one in block data",
+                     ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup_id()));
                   replay_push_backup_block( next->backup_block, prev_head, controller::block_status::irreversible );
-               } else {
-                  EOS_ASSERT( !next->main_block->previous_backup() , block_validate_exception,
-                     "main block ${id} is invalid, previous backup info must be empty", ("id", next->main_block->id()));
                }
                prev_head = head;
                replay_push_block( next->main_block, controller::block_status::irreversible );
