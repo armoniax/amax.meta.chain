@@ -15,7 +15,7 @@ namespace eosio { namespace chain {
       uint32_t       blocknum = 0; //< blocknum should not be changed within a chainbase modifier lambda
       shared_string  packedblock;
 
-      void set_block( const full_block_ptr& b ) {
+      void set_block( const full_signed_block_ptr& b ) {
          auto temp = b->pack();
          packedblock.resize( temp.size() );
          fc::datastream<char*> ds( packedblock.data(), packedblock.size() );
@@ -31,10 +31,10 @@ namespace eosio { namespace chain {
          auto result = get_full_block();
          return result->backup_block ;
       }
-      
-      full_block_ptr get_full_block()const {
+
+      full_signed_block_ptr get_full_block()const {
          fc::datastream<const char*> ds( packedblock.data(), packedblock.size() );
-         auto result = std::make_shared<full_block>();
+         auto result = std::make_shared<full_signed_block>();
          result->unpack(ds);
          return result;
       }
@@ -46,7 +46,7 @@ namespace eosio { namespace chain {
 
       block_id_type get_previous_backup_id()const {
          auto result = get_full_block();
-         return result->main_block->previous_backup();
+         return result->main_block->previous_backup_id();
       }
    };
 

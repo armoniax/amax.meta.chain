@@ -1324,7 +1324,7 @@ bool chain_plugin::recover_reversible_blocks( const fc::path& db_dir, uint32_t c
          reversible_blocks.write( itr->packedblock.data(), itr->packedblock.size() );
          new_reversible.create<reversible_block_object>( [&]( auto& ubo ) {
             ubo.blocknum = itr->blocknum;
-            full_block_ptr temp = itr->get_full_block();
+            full_signed_block_ptr temp = itr->get_full_block();
             ubo.set_block( temp ); // get_block and set_block rather than copying the packed data acts as additional validation
          });
          end = itr->blocknum;
@@ -1367,9 +1367,9 @@ bool chain_plugin::import_reversible_blocks( const fc::path& reversible_dir,
    new_reversible.add_index<reversible_block_index>();
    try {
       while( reversible_blocks.tellg() < end_pos ) {
-         full_block tmp;
+         full_signed_block tmp;
          tmp.unpack(reversible_blocks);
-         num = tmp.block_num();
+         num = tmp.main_block_num();
 
          if( start == 0 ) {
             start = num;
@@ -1382,7 +1382,7 @@ bool chain_plugin::import_reversible_blocks( const fc::path& reversible_dir,
 
          new_reversible.create<reversible_block_object>( [&]( auto& ubo ) {
             ubo.blocknum = num;
-            full_block_ptr ftmp = std::make_shared<full_block>(tmp.main_block, tmp.backup_block);
+            full_signed_block_ptr ftmp = std::make_shared<full_signed_block>(tmp.main_block, tmp.backup_block);
             ubo.set_block( ftmp );
          });
          end = num;
@@ -1422,7 +1422,7 @@ bool chain_plugin::export_reversible_blocks( const fc::path& reversible_dir,
                      "gap in reversible block database between ${end} and ${blocknum}",
                      ("end", end)("blocknum", itr->blocknum)
                    );
-         full_block tmp;
+         full_signed_block tmp;
          fc::datastream<const char *> ds( itr->packedblock.data(), itr->packedblock.size() );
          tmp.unpack(ds); // Verify that packed block has not been corrupted.
          reversible_blocks.write( itr->packedblock.data(), itr->packedblock.size() );

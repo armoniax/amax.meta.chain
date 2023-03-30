@@ -227,7 +227,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
       bool                                                      _protocol_features_signaled = false; // to mark whether it has been signaled in start_block
 
       chain_plugin* chain_plug = nullptr;
-      
+
       incoming::channels::block::channel_type::handle         _incoming_block_subscription;
       incoming::channels::transaction::channel_type::handle   _incoming_transaction_subscription;
 
@@ -361,7 +361,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                ilog("Received backup block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
                ("p",block->producer)("id",id.str().substr(8,16))("n",blk_num)("t",block->timestamp)
                ("count",block->transactions.size())("lib",chain.last_irreversible_block_num())
-               ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );  
+               ("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
             }
             return true;
          }
@@ -1596,8 +1596,7 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
 
    // Not our turn
    const auto& scheduled_producer = hbs->get_scheduled_producer(block_time);
-   const auto& backup_scheduled_producer = hbs->get_backup_scheduled_producer(block_time);
-
+   producer_authority current_producer;
    size_t num_relevant_signatures = 0;
    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 1st: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
    scheduled_producer.for_each_key([&](const public_key_type& key){
@@ -1605,48 +1604,42 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       if(iter != _signature_providers.end()) {
          num_relevant_signatures++;
       }
-      /**
-      *@Description: process producing mode switching
-      */
+
       if(num_relevant_signatures > 0){
          is_backup = false;
+         current_producer = scheduled_producer;
       }
    });
-    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 2nd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
-    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup_scheduled_producer: ${backup_scheduled_producer}",("backup_scheduled_producer",backup_scheduled_producer));
-    fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] backup_scheduled_producer is valid ?: ${valid}",("valid",backup_scheduled_producer.valid()));
-   // TODO: should not enter backup producing mode when main producer is valid
-   if(num_relevant_signatures == 0 && backup_scheduled_producer.valid()){
-      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] num_relevant_signatures 3rd: ${num_relevant_signatures}",("num_relevant_signatures",num_relevant_signatures));
-      backup_scheduled_producer->for_each_key([&](const public_key_type& key){
-         const auto& iter = _signature_providers.find(key);
-         if(iter != _signature_providers.end()) {
-            num_relevant_signatures++;
-         }
-         /**
-         *@Description: for test 2 producing mode switch
-         */
-         if(num_relevant_signatures > 0){
-            is_backup = true;
-         }
-      });
+
+   optional<producer_authority> backup_scheduled_producer;
+   if( current_producer.producer_name.empty() ){
+      backup_scheduled_producer = hbs->get_backup_scheduled_producer(block_time);
+      if( backup_scheduled_producer.valid() ){
+         backup_scheduled_producer->for_each_key([&](const public_key_type& key){
+            const auto& iter = _signature_providers.find(key);
+            if(iter != _signature_providers.end()) {
+               num_relevant_signatures++;
+            }
+
+            auto ptr = chain.get_producer_backup_block( backup_scheduled_producer->producer_name, hbs->id );
+            if( ptr == nullptr ){
+               current_producer = *backup_scheduled_producer;
+            }
+            if(num_relevant_signatures > 0){
+               is_backup = true;
+            }
+         });
+      }
    }
 
-   producer_authority current_producer;
-   if(!is_backup){
-      current_producer = scheduled_producer;
-   }else{
-      current_producer = *backup_scheduled_producer;
-   }
-   
    const auto current_watermark = get_watermark(current_producer.producer_name);
-   
+
    auto irreversible_block_age = get_irreversible_block_age();
 
    // If the next block production opportunity is in the present or future, we're synced.
    if( !_production_enabled ) {
       _pending_block_mode = pending_block_mode::speculating;
-   } else if( _producers.find(current_producer.producer_name) == _producers.end()) {
+   } else if( current_producer.producer_name.empty() || _producers.find(current_producer.producer_name) == _producers.end()) {
       _pending_block_mode = pending_block_mode::speculating;
    } else if (num_relevant_signatures == 0) {
       elog("Not producing block because I don't have any private keys relevant to authority: ${authority}", ("authority", scheduled_producer.authority));
@@ -1788,10 +1781,12 @@ producer_plugin_impl::start_block_result producer_plugin_impl::start_block() {
       backup_ext.is_backup = is_backup;
       if(!is_backup){
          auto backup_head = chain.get_backup_head();
-         if (backup_head) {
-            backup_ext.previous_backup          = backup_head->id;
-            backup_ext.previous_backup_producer = backup_head->header.producer;
-            backup_ext.contribution             = chain.calculate_block_contribution( hbs->block, backup_head->block );
+         if ( backup_head ) {
+            backup_ext.previous_backup = previous_backup_info {
+               backup_head->id,
+               backup_head->header.producer,
+               chain.calculate_block_contribution( hbs->block, backup_head->block )
+            };
          }
       }
       chain.start_block( block_time, blocks_to_confirm, features_to_activate, backup_ext);
@@ -2371,7 +2366,7 @@ void producer_plugin_impl::schedule_delayed_production_loop(const std::weak_ptr<
 }
 
 
-bool producer_plugin_impl::maybe_produce_block() {	
+bool producer_plugin_impl::maybe_produce_block() {
    auto reschedule = fc::make_scoped_exit([this]{
       schedule_production_loop();
    });

@@ -118,6 +118,7 @@ void blocklog::read_log() {
       *out << "[";
    uint32_t block_num = (first_block < 1) ? 1 : first_block;
    signed_block_ptr next;
+   signed_block_ptr backup_of_next;
    fc::variant pretty_output;
    const fc::microseconds deadline = fc::seconds(10);
    auto print_block = [&](signed_block_ptr& next) {
@@ -139,9 +140,16 @@ void blocklog::read_log() {
          *out << fc::json::to_pretty_string(v) << "\n";
    };
    bool contains_obj = false;
-   while((block_num <= last_block) && (next = block_logger.read_block_by_num( block_num ))) {
+   full_signed_block_ptr temp;
+   while((block_num <= last_block) && (temp = block_logger.read_block_by_num( block_num)) && temp ) {
+      next = temp->main_block;
       if (as_json_array && contains_obj)
          *out << ",";
+      if( !next->previous_backup_id().empty() ){
+         backup_of_next = block_logger.read_block_by_num( block_num-1 , true)->backup_block;
+         print_block( backup_of_next );
+         *out << ",";
+      }
       print_block(next);
       ++block_num;
       contains_obj = true;
@@ -153,6 +161,11 @@ void blocklog::read_log() {
          if (as_json_array && contains_obj)
             *out << ",";
          auto next = obj->get_block();
+         if( !next->previous_backup_id().empty() ){
+            backup_of_next = obj->get_backup_block();
+            print_block( backup_of_next );
+            *out << ",";
+         }
          print_block(next);
          ++block_num;
          contains_obj = true;
