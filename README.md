@@ -17,7 +17,9 @@ This is the mother chain of Armonia Multi-chain Platform.
 
 2. Software requirement
 
-**AMAX requires an LLVM version 7 through 11**
+- OS preferred: Ubuntu 18.04
+
+- LLVM preferred: version 8
 
 1. check clang version: `clang --version`
 2. if the above result shows llvm thats' beyond the scope of 7 to 11, run the following to swith your llvm to version 8
