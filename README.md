@@ -37,7 +37,7 @@ git submodule update --init --recursive
 ./scripts/amax_build.sh -P
 ```
 
-# how to install
+# How to install
 
 ## install amcli
 ```
