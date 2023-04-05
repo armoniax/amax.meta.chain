@@ -12,8 +12,8 @@ This is the mother chain of Armonia Multi-chain Platform.
 
 1. Hardware requirement
 
-- Minimum HW Spec: `4 Core CPU, 32 GB RAM`
-- Preferred HW Spec: `8 Core CPU, 64 GB RAM`
+- Minimum HW Spec: `4 Core CPU, 16 GB RAM`
+- Preferred HW Spec: `8 Core CPU, 32 GB RAM`
 
 2. Software requirement
 
