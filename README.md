@@ -27,7 +27,7 @@ git submodule update --init --recursive
 ```
 ## Build the code
 ```
-./scripts/amax_build.sh
+./scripts/amax_build.sh -P
 ```
 
 # how to install
