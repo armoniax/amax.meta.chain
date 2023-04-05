@@ -10,6 +10,13 @@ This is the mother chain of Armonia Multi-chain Platform.
 
 ## prepare the dev environment
 
+1. Hardware requirement
+
+- Minimum HW Spec: `4 Core CPU, 32 GB RAM`
+- Preferred HW Spec: `8 Core CPU, 64 GB RAM`
+
+2. Software requirement
+
 **AMAX requires an LLVM version 7 through 11**
 
 1. check clang version: `clang --version`
