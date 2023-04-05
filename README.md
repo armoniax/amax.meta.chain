@@ -13,9 +13,9 @@ This is the mother chain of Armonia Multi-chain Platform.
 **AMAX requires an LLVM version 7 through 11**
 
 1. check clang version: `clang --version`
-2. if the above result shows llvm thats' beyond the scope of 7 to 11, run the following to swith your llvm to version 10
+2. if the above result shows llvm thats' beyond the scope of 7 to 11, run the following to swith your llvm to version 8
 ```
-sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100
+sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
 ```
 
 ## Download source code and make sure you pick the right branch/tag
