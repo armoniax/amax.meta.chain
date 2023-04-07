@@ -535,6 +535,8 @@ struct controller_impl {
                      "main block ${id} is invalid, previous backup info mustn't be empty", ("id", next->main_block->id()));
                   EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup_id(), unlinkable_block_exception,
                      "the backup block ${id} and the previous backup ${previous_backup} of main block don't match", ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup_id()));
+                  EOS_ASSERT( prev_head , block_validate_exception,
+                     "backup block ${id} is invalid, previous header mustn't be empty", ("id", next->backup_block->id()));
                   replay_push_backup_block( next->backup_block, prev_head, controller::block_status::irreversible );
                } else {
                   EOS_ASSERT( !next->main_block->previous_backup() , block_validate_exception,
@@ -581,6 +583,8 @@ struct controller_impl {
             signed_block_ptr prev_backup = obj->get_backup_block();
             if( prev_backup ){
                //dlog("recover ====> id: ${id}",("id",include_backup->id()));
+               EOS_ASSERT( prev_head , block_validate_exception,
+                     "backup block ${id} is invalid, previous header mustn't be empty", ("id", prev_backup->id()));
                replay_push_backup_block( prev_backup, prev_head, controller::block_status::validated );
             }
             prev_head = head;
