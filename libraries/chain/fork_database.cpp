@@ -502,7 +502,7 @@ namespace eosio
       }
 
       const block_state_ptr &fork_database::root() const { return my->root; }
-
+      const block_state_ptr &fork_database::root_previous()const {return my->root_previous; };
       const block_state_ptr &fork_database::head() const { return my->head; }
 
       block_state_ptr fork_database::pending_head() const

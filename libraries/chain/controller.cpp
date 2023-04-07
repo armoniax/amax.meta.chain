@@ -522,7 +522,7 @@ struct controller_impl {
 
       std::exception_ptr except_ptr;
 
-      block_state_ptr prev_head;
+      block_state_ptr prev_head = fork_db.root_previous();
       if( start_block_num <= blog_head->block_num() ) {
          ilog( "existing block log, attempting to replay from ${s} to ${n} blocks",
                ("s", start_block_num)("n", blog_head->block_num()) );

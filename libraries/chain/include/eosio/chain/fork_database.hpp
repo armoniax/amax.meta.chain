@@ -57,6 +57,7 @@ namespace eosio { namespace chain {
          void            remove( const block_id_type& id );
 
          const block_state_ptr& root()const;
+         const block_state_ptr& root_previous()const;
          const block_state_ptr& head()const;
          block_state_ptr        pending_head()const;
 
