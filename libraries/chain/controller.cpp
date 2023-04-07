@@ -522,7 +522,7 @@ struct controller_impl {
 
       std::exception_ptr except_ptr;
 
-      block_state_ptr prev_head;
+      block_state_ptr prev_head = fork_db.root_previous();
       if( start_block_num <= blog_head->block_num() ) {
          ilog( "existing block log, attempting to replay from ${s} to ${n} blocks",
                ("s", start_block_num)("n", blog_head->block_num()) );
@@ -537,6 +537,8 @@ struct controller_impl {
                   EOS_ASSERT( next->backup_block->id() == next->main_block->previous_backup_id(), block_validate_exception,
                      "previous backup id ${previous_backup} of main block ${id} mismatch with the one in block data",
                      ("id", next->backup_block->id())("previous_backup", next->main_block->previous_backup_id()));
+                  EOS_ASSERT( prev_head , block_validate_exception,
+                     "backup block ${id} is invalid, previous header mustn't be empty", ("id", next->backup_block->id()));
                   replay_push_backup_block( next->backup_block, prev_head, controller::block_status::irreversible );
                }
                prev_head = head;
@@ -580,6 +582,8 @@ struct controller_impl {
             signed_block_ptr prev_backup = obj->get_backup_block();
             if( prev_backup ){
                //dlog("recover ====> id: ${id}",("id",include_backup->id()));
+               EOS_ASSERT( prev_head , block_validate_exception,
+                     "backup block ${id} is invalid, previous header mustn't be empty", ("id", prev_backup->id()));
                replay_push_backup_block( prev_backup, prev_head, controller::block_status::validated );
             }
             prev_head = head;
