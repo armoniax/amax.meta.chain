@@ -448,7 +448,7 @@ def initApos():
 
     retry(args.amcli + 'push action amax initelects' + jsonArg([args.num_backup_producer]) + '-p amax@active')
     sleep(1)
-    retry(args.amcli + 'push action amax setinflation' + jsonArg(['1970-01-01T00:00:00', '0.20000000 AMAX']) + '-p amax@active')
+    retry(args.amcli + 'push action amax setinflation' + jsonArg(['1970-01-01T00:00:00', '0.40000000 AMAX']) + '-p amax@active')
     sleep(1)
 def stepResign():
     resign('amax', 'amax.prods')
