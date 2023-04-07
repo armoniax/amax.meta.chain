@@ -2584,6 +2584,51 @@ int main( int argc, char** argv ) {
       std::cout << fc::json::to_pretty_string(unpacked_action_data_json) << std::endl;
    });
 
+   {
+      // recover_public_key
+      string transaction_json;
+      string chain_id_str;
+      auto recover_public_key = convert->add_subcommand("recover_public_key", localized("From signature and hash to public key, needs interaction with ${n}", ("n", node_executable_name) ));
+      recover_public_key->add_option("transaction", transaction_json, localized("The transaction json"))->required();
+      recover_public_key->add_option("-c,--chain-id", chain_id_str, localized("The chain id that will be used to sign the transaction"));
+
+      recover_public_key->callback([&] {
+         fc::variant trx_var = json_from_file_or_string( transaction_json );
+         signed_transaction trx;
+         try {
+            abi_serializer::from_variant( trx_var, trx, abi_serializer_resolver, abi_serializer::create_yield_function( abi_serializer_max_time ) );
+         } EOS_RETHROW_EXCEPTIONS( transaction_type_exception, "Invalid transaction format: '${data}'",
+                                   ("data", fc::json::to_string(trx_var, fc::time_point::maximum())))
+
+         chain_id_type chain_id;
+         if( chain_id_str.size() == 0 ) {
+            ilog( "grabbing chain_id from ${n}", ("n", node_executable_name) );
+            auto info = get_info();
+            chain_id = info.chain_id;
+         } else {
+            chain_id = chain_id_type(chain_id_str);
+         }
+
+         const digest_type digest = trx.sig_digest(chain_id, trx.context_free_data);
+
+         fc::variants ret_variants;
+         for(const signature_type& sig : trx.signatures) {
+            public_key_type pubkey(sig, digest);
+            ret_variants.emplace_back(   fc::mutable_variant_object()
+                                    ("signature", sig)
+                                    ("public_key", pubkey)
+                                    ("public_key_by_id", public_key_type(sig, trx.id())) );
+         }
+
+         auto ret = fc::mutable_variant_object()
+                        ("id", trx.id())
+                        ("hash", digest)
+                        ("recoveries", ret_variants);
+
+         std::cout << fc::json::to_pretty_string(ret) << std::endl;
+      });
+   }
+
    // Get subcommand
    auto get = app.add_subcommand("get", localized("Retrieve various items and information from the blockchain"));
    get->require_subcommand();

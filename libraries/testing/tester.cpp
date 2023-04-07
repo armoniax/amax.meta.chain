@@ -367,7 +367,8 @@ namespace eosio { namespace testing {
    }
 
    void base_tester::_start_block(fc::time_point block_time) {
-      auto head_block_number = control->head_block_num();
+      const auto& hbs = control->head_block_state();
+      auto head_block_number = hbs->block_num;
       backup_block_extension backup_ext;
       backup_ext.is_backup = is_backup_block_mode;
       uint32_t confirms = 0;
@@ -376,10 +377,10 @@ namespace eosio { namespace testing {
          producer = control->head_block_state()->get_scheduled_producer( block_time );
          auto backup_head = control->get_backup_head();
          if (backup_head) {
-            backup_ext.previous_backup = previous_backup_info{
+            backup_ext.previous_backup = previous_backup_info {
                backup_head->id,
                backup_head->header.producer,
-               config::percent_100
+               control->calculate_block_contribution( hbs->block, backup_head->block )
             };
          }
 

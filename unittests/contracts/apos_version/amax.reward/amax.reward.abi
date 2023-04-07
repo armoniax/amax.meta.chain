@@ -188,6 +188,11 @@
             "key_types": []
         }
     ],
-    "ricardian_clauses": [],
+    "ricardian_clauses": [
+        {
+            "id": "ContractVersion",
+            "body": "0.6.0-alpha-9f019cbcf64c519a1bfa1907e1807a75e50fe235"
+        }
+    ],
     "variants": []
 }
