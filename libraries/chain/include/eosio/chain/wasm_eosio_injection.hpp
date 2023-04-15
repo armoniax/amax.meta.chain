@@ -240,6 +240,8 @@ namespace eosio { namespace chain { namespace wasm_injections {
       static void accept( wasm_ops::instr* inst, wasm_ops::visitor_arg& arg ) {
          auto mapped_index = injector_utils::injected_index_mapping.find(chktm_idx);
 
+         EOS_VM_ASSERT(mapped_index != injected_index_mapping.end(), wasm_interpreter_exception, "mapped_index not found");
+
          wasm_ops::op_types<>::call_t chktm; 
          chktm.field = mapped_index->second;
          chktm.pack(arg.new_code);
