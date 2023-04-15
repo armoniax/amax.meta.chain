@@ -118,10 +118,10 @@ function previous-install-prompt() {
 }
 
 function resources() {
-    echo "${COLOR_CYAN}AMAX website:${COLOR_NC} https://armoniax.org"
-    echo "${COLOR_CYAN}AMAX Telegram channel:${COLOR_NC} https://t.me/AMAProject"
-    echo "${COLOR_CYAN}AMAX resources:${COLOR_NC} https://armoniax.org/resources/"
-    echo "${COLOR_CYAN}AMAX Stack Exchange:${COLOR_NC} https://amax.stackexchange.com"
+    echo "${COLOR_CYAN}AMAX Offical website:${COLOR_NC} https://amax.network"
+    echo "${COLOR_CYAN}AMAX Telegram channel:${COLOR_NC} https://t.me/amaxdev"
+    echo "${COLOR_CYAN}AMAX resources:${COLOR_NC} https://docs.amax.network"
+    echo "${COLOR_CYAN}APLink Crypto Wallet:${COLOR_NC} https://aplink.app"
 }
 
 function print_supported_linux_distros_and_exit() {
