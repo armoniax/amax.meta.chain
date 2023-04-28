@@ -651,6 +651,8 @@ int apply_context::get_action( uint32_t type, uint32_t index, char* buffer, size
 
 int apply_context::get_context_free_data( uint32_t index, char* buffer, size_t buffer_size )const
 {
+   EOS_ASSERT( buffer != nullptr, misc_exception, "buffer uninitialized" );
+
    const auto& trx = trx_context.trx;
 
    if( index >= trx.context_free_data.size() ) return -1;
