@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <fc/reflect/reflect.hpp>
+#include <fc/exception/exception.hpp>
+#include <eosio/chain/exceptions.hpp>
 #include <iosfwd>
 
 namespace eosio::chain {
