@@ -26,11 +26,14 @@ namespace eosio::chain {
       FC_THROW_EXCEPTION( name_type_exception, "Name contains invalid character: (${c}) ", ("c", std::string(1, c)) );
    }
 
+   // true if std::string can be converted to name
+   bool is_string_valid_name(std::string_view str);
+
    static constexpr uint64_t string_to_uint64_t( std::string_view str ) {
-      int i = (int) str.size();
-      EOS_ASSERT(i <= 13, name_type_exception, "Name is longer than 13 characters (${name}) ", ("name", std::string(str)));
+      EOS_ASSERT(str.size() <= 13, name_type_exception, "Name is longer than 13 characters (${name}) ", ("name", std::string(str)));
 
       uint64_t n = 0;
+      int i = (int) str.size();
       if (i == 13) {
          // Only the first 12 characters can be full-range ([.1-5a-z]).
          i = 12;
