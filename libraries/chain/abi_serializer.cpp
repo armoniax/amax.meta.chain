@@ -243,6 +243,9 @@ namespace eosio { namespace chain {
       if( typedefs.find(type) != typedefs.end() ) return _is_type(typedefs.find(type)->second, ctx);
       if( structs.find(type) != structs.end() ) return true;
       if( variants.find(type) != variants.end() ) return true;
+      if( eosio::chain::is_string_valid_name(type) ) {
+         if( kv_tables.find(name(type)) != kv_tables.end() ) return true;
+      }
       return false;
    }
 
