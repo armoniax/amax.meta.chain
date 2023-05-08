@@ -470,6 +470,10 @@ namespace eosio { namespace chain {
    struct proposed_producer_changes {
       producer_change_map main_changes;
       producer_change_map backup_changes;
+
+      inline size_t total_size() const {
+         return main_changes.changes.size() + backup_changes.changes.size();
+      }
    };
 
    struct shared_producer_schedule_change {
@@ -486,6 +490,10 @@ namespace eosio { namespace chain {
          version = 0;
          main_changes.clear();
          backup_changes.clear();
+      }
+
+      inline size_t total_size() const {
+         return main_changes.changes.size() + backup_changes.changes.size();
       }
 
       uint32_t  version = 0; ///< sequentially incrementing version number
@@ -517,6 +525,10 @@ namespace eosio { namespace chain {
 
       bool empty() const {
          return main_changes.changes.empty() && backup_changes.changes.empty();
+      }
+
+      inline size_t total_size() const {
+         return main_changes.changes.size() + backup_changes.changes.size();
       }
    };
 

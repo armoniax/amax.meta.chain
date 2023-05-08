@@ -3245,6 +3245,10 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
    // TODO: check pending schedule change is empty()
 
    if( gpo.proposed_schedule_block_num.valid() ) {
+      if (gpo.proposed_schedule_change.total_size() > 0) {
+         wlog("there is already a proposed schedule change set in a previous block, wait for it to become pending");
+         return -1;
+      }
       if( *gpo.proposed_schedule_block_num != cur_block_num )
          return -1; // there is already a proposed schedule set in a previous block, wait for it to become pending
 
@@ -3255,7 +3259,7 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
 
    const auto& pending_sch = pending_producer_schedule();
    if (pending_sch.contains<producer_schedule_change>()) {
-      wlog( "there is already a pending changed schedule set, wait for it to become active.");
+      wlog( "there is already a pending schedule change set, wait for it to become active.");
       return -1;
    }
 
@@ -3287,6 +3291,10 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
 
    int64_t version = sch.version;
 
+   if( producers.size() == 0 ) {
+      return version;
+   }
+
    ilog( "proposed producer schedule with version ${v}", ("v", version) );
 
    my->db.modify( gpo, [&]( auto& gp ) {
@@ -3305,44 +3313,31 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    // if( producers.size() == 0 && is_builtin_activated( builtin_protocol_feature_t::disallow_empty_producer_schedule ) ) {
    //    return -1;
    // }
-   auto total_change_count = changes.main_changes.changes.size() + changes.backup_changes.changes.size();
-   if (total_change_count > chain::config::max_producer_changes)
+   auto total_size = changes.total_size();
+   if (total_size > chain::config::max_producer_changes)
    {
-      wlog( "Producer schedule exceeds the maximum producer change count for this chain");
+      wlog( "Producer schedule exceeds the maximum producer change size for this chain");
       return -1;
    }
-
-   auto is_change_empty = (total_change_count == 0);
 
    if( gpo.proposed_schedule_block_num.valid() ) {
-      if (!is_change_empty)
-         wlog( "there is already a proposed schedule set in a previous block, wait for it to become pending.");
+      wlog( "there is already a proposed schedule set in a previous block, wait for it to become pending.");
       return -1;
    }
 
-   if (!gpo.proposed_schedule.producers.empty()) {
-
-      if (!is_change_empty)
-         wlog( "there is already a proposed schedule change set, wait for it to become active.");
-      return -1;
-   }
    const auto& pending_sch = pending_producer_schedule();
    if (!pending_sch.contains<uint32_t>()) {
-      if (!is_change_empty)
-         wlog( "there is already a pending schedule set, wait for it to become active.");
+      wlog( "there is already a pending schedule set, wait for it to become active.");
       return -1;
    }
 
-   const producer_schedule_change* pending_change = nullptr;
-   if (pending_sch.contains<producer_schedule_change>()) {
-      pending_change = &pending_sch.get<producer_schedule_change>();
-   }
+
    const auto& active_main_sch = active_producers();
    auto active_backup_sch = active_backup_producers();
 
-   auto version = pending_change ? pending_change->version : active_main_sch.version;
+   auto version = active_main_sch.version;
 
-   if (is_change_empty) {
+   if (total_size == 0) {
       return version;
    }
 
