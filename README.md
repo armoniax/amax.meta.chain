@@ -34,6 +34,18 @@ cd amax.meta.chain
 git checkout $tag
 git submodule update --init --recursive
 ```
+
+## Update version info
+
+Open `./CMakeLists.txt` for editing:
+
+```
+set(VERSION_MAJOR 0)
+set(VERSION_MINOR 5)
+set(VERSION_PATCH 2)
+```
+
+```
 ## Build the code
 ```
 ./scripts/amax_build.sh -P
