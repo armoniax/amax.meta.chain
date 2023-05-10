@@ -45,7 +45,6 @@ set(VERSION_MINOR 5)
 set(VERSION_PATCH 2)
 ```
 
-```
 ## Build the code
 ```
 ./scripts/amax_build.sh -P
