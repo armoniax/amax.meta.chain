@@ -149,6 +149,21 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
          result = fc::raw::pack(*p);
    }
 
+   void get_backup_block(uint32_t block_num, fc::optional<bytes>& result) {
+      chain::signed_block_ptr pm , pb;
+      try {
+         pm = chain_plug->chain().fetch_block_by_number(block_num);
+         if ( pm->previous_backup().valid() ) {
+            pb =  chain_plug->chain().fetch_block_by_id( pm->previous_backup()->id );
+         }
+      } catch (...) {
+         return;
+      }
+
+      if (pb)
+         result = fc::raw::pack(*pb);
+   }
+
    fc::optional<chain::block_id_type> get_block_id(uint32_t block_num) {
       if (trace_log && block_num >= trace_log->begin_block() && block_num < trace_log->end_block())
          return trace_log->get_block_id(block_num);
@@ -164,12 +179,18 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
    }
 
    struct session : std::enable_shared_from_this<session> {
+      enum client_version_type {
+         V0,
+         V101
+      };
       std::shared_ptr<state_history_plugin_impl> plugin;
       std::unique_ptr<ws::stream<tcp::socket>>   socket_stream;
       bool                                       sending  = false;
       bool                                       sent_abi = false;
       std::vector<std::vector<char>>             send_queue;
+      uint32_t                                   client_version = client_version_type::V0;
       fc::optional<get_blocks_request_v0>        current_request;
+      fc::optional<get_blocks_request_v101>      current_requestv101;
       bool                                       need_to_send_update = false;
 
       session(std::shared_ptr<state_history_plugin_impl> plugin)
@@ -266,6 +287,20 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
          send_update(true);
       }
 
+      void operator()(get_blocks_request_v101& req) {
+         for (auto& cp : req.have_positions) {
+            if (req.start_block_num <= cp.block_num)
+               continue;
+            auto id = plugin->get_block_id(cp.block_num);
+            if (!id || *id != cp.block_id)
+               req.start_block_num = std::min(req.start_block_num, cp.block_num);
+         }
+         client_version = client_version_type::V101;
+         req.have_positions.clear();
+         current_requestv101 = req;
+         send_update(true);
+      }
+
       void operator()(get_blocks_ack_request_v0& req) {
          if (!current_request)
             return;
@@ -304,25 +339,76 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
                                current_request->start_block_num < current_request->end_block_num;
       }
 
+      void send_update(get_blocks_result_v101 result) {
+         need_to_send_update = true;
+         if (!send_queue.empty() || !current_requestv101 || !current_requestv101->max_messages_in_flight)
+            return;
+         auto& chain = plugin->chain_plug->chain();
+         result.last_irreversible = {chain.last_irreversible_block_num(), chain.last_irreversible_block_id()};
+         uint32_t current =
+               current_requestv101->irreversible_only ? result.last_irreversible.block_num : result.head.block_num;
+         if (current_requestv101->start_block_num <= current &&
+             current_requestv101->start_block_num < current_requestv101->end_block_num) {
+            auto block_id = plugin->get_block_id(current_requestv101->start_block_num);
+            if (block_id) {
+               result.this_block  = block_position{current_requestv101->start_block_num, *block_id};
+               auto prev_block_id = plugin->get_block_id(current_requestv101->start_block_num - 1);
+               if (prev_block_id)
+                  result.prev_block = block_position{current_requestv101->start_block_num - 1, *prev_block_id};
+               if (current_requestv101->fetch_block)
+                  plugin->get_block(current_requestv101->start_block_num, result.block);
+               if (current_requestv101->fetch_backup)
+                  plugin->get_backup_block(current_requestv101->start_block_num, result.backup_block);
+               if (current_requestv101->fetch_traces && plugin->trace_log)
+                  plugin->get_log_entry(*plugin->trace_log, current_requestv101->start_block_num, result.traces);
+               if (current_requestv101->fetch_deltas && plugin->chain_state_log)
+                  plugin->get_log_entry(*plugin->chain_state_log, current_requestv101->start_block_num, result.deltas);
+            }
+            ++current_requestv101->start_block_num;
+         }
+         send(std::move(result));
+         --current_requestv101->max_messages_in_flight;
+         need_to_send_update = current_requestv101->start_block_num <= current &&
+                               current_requestv101->start_block_num < current_requestv101->end_block_num;
+      }
+
       void send_update(const block_state_ptr& block_state) {
          need_to_send_update = true;
-         if (!send_queue.empty() || !current_request || !current_request->max_messages_in_flight)
-            return;
-         get_blocks_result_v0 result;
-         result.head = {block_state->block_num, block_state->id};
-         send_update(std::move(result));
+         if ( client_version == client_version_type::V0 ) {
+            if (!send_queue.empty() || !current_request || !current_request->max_messages_in_flight)
+               return;
+            get_blocks_result_v0 result;
+            result.head = {block_state->block_num, block_state->id};
+            send_update(std::move(result));
+         } else if ( client_version == client_version_type::V101 ) {
+            if (!send_queue.empty() || !current_requestv101 || !current_requestv101->max_messages_in_flight)
+               return;
+            get_blocks_result_v101 result;
+            result.head = {block_state->block_num, block_state->id};
+            send_update(std::move(result));
+         }
       }
 
       void send_update(bool changed = false) {
          if (changed)
             need_to_send_update = true;
-         if (!send_queue.empty() || !need_to_send_update || !current_request ||
-             !current_request->max_messages_in_flight)
-            return;
-         auto& chain = plugin->chain_plug->chain();
-         get_blocks_result_v0 result;
-         result.head = {chain.head_block_num(), chain.head_block_id()};
-         send_update(std::move(result));
+         if ( client_version == client_version_type::V0 ) {
+            if (!send_queue.empty() || !need_to_send_update || !current_request ||
+               !current_request->max_messages_in_flight)
+               return;
+            auto& chain = plugin->chain_plug->chain();
+            get_blocks_result_v0 result;
+            result.head = {chain.head_block_num(), chain.head_block_id()};
+            send_update(std::move(result));
+         } else if ( client_version == client_version_type::V101 ) {
+            if (!send_queue.empty() || !need_to_send_update || !current_requestv101 ||
+               !current_requestv101->max_messages_in_flight)
+               return;
+            auto& chain = plugin->chain_plug->chain();
+            get_blocks_result_v101 result;
+            result.head = {chain.head_block_num(), chain.head_block_id()};
+            send_update(std::move(result));
+         }
       }
 
       template <typename F>
@@ -428,14 +514,18 @@ struct state_history_plugin_impl : std::enable_shared_from_this<state_history_pl
          store_chain_state(block_state);
          for (auto& s : sessions) {
             auto& p = s.second;
-            if (p) {
-               if (p->current_request && block_state->block_num < p->current_request->start_block_num)
-                  p->current_request->start_block_num = block_state->block_num;
-               p->send_update(block_state);
+            if ( p ) {
+               if ( p->client_version == session::client_version_type::V0 ) {
+                  if (p->current_request && block_state->block_num < p->current_request->start_block_num)
+                     p->current_request->start_block_num = block_state->block_num;
+                  p->send_update(block_state);
+               } else if ( p->client_version == session::client_version_type::V101 ) {
+                  if (p->current_requestv101 && block_state->block_num < p->current_requestv101->start_block_num)
+                     p->current_requestv101->start_block_num = block_state->block_num;
+                  p->send_update(block_state);
+               }
             }
          }
-      } else {
-         //TODO deal with backup block
       }
    }
 

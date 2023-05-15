@@ -98,6 +98,18 @@ struct get_blocks_request_v0 {
    bool                        fetch_deltas           = false;
 };
 
+struct get_blocks_request_v101 {
+   uint32_t                    start_block_num        = 0;
+   uint32_t                    end_block_num          = 0;
+   uint32_t                    max_messages_in_flight = 0;
+   std::vector<block_position> have_positions         = {};
+   bool                        irreversible_only      = false;
+   bool                        fetch_block            = false;
+   bool                        fetch_traces           = false;
+   bool                        fetch_deltas           = false;
+   bool                        fetch_backup           = false;
+};
+
 struct get_blocks_ack_request_v0 {
    uint32_t num_messages = 0;
 };
@@ -112,8 +124,18 @@ struct get_blocks_result_v0 {
    fc::optional<bytes>          deltas;
 };
 
-using state_request = fc::static_variant<get_status_request_v0, get_blocks_request_v0, get_blocks_ack_request_v0>;
-using state_result  = fc::static_variant<get_status_result_v0, get_blocks_result_v0>;
+struct get_blocks_result_v101 {
+   block_position               head;
+   block_position               last_irreversible;
+   fc::optional<block_position> this_block;
+   fc::optional<block_position> prev_block;
+   fc::optional<bytes>          block;
+   fc::optional<bytes>          traces;
+   fc::optional<bytes>          deltas;
+   fc::optional<bytes>          backup_block;
+};
+using state_request = fc::static_variant<get_status_request_v0, get_blocks_request_v0, get_blocks_ack_request_v0, get_blocks_request_v101>;
+using state_result  = fc::static_variant<get_status_result_v0, get_blocks_result_v0, get_blocks_result_v101>;
 
 class state_history_plugin : public plugin<state_history_plugin> {
  public:
@@ -138,7 +160,8 @@ class state_history_plugin : public plugin<state_history_plugin> {
 FC_REFLECT(eosio::table_delta, (struct_version)(name)(rows));
 FC_REFLECT(eosio::block_position, (block_num)(block_id));
 FC_REFLECT_EMPTY(eosio::get_status_request_v0);
-FC_REFLECT(eosio::get_status_result_v0, (head)(last_irreversible)(trace_begin_block)(trace_end_block)(chain_state_begin_block)(chain_state_end_block));
 FC_REFLECT(eosio::get_blocks_request_v0, (start_block_num)(end_block_num)(max_messages_in_flight)(have_positions)(irreversible_only)(fetch_block)(fetch_traces)(fetch_deltas));
+FC_REFLECT(eosio::get_status_result_v0, (head)(last_irreversible)(trace_begin_block)(trace_end_block)(chain_state_begin_block)(chain_state_end_block));
+FC_REFLECT(eosio::get_blocks_request_v101, (start_block_num)(end_block_num)(max_messages_in_flight)(have_positions)(irreversible_only)(fetch_block)(fetch_traces)(fetch_deltas)(fetch_backup));
 FC_REFLECT(eosio::get_blocks_ack_request_v0, (num_messages));
 // clang-format on
