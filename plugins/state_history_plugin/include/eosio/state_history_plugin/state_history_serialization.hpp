@@ -693,4 +693,17 @@ datastream<ST>& operator<<(datastream<ST>& ds, const eosio::get_blocks_result_v0
    return ds;
 }
 
+template <typename ST>
+datastream<ST>& operator<<(datastream<ST>& ds, const eosio::get_blocks_result_v101& obj) {
+   fc::raw::pack(ds, obj.head);
+   fc::raw::pack(ds, obj.last_irreversible);
+   fc::raw::pack(ds, obj.this_block);
+   fc::raw::pack(ds, obj.prev_block);
+   history_pack_big_bytes(ds, obj.block);
+   history_pack_big_bytes(ds, obj.traces);
+   history_pack_big_bytes(ds, obj.deltas);
+   history_pack_big_bytes(ds, obj.backup_block);
+   return ds;
+}
+
 } // namespace fc
