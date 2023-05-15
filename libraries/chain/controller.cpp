@@ -3178,15 +3178,19 @@ block_state_ptr controller::fetch_block_state_by_number( uint32_t block_num , bo
    if( is_backup ) block_num++;
    auto objitr = rev_blocks.find(block_num);
 
-   if( objitr == rev_blocks.end() ) {
+   if( objitr != rev_blocks.end() ) {
+      return is_backup? my->fork_db.get_block( objitr->get_previous_backup_id() ) : my->fork_db.get_block( objitr->get_block_id() );
+   } else {
       if( my->read_mode == db_read_mode::IRREVERSIBLE ) {
-         return my->fork_db.search_on_branch( my->fork_db.pending_head()->id, block_num );
-      } else {
-         return block_state_ptr();
+         auto main_block = my->fork_db.search_on_branch( my->fork_db.pending_head()->id, block_num );
+         if (is_backup) {
+            return my->fork_db.get_block( main_block->prev() );
+         } else {
+            return main_block;
+         }
       }
    }
-
-   return is_backup? my->fork_db.get_block( objitr->get_previous_backup_id() ) : my->fork_db.get_block( objitr->get_block_id() );
+   return block_state_ptr();
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_id_type controller::get_block_id_for_num( uint32_t block_num )const { try {
