@@ -286,7 +286,7 @@ public:
 
    struct get_block_params {
       string block_num_or_id;
-      bool is_backup;
+      fc::optional<bool> is_backup;
    };
 
    struct get_last_blocks_params {
