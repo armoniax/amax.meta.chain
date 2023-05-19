@@ -2641,11 +2641,13 @@ int main( int argc, char** argv ) {
    // get block
    string blockArg;
    bool get_bhs = false;
+   bool is_backup = false;
    auto getBlock = get->add_subcommand("block", localized("Retrieve a full block from the blockchain"));
    getBlock->add_option("block", blockArg, localized("The number or ID of the block to retrieve"))->required();
    getBlock->add_flag("--header-state", get_bhs, localized("Get block header state from fork database instead") );
-   getBlock->callback([&blockArg,&get_bhs] {
-      auto arg = fc::mutable_variant_object("block_num_or_id", blockArg);
+   getBlock->add_flag("--is-backup", is_backup, localized("Get backup block, only effective when querying by block num") );
+   getBlock->callback([&blockArg,&get_bhs,&is_backup] {
+      auto arg = fc::mutable_variant_object("block_num_or_id", blockArg)("is_backup", is_backup);
       if( get_bhs ) {
          std::cout << fc::json::to_pretty_string(call(get_block_header_state_func, arg)) << std::endl;
       } else {

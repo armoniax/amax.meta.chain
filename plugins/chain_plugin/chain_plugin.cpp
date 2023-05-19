@@ -2130,7 +2130,7 @@ fc::variant read_only::get_block(const read_only::get_block_params& params) cons
    } catch( ... ) {}
 
    if( block_num.valid() ) {
-      block = db.fetch_block_by_number( *block_num );
+      block = db.fetch_block_by_number( *block_num, params.is_backup );
    } else {
       try {
          block = db.fetch_block_by_id( fc::variant(params.block_num_or_id).as<block_id_type>() );
