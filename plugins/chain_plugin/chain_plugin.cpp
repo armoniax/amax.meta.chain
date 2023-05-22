@@ -2034,8 +2034,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
    if (active_backup_producers) {
       auto it = active_backup_producers->producers.begin();
       flat_map<name, block_signing_authority> temp;
-      if ( p.limit < active_backup_producers->producers.size() ){
-         temp = flat_map<name, block_signing_authority>( it, it + p.limit );
+      if ( p.limit.valid() && *(p.limit) < active_backup_producers->producers.size() ){
+         temp = flat_map<name, block_signing_authority>( it, it + *(p.limit) );
       } else {
          temp = flat_map<name, block_signing_authority>( active_backup_producers->producers );
       }
@@ -2061,8 +2061,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
       const auto& pending_change = pending_schedule.schedule.get<producer_schedule_change>();
       producer_change_map temp;
       auto it = pending_change.backup_changes.changes.begin();
-      if ( p.limit < pending_change.backup_changes.changes.size() ){
-         temp.changes = flat_map<name, producer_change_record>( it, it + p.limit );
+      if ( p.limit.valid() && *(p.limit) < pending_change.backup_changes.changes.size() ){
+         temp.changes = flat_map<name, producer_change_record>( it, it + *(p.limit) );
       } else {
          temp.changes = flat_map<name, producer_change_record>( pending_change.backup_changes.changes );
       }
@@ -2096,8 +2096,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
       producer_change_map temp;
 
       auto it = proposed_change.backup_changes.changes.begin();
-      if ( p.limit < proposed_change.backup_changes.changes.size() ){
-         temp.changes = flat_map<name, producer_change_record>( it, it + p.limit );
+      if ( p.limit.valid() && *(p.limit) < proposed_change.backup_changes.changes.size() ){
+         temp.changes = flat_map<name, producer_change_record>( it, it + *(p.limit) );
       } else {
          temp.changes = flat_map<name, producer_change_record>( proposed_change.backup_changes.changes );
       }

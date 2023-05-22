@@ -386,7 +386,7 @@ public:
    get_producers_result get_producers( const get_producers_params& params )const;
 
    struct get_producer_schedule_params {
-      uint32_t limit;
+      fc::optional<uint32_t> limit;
    };
 
    struct get_producer_schedule_result {
