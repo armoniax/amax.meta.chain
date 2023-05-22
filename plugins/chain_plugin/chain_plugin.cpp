@@ -2011,12 +2011,118 @@ read_only::get_producers_result read_only::get_producers( const read_only::get_p
 
 read_only::get_producer_schedule_result read_only::get_producer_schedule( const read_only::get_producer_schedule_params& p ) const {
    read_only::get_producer_schedule_result result;
-   to_variant(db.active_producers(), result.active);
-   if(!db.pending_producers().producers.empty())
-      to_variant(db.pending_producers(), result.pending);
-   auto proposed = db.proposed_producers();
-   if(proposed && !proposed->producers.empty())
-      to_variant(*proposed, result.proposed);
+   if( !db.is_builtin_activated(builtin_protocol_feature_t::apos) ){
+      to_variant(db.active_producers(), result.active);
+      if (!db.pending_producers().producers.empty())
+         to_variant(db.pending_producers(), result.pending);
+      auto proposed = db.proposed_producers();
+      if (proposed && !proposed->producers.empty())
+         to_variant(*proposed, result.proposed);
+      return result;
+   }
+
+   fc::mutable_variant_object active_mvo;
+   {
+      const auto& active_producers = db.active_producers();
+      active_mvo["main_producers"] = fc::mutable_variant_object()
+                                       ("version", active_producers.version)
+                                       ("producer_count", active_producers.producers.size())
+                                       ("producers", active_producers.producers);
+   }
+
+   auto active_backup_producers = db.active_backup_producers();
+   if (active_backup_producers) {
+      auto it = active_backup_producers->producers.begin();
+      flat_map<name, block_signing_authority> temp;
+      if ( p.limit < active_backup_producers->producers.size() ){
+         temp = flat_map<name, block_signing_authority>( it, it + p.limit );
+      } else {
+         temp = flat_map<name, block_signing_authority>( active_backup_producers->producers );
+      }
+      std::vector<producer_authority> pv;
+      producer_authority pa;
+      for ( const auto& pp : temp ){
+         pa.producer_name = pp.first;
+         pa.authority = pp.second;
+         pv.push_back( pa );
+      }
+      active_mvo["backup_producers"] = fc::mutable_variant_object()
+                                       ("version", active_backup_producers->version)
+                                       ("producer_count", active_backup_producers->producers.size())
+                                       ("producers", pv);
+   }
+
+   result.active = active_mvo;
+
+   // pending
+   auto hbs = db.head_block_state();
+   const auto& pending_schedule = hbs->pending_schedule;
+   if(pending_schedule.schedule.contains<producer_schedule_change>()){
+      const auto& pending_change = pending_schedule.schedule.get<producer_schedule_change>();
+      producer_change_map temp;
+      auto it = pending_change.backup_changes.changes.begin();
+      if ( p.limit < pending_change.backup_changes.changes.size() ){
+         temp.changes = flat_map<name, producer_change_record>( it, it + p.limit );
+      } else {
+         temp.changes = flat_map<name, producer_change_record>( pending_change.backup_changes.changes );
+      }
+      std::vector<producer_authority> mpv;
+      producer_authority mpa;
+      for ( const auto& pp : pending_change.main_changes.changes ){
+         mpa.producer_name = pp.first;
+         mpa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+         mpv.push_back( mpa );
+      }
+
+      std::vector<producer_authority> pv;
+      producer_authority pa;
+      for ( const auto& pp : temp.changes ){
+         pa.producer_name = pp.first;
+         pa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+         pv.push_back( pa );
+      }
+      result.pending = fc::mutable_variant_object()
+                              ("schedule_lib_num", pending_schedule.schedule_lib_num)
+                              ("version", pending_change.version)
+                              ("change_count", pending_change.main_changes.changes.size() + pending_change.backup_changes.changes.size())
+                              ("main_changes", mpv)
+                              ("backup_changes", pv);
+   }
+
+   //proposed
+   const auto& gpo = db.get_global_properties();
+   if( gpo.proposed_schedule_block_num.valid() ){
+      const auto& proposed_change = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+      producer_change_map temp;
+
+      auto it = proposed_change.backup_changes.changes.begin();
+      if ( p.limit < proposed_change.backup_changes.changes.size() ){
+         temp.changes = flat_map<name, producer_change_record>( it, it + p.limit );
+      } else {
+         temp.changes = flat_map<name, producer_change_record>( proposed_change.backup_changes.changes );
+      }
+
+      std::vector<producer_authority> mpv;
+      producer_authority mpa;
+      for ( const auto& pp : proposed_change.main_changes.changes ){
+         mpa.producer_name = pp.first;
+         mpa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+         mpv.push_back( mpa );
+      }
+      std::vector<producer_authority> pv;
+      producer_authority pa;
+      for ( const auto& pp : temp.changes ){
+         pa.producer_name = pp.first;
+         pa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+         pv.push_back( pa );
+      }
+      result.proposed = fc::mutable_variant_object()
+                              ("schedule_lib_num", gpo.proposed_schedule_block_num)
+                              ("version", proposed_change.version)
+                              ("change_count", proposed_change.main_changes.changes.size() + proposed_change.backup_changes.changes.size())
+                              ("main_changes", mpv)
+                              ("backup_changes", pv);
+   }
    return result;
 }
 
@@ -2179,56 +2285,6 @@ fc::variants read_only::get_last_blocks(const get_last_blocks_params& params) co
      vas.emplace_back(mvo);
    }
    return vas;
-}
-
-read_only::get_apos_producers_result read_only::get_apos_producers(const get_apos_producers_params& params) const{
-   read_only::get_apos_producers_result result;
-
-   fc::mutable_variant_object active_mvo;
-
-   {
-      const auto& active_producers = db.active_producers();
-      active_mvo["main_producers"] = fc::mutable_variant_object()
-                                       ("version", active_producers.version)
-                                       ("producer_count", active_producers.producers.size())
-                                       ("producers", active_producers.producers);
-   }
-
-   auto active_backup_producers = db.active_backup_producers();
-   if (active_backup_producers) {
-      active_mvo["backup_producers"] = fc::mutable_variant_object()
-                                       ("version", active_backup_producers->version)
-                                       ("producer_count", active_backup_producers->producers.size())
-                                       ("producers", active_backup_producers->producers);
-   }
-   result.active = active_mvo;
-
-   // pending
-   auto hbs = db.head_block_state();
-   const auto& pending_schedule = hbs->pending_schedule;
-   if(pending_schedule.schedule.contains<producer_schedule_change>()){
-      const auto& pending_change = pending_schedule.schedule.get<producer_schedule_change>();
-      result.pending = fc::mutable_variant_object()
-                              ("schedule_lib_num", pending_schedule.schedule_lib_num)
-                              ("version", pending_change.version)
-                              ("change_count", pending_change.main_changes.changes.size() + pending_change.backup_changes.changes.size())
-                              ("main_changes", pending_change.main_changes)
-                              ("backup_changes", pending_change.backup_changes);
-   }
-
-   //proposed
-   const auto& gpo = db.get_global_properties();
-   if( gpo.proposed_schedule_block_num.valid() ){
-      const auto& proposed_change = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
-      result.proposed = fc::mutable_variant_object()
-                              ("schedule_lib_num", gpo.proposed_schedule_block_num)
-                              ("version", proposed_change.version)
-                              ("change_count", proposed_change.main_changes.changes.size() + proposed_change.backup_changes.changes.size())
-                              ("main_changes", proposed_change.main_changes)
-                              ("backup_changes", proposed_change.backup_changes);
-   }
-
-   return result;
 }
 
 fc::variant read_only::get_block_header_state(const get_block_header_state_params& params) const {

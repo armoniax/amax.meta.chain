@@ -297,17 +297,6 @@ public:
 
    fc::variants get_last_blocks(const get_last_blocks_params& params) const;
 
-   struct get_apos_producers_params {
-   };
-
-   struct get_apos_producers_result {
-      fc::variant active;
-      fc::variant pending;
-      fc::variant proposed;
-   };
-
-   get_apos_producers_result get_apos_producers(const get_apos_producers_params& params) const;
-
    struct get_block_header_state_params {
       string block_num_or_id;
    };
@@ -397,6 +386,7 @@ public:
    get_producers_result get_producers( const get_producers_params& params )const;
 
    struct get_producer_schedule_params {
+      uint32_t limit;
    };
 
    struct get_producer_schedule_result {
@@ -797,8 +787,6 @@ FC_REFLECT(eosio::chain_apis::read_only::get_activated_protocol_features_params,
 FC_REFLECT(eosio::chain_apis::read_only::get_activated_protocol_features_results, (activated_protocol_features)(more) )
 FC_REFLECT(eosio::chain_apis::read_only::get_block_params, (block_num_or_id)(is_backup))
 FC_REFLECT(eosio::chain_apis::read_only::get_last_blocks_params, (block_count))
-FC_REFLECT_EMPTY(eosio::chain_apis::read_only::get_apos_producers_params )
-FC_REFLECT(eosio::chain_apis::read_only::get_apos_producers_result, (active)(pending)(proposed))
 FC_REFLECT(eosio::chain_apis::read_only::get_block_header_state_params, (block_num_or_id))
 
 FC_REFLECT( eosio::chain_apis::read_write::push_transaction_results, (transaction_id)(processed) )
@@ -817,7 +805,7 @@ FC_REFLECT( eosio::chain_apis::read_only::get_currency_stats_result, (supply)(ma
 FC_REFLECT( eosio::chain_apis::read_only::get_producers_params, (json)(lower_bound)(limit) )
 FC_REFLECT( eosio::chain_apis::read_only::get_producers_result, (rows)(total_producer_vote_weight)(more) );
 
-FC_REFLECT_EMPTY( eosio::chain_apis::read_only::get_producer_schedule_params )
+FC_REFLECT( eosio::chain_apis::read_only::get_producer_schedule_params, (limit) )
 FC_REFLECT( eosio::chain_apis::read_only::get_producer_schedule_result, (active)(pending)(proposed) );
 
 FC_REFLECT( eosio::chain_apis::read_only::get_scheduled_transactions_params, (json)(lower_bound)(limit) )

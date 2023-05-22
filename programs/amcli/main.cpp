@@ -1326,42 +1326,86 @@ struct list_producers_subcommand {
 struct get_schedule_subcommand {
    bool print_json = false;
 
-   void print(const char* name, const fc::variant& schedule) {
+   void print(const char* name, const fc::variant& schedule, bool got_change = false) {
       if (schedule.is_null()) {
          printf("%s schedule empty\n\n", name);
          return;
       }
-      printf("%s schedule version %s\n", name, schedule["version"].as_string().c_str());
-      printf("    %-13s %s\n", "Producer", "Producer Authority");
-      printf("    %-13s %s\n", "=============", "==================");
-      for( auto& row: schedule["producers"].get_array() ) {
-         if( row.get_object().contains("block_signing_key") ) {
-            // pre 2.0
-            printf( "    %-13s %s\n", row["producer_name"].as_string().c_str(), row["block_signing_key"].as_string().c_str() );
-         } else {
-            printf( "    %-13s ", row["producer_name"].as_string().c_str() );
-            auto a = row["authority"].as<block_signing_authority>();
-            static_assert( std::is_same<decltype(a), static_variant<block_signing_authority_v0>>::value,
-                           "Updates maybe needed if block_signing_authority changes" );
-            block_signing_authority_v0 auth = a.get<block_signing_authority_v0>();
-            printf( "%s\n", fc::json::to_string( auth, fc::time_point::maximum() ).c_str() );
+      if ( !got_change ) {
+         printf("%s schedule version %s\n", name, schedule["version"].as_string().c_str());
+         printf("    %-13s %s\n", "Producer", "Producer Authority");
+         printf("    %-13s %s\n", "=============", "==================");
+         for( auto& row: schedule["producers"].get_array() ) {
+            if( row.get_object().contains("block_signing_key") ) {
+               // pre 2.0
+               printf( "    %-13s %s\n", row["producer_name"].as_string().c_str(), row["block_signing_key"].as_string().c_str() );
+            } else {
+               printf( "    %-13s ", row["producer_name"].as_string().c_str() );
+               auto a = row["authority"].as<block_signing_authority>();
+               static_assert( std::is_same<decltype(a), static_variant<block_signing_authority_v0>>::value,
+                              "Updates maybe needed if block_signing_authority changes" );
+               block_signing_authority_v0 auth = a.get<block_signing_authority_v0>();
+               printf( "%s\n", fc::json::to_string( auth, fc::time_point::maximum() ).c_str() );
+            }
+         }
+      } else {
+         printf("%s schedule \n", name);
+         printf("    %-13s %s\n", "Producer", "Producer Authority");
+         printf("    %-13s %s\n", "=============", "==================");
+         for( auto& row: schedule.get_array() ) {
+            if( row.get_object().contains("block_signing_key") ) {
+               // pre 2.0
+               printf( "    %-13s %s\n", row["producer_name"].as_string().c_str(), row["block_signing_key"].as_string().c_str() );
+            } else {
+               printf( "    %-13s ", row["producer_name"].as_string().c_str() );
+               auto a = row["authority"].as<block_signing_authority>();
+               static_assert( std::is_same<decltype(a), static_variant<block_signing_authority_v0>>::value,
+                              "Updates maybe needed if block_signing_authority changes" );
+               block_signing_authority_v0 auth = a.get<block_signing_authority_v0>();
+               printf( "%s\n", fc::json::to_string( auth, fc::time_point::maximum() ).c_str() );
+            }
          }
       }
       printf("\n");
    }
-
+   uint32_t limit = 100;
    get_schedule_subcommand(CLI::App* actionRoot) {
       auto get_schedule = actionRoot->add_subcommand("schedule", localized("Retrieve the producer schedule"));
+      get_schedule->add_option( "-b,--backup-limit", limit, localized("The maximum number of backup producers to return") );
       get_schedule->add_flag("--json,-j", print_json, localized("Output in JSON format"));
       get_schedule->callback([this] {
-         auto result = call(get_schedule_func, fc::mutable_variant_object());
+         auto arg = fc::mutable_variant_object("limit", limit);
+         auto result = call(get_schedule_func, arg);
          if ( print_json ) {
             std::cout << fc::json::to_pretty_string(result) << std::endl;
             return;
          }
-         print("active", result["active"]);
-         print("pending", result["pending"]);
-         print("proposed", result["proposed"]);
+         fc::variant_object schedule = result["active"].get_object();
+         if( schedule.find( "main_producers" ) != schedule.end() ) {
+            print("main active", result["active"]["main_producers"]);
+            if ( limit > 0) {
+               print("backup active", result["active"]["backup_producers"]);
+            }
+
+            if ( !(result["pending"]).is_null() ){
+               print("main pending", result["pending"]["main_changes"], true);
+               print("backup pending", result["pending"]["backup_changes"], true);
+            } else {
+               print("main pending", result["pending"]);
+               print("backup pending", result["pending"]);
+            }
+            if ( !(result["proposed"]).is_null() ){
+               print("main proposed", result["proposed"]["main_changes"], true);
+               print("backup proposed", result["proposed"]["backup_changes"], true);
+            } else {
+               print("main proposed", result["proposed"]);
+               print("backup proposed", result["proposed"]);
+            }
+         }else{
+            print("active", result["active"]);
+            print("pending", result["pending"]);
+            print("proposed", result["proposed"]);
+         }
       });
    }
 };
