@@ -297,17 +297,6 @@ public:
 
    fc::variants get_last_blocks(const get_last_blocks_params& params) const;
 
-   struct get_apos_producers_params {
-   };
-
-   struct get_apos_producers_result {
-      fc::variant active;
-      fc::variant pending;
-      fc::variant proposed;
-   };
-
-   get_apos_producers_result get_apos_producers(const get_apos_producers_params& params) const;
-
    struct get_block_header_state_params {
       string block_num_or_id;
    };
@@ -797,8 +786,6 @@ FC_REFLECT(eosio::chain_apis::read_only::get_activated_protocol_features_params,
 FC_REFLECT(eosio::chain_apis::read_only::get_activated_protocol_features_results, (activated_protocol_features)(more) )
 FC_REFLECT(eosio::chain_apis::read_only::get_block_params, (block_num_or_id)(is_backup))
 FC_REFLECT(eosio::chain_apis::read_only::get_last_blocks_params, (block_count))
-FC_REFLECT_EMPTY(eosio::chain_apis::read_only::get_apos_producers_params )
-FC_REFLECT(eosio::chain_apis::read_only::get_apos_producers_result, (active)(pending)(proposed))
 FC_REFLECT(eosio::chain_apis::read_only::get_block_header_state_params, (block_num_or_id))
 
 FC_REFLECT( eosio::chain_apis::read_write::push_transaction_results, (transaction_id)(processed) )
