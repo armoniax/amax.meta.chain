@@ -1377,13 +1377,12 @@ struct get_schedule_subcommand {
       }
       printf("\n");
    }
-   uint32_t limit = 100;
+
    get_schedule_subcommand(CLI::App* actionRoot) {
       auto get_schedule = actionRoot->add_subcommand("schedule", localized("Retrieve the producer schedule"));
-      get_schedule->add_option( "-b,--backup-limit", limit, localized("The maximum number of backup producers to return") );
       get_schedule->add_flag("--json,-j", print_json, localized("Output in JSON format"));
       get_schedule->callback([this] {
-         auto arg = fc::mutable_variant_object("limit", limit);
+         auto arg = fc::mutable_variant_object();
          auto result = call(get_schedule_func, arg);
          if ( print_json ) {
             std::cout << fc::json::to_pretty_string(result) << std::endl;
@@ -1391,9 +1390,7 @@ struct get_schedule_subcommand {
          }
 
          print("main active", result["active"]["main_producers"]);
-         if ( limit > 0) {
-            print("backup active", result["active"]["backup_producers"]);
-         }
+         print("backup active", result["active"]["backup_producers"]);
          if ( !result["pending"].is_null() ) {
             fc::variant_object schedule = result["pending"].get_object();
             if ( schedule.find( "main_changes" ) != schedule.end() ){
