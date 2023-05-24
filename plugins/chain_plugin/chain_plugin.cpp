@@ -2008,26 +2008,27 @@ read_only::get_producers_result read_only::get_producers( const read_only::get_p
 
    return result;
 }
+struct producer_authority_with_operation : producer_authority {
+   uint8_t operation = 3; //3 means set
+};
 
 read_only::get_producer_schedule_result read_only::get_producer_schedule( const read_only::get_producer_schedule_params& p ) const {
    read_only::get_producer_schedule_result result;
-   if( !db.is_builtin_activated(builtin_protocol_feature_t::apos) ){
-      to_variant(db.active_producers(), result.active);
-      if (!db.pending_producers().producers.empty())
-         to_variant(db.pending_producers(), result.pending);
-      auto proposed = db.proposed_producers();
-      if (proposed && !proposed->producers.empty())
-         to_variant(*proposed, result.proposed);
-      return result;
-   }
 
    fc::mutable_variant_object active_mvo;
    {
       const auto& active_producers = db.active_producers();
+      std::vector<producer_authority_with_operation> mpv;
+      producer_authority_with_operation pa;
+      for ( const auto& pp : active_producers.producers ){
+         pa.producer_name = pp.producer_name;
+         pa.authority = pp.authority;
+         mpv.push_back( pa );
+      }
       active_mvo["main_producers"] = fc::mutable_variant_object()
                                        ("version", active_producers.version)
                                        ("producer_count", active_producers.producers.size())
-                                       ("producers", active_producers.producers);
+                                       ("producers", mpv);
    }
 
    auto active_backup_producers = db.active_backup_producers();
@@ -2039,8 +2040,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
       } else {
          temp = flat_map<name, block_signing_authority>( active_backup_producers->producers );
       }
-      std::vector<producer_authority> pv;
-      producer_authority pa;
+      std::vector<producer_authority_with_operation> pv;
+      producer_authority_with_operation pa;
       for ( const auto& pp : temp ){
          pa.producer_name = pp.first;
          pa.authority = pp.second;
@@ -2057,7 +2058,7 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
    // pending
    auto hbs = db.head_block_state();
    const auto& pending_schedule = hbs->pending_schedule;
-   if(pending_schedule.schedule.contains<producer_schedule_change>()){
+   if( pending_schedule.schedule.contains<producer_schedule_change>() ){
       const auto& pending_change = pending_schedule.schedule.get<producer_schedule_change>();
       producer_change_map temp;
       auto it = pending_change.backup_changes.changes.begin();
@@ -2066,19 +2067,20 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
       } else {
          temp.changes = flat_map<name, producer_change_record>( pending_change.backup_changes.changes );
       }
-      std::vector<producer_authority> mpv;
-      producer_authority mpa;
+      std::vector<producer_authority_with_operation> mpv;
+      producer_authority_with_operation mpa;
       for ( const auto& pp : pending_change.main_changes.changes ){
          mpa.producer_name = pp.first;
          mpa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+         mpa.operation = pp.second.visit([](auto& type)-> uint8_t { return (uint8_t)type.change_operation;});
          mpv.push_back( mpa );
       }
-
-      std::vector<producer_authority> pv;
-      producer_authority pa;
+      std::vector<producer_authority_with_operation> pv;
+      producer_authority_with_operation pa;
       for ( const auto& pp : temp.changes ){
          pa.producer_name = pp.first;
          pa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+         pa.operation = pp.second.visit([](auto& type)-> uint8_t { return (uint8_t)type.change_operation;});
          pv.push_back( pa );
       }
       result.pending = fc::mutable_variant_object()
@@ -2087,41 +2089,71 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
                               ("change_count", pending_change.main_changes.changes.size() + pending_change.backup_changes.changes.size())
                               ("main_changes", mpv)
                               ("backup_changes", pv);
+   //producer_authority_schedule
+   } else if ( pending_schedule.schedule.contains<producer_authority_schedule>() ) {
+      std::vector<producer_authority_with_operation> mpv;
+      producer_authority_with_operation pa;
+      for ( const auto& pp : pending_schedule.schedule.get<producer_authority_schedule>().producers ){
+         pa.producer_name = pp.producer_name;
+         pa.authority = pp.authority;
+         mpv.push_back( pa );
+      }
+      result.pending = fc::mutable_variant_object()
+                                       ("version", pending_schedule.schedule.get<producer_authority_schedule>().version)
+                                       ("producer_count", pending_schedule.schedule.get<producer_authority_schedule>().producers.size())
+                                       ("producers", mpv);
    }
 
    //proposed
    const auto& gpo = db.get_global_properties();
    if( gpo.proposed_schedule_block_num.valid() ){
-      const auto& proposed_change = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
-      producer_change_map temp;
+      if ( gpo.proposed_schedule_change.main_changes.changes.size() + gpo.proposed_schedule_change.backup_changes.changes.size() > 0 ){
+         const auto& proposed_change = producer_schedule_change::from_shared(gpo.proposed_schedule_change);
+         producer_change_map temp;
 
-      auto it = proposed_change.backup_changes.changes.begin();
-      if ( p.limit.valid() && *(p.limit) < proposed_change.backup_changes.changes.size() ){
-         temp.changes = flat_map<name, producer_change_record>( it, it + *(p.limit) );
-      } else {
-         temp.changes = flat_map<name, producer_change_record>( proposed_change.backup_changes.changes );
+         auto it = proposed_change.backup_changes.changes.begin();
+         if ( p.limit.valid() && *(p.limit) < proposed_change.backup_changes.changes.size() ){
+            temp.changes = flat_map<name, producer_change_record>( it, it + *(p.limit) );
+         } else {
+            temp.changes = flat_map<name, producer_change_record>( proposed_change.backup_changes.changes );
+         }
+         std::vector<producer_authority_with_operation> mpv;
+         producer_authority_with_operation mpa;
+         for ( const auto& pp : proposed_change.main_changes.changes ){
+            mpa.producer_name = pp.first;
+            mpa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+            mpa.operation = pp.second.visit([](auto& type)-> uint8_t { return (uint8_t)type.change_operation;});
+            mpv.push_back( mpa );
+         }
+         std::vector<producer_authority_with_operation> pv;
+         producer_authority_with_operation pa;
+         for ( const auto& pp : temp.changes ){
+            pa.producer_name = pp.first;
+            pa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
+            pa.operation = pp.second.visit([](auto& type)-> uint8_t { return (uint8_t)type.change_operation;});
+            pv.push_back( pa );
+         }
+         result.proposed = fc::mutable_variant_object()
+                                 ("schedule_lib_num", gpo.proposed_schedule_block_num)
+                                 ("version", proposed_change.version)
+                                 ("change_count", proposed_change.main_changes.changes.size() + proposed_change.backup_changes.changes.size())
+                                 ("main_changes", mpv)
+                                 ("backup_changes", pv);
+      } else if ( gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0 ){
+         // producer_authority_schedule::from_shared(gpo.proposed_schedule)
+         optional<producer_authority_schedule> temp = producer_authority_schedule::from_shared(gpo.proposed_schedule);
+         std::vector<producer_authority_with_operation> mpv;
+         producer_authority_with_operation pa;
+         for ( const auto& pp : temp->producers ){
+            pa.producer_name = pp.producer_name;
+            pa.authority = pp.authority;
+            mpv.push_back( pa );
+         }
+         result.proposed = fc::mutable_variant_object()
+                                          ("version", temp->version)
+                                          ("producer_count", temp->producers.size())
+                                          ("producers", mpv);
       }
-
-      std::vector<producer_authority> mpv;
-      producer_authority mpa;
-      for ( const auto& pp : proposed_change.main_changes.changes ){
-         mpa.producer_name = pp.first;
-         mpa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
-         mpv.push_back( mpa );
-      }
-      std::vector<producer_authority> pv;
-      producer_authority pa;
-      for ( const auto& pp : temp.changes ){
-         pa.producer_name = pp.first;
-         pa.authority = pp.second.visit([](auto& type)-> block_signing_authority { return *(type.authority);});
-         pv.push_back( pa );
-      }
-      result.proposed = fc::mutable_variant_object()
-                              ("schedule_lib_num", gpo.proposed_schedule_block_num)
-                              ("version", proposed_change.version)
-                              ("change_count", proposed_change.main_changes.changes.size() + proposed_change.backup_changes.changes.size())
-                              ("main_changes", mpv)
-                              ("backup_changes", pv);
    }
    return result;
 }
@@ -2804,3 +2836,4 @@ chain::symbol read_only::extract_core_symbol()const {
 } // namespace eosio
 
 FC_REFLECT( eosio::chain_apis::detail::ram_market_exchange_state_t, (ignore1)(ignore2)(ignore3)(core_symbol)(ignore4) )
+FC_REFLECT_DERIVED( eosio::chain_apis::producer_authority_with_operation, (eosio::chain::producer_authority),(operation) )
