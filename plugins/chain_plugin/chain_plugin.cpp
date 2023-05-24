@@ -2009,7 +2009,7 @@ read_only::get_producers_result read_only::get_producers( const read_only::get_p
    return result;
 }
 struct producer_authority_with_operation : producer_authority {
-   uint8_t operation = 3; //3 means set
+   uint8_t operation;
 };
 
 read_only::get_producer_schedule_result read_only::get_producer_schedule( const read_only::get_producer_schedule_params& p ) const {
@@ -2018,8 +2018,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
    fc::mutable_variant_object active_mvo;
    {
       const auto& active_producers = db.active_producers();
-      std::vector<producer_authority_with_operation> mpv;
-      producer_authority_with_operation pa;
+      std::vector<producer_authority> mpv;
+      producer_authority pa;
       for ( const auto& pp : active_producers.producers ){
          pa.producer_name = pp.producer_name;
          pa.authority = pp.authority;
@@ -2040,8 +2040,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
       } else {
          temp = flat_map<name, block_signing_authority>( active_backup_producers->producers );
       }
-      std::vector<producer_authority_with_operation> pv;
-      producer_authority_with_operation pa;
+      std::vector<producer_authority> pv;
+      producer_authority pa;
       for ( const auto& pp : temp ){
          pa.producer_name = pp.first;
          pa.authority = pp.second;
@@ -2091,8 +2091,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
                               ("backup_changes", pv);
    //producer_authority_schedule
    } else if ( pending_schedule.schedule.contains<producer_authority_schedule>() ) {
-      std::vector<producer_authority_with_operation> mpv;
-      producer_authority_with_operation pa;
+      std::vector<producer_authority> mpv;
+      producer_authority pa;
       for ( const auto& pp : pending_schedule.schedule.get<producer_authority_schedule>().producers ){
          pa.producer_name = pp.producer_name;
          pa.authority = pp.authority;
@@ -2142,8 +2142,8 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
       } else if ( gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0 ){
          // producer_authority_schedule::from_shared(gpo.proposed_schedule)
          optional<producer_authority_schedule> temp = producer_authority_schedule::from_shared(gpo.proposed_schedule);
-         std::vector<producer_authority_with_operation> mpv;
-         producer_authority_with_operation pa;
+         std::vector<producer_authority> mpv;
+         producer_authority pa;
          for ( const auto& pp : temp->producers ){
             pa.producer_name = pp.producer_name;
             pa.authority = pp.authority;

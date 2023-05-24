@@ -1332,9 +1332,8 @@ struct get_schedule_subcommand {
          return "mod";
       } else if ("2" == op) {
          return "del";
-      } else {
-         return "set";
       }
+      return "";
    }
    void print(const char* name, const fc::variant& schedule, bool got_change = false) {
       if (schedule.is_null()) {
@@ -1348,9 +1347,9 @@ struct get_schedule_subcommand {
          for( auto& row: schedule["producers"].get_array() ) {
             if( row.get_object().contains("block_signing_key") ) {
                // pre 2.0
-               printf( "    %-13s %-13s %s\n", operation_detal(row["operation"].as_string()),row["producer_name"].as_string().c_str(), row["block_signing_key"].as_string().c_str() );
+               printf( "    %-13s %-13s %s\n", "*", row["producer_name"].as_string().c_str(), row["block_signing_key"].as_string().c_str() );
             } else {
-               printf( "    %-13s %-13s", operation_detal(row["operation"].as_string()),row["producer_name"].as_string().c_str() );
+               printf( "    %-13s %-13s", "*", row["producer_name"].as_string().c_str() );
                auto a = row["authority"].as<block_signing_authority>();
                static_assert( std::is_same<decltype(a), static_variant<block_signing_authority_v0>>::value,
                               "Updates maybe needed if block_signing_authority changes" );
