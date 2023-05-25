@@ -14,7 +14,7 @@ args = None
 logFile = None
 
 def getOutput(args):
-    print('init.amax.system.py:', args)
+    print('gen.accounts.py:', args)
     logFile.write(args + '\n')
     proc = subprocess.Popen(args, shell=True, stdout=subprocess.PIPE)
     return proc.communicate()[0].decode('utf-8')
@@ -101,4 +101,4 @@ for (flag, command, function, inAll, help) in commands:
             haveCommand = True
             function()
 if not haveCommand:
-    print('init.amax.system.py: Tell me what to do. -a does almost everything. -h shows options.')
+    print('gen.accounts.py: Tell me what to do. -a does almost everything. -h shows options.')

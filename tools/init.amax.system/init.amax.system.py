@@ -28,6 +28,7 @@ systemAccounts = [
     'amax.token',
     'amax.rex',
     'amax.reward',
+    'amax.vote',
 ]
 
 def jsonArg(a):
@@ -122,52 +123,23 @@ def importKeys():
             keys[key] = True
             run(args.amcli + 'wallet import --private-key ' + key)
 
-def startNode(nodeIndex, account):
-    dir = args.nodes_dir + ('%02d-' % nodeIndex) + account['name'] + '/'
-    run('rm -rf ' + dir)
-    run('mkdir -p ' + dir)
-    otherOpts = ''.join(list(map(lambda i: '    --p2p-peer-address localhost:' + str(9000 + i), range(nodeIndex))))
-    if not nodeIndex: otherOpts += (
-        '    --plugin eosio::history_plugin'
-        '    --plugin eosio::history_api_plugin'
-    )
-    cmd = (
-        args.amnod +
-        '    --max-irreversible-block-age -1'
-        '    --max-transaction-time=1000'
-        '    --contracts-console'
-        '    --genesis-json ' + os.path.abspath(args.genesis) +
-        '    --blocks-dir ' + os.path.abspath(dir) + '/blocks'
-        '    --config-dir ' + os.path.abspath(dir) +
-        '    --data-dir ' + os.path.abspath(dir) +
-        '    --chain-state-db-size-mb 1024'
-        '    --http-server-address 127.0.0.1:' + str(8000 + nodeIndex) +
-        '    --p2p-listen-endpoint 127.0.0.1:' + str(9000 + nodeIndex) +
-        '    --max-clients ' + str(maxClients) +
-        '    --p2p-max-nodes-per-host ' + str(maxClients) +
-        '    --enable-stale-production'
-        '    --producer-name ' + account['name'] +
-        '    --private-key \'["' + account['pub'] + '","' + account['pvt'] + '"]\''
-        '    --plugin eosio::http_plugin'
-        '    --plugin eosio::chain_api_plugin'
-        '    --plugin eosio::chain_plugin'
-        '    --plugin eosio::producer_api_plugin'
-        '    --plugin eosio::producer_plugin' +
-        otherOpts)
-    with open(dir + 'stderr', mode='w') as f:
-        f.write(cmd + '\n\n')
-    background(cmd + '    2>>' + dir + 'stderr')
-
-def startProducers(b, e):
-    for i in range(b, e):
-        startNode(i - b + 1, accounts[i])
-
 def createSystemAccounts():
     for a in systemAccounts:
         run(args.amcli + 'create account amax ' + a + ' ' + args.public_key)
 
 def intToCurrency(i):
+    # 8 precision
     return '%d.%08d %s' % (i // 100000000, i % 100000000, args.symbol)
+
+def voteAsset(i):
+    # 4 precision
+    return '%d.%04d %s' % (i // 10000, i % 10000, "VOTE")
+
+def voteToStaked(i):
+    return int( i * 10000 )
+
+def stakedToVote(i):
+    return i // 10000
 
 def allocateFunds(b, e):
     dist = numpy.random.pareto(1.161, e - b).tolist() # 1.161 = 80/20 rule
@@ -218,17 +190,23 @@ def regProducers(b, e):
 def listProducers():
     run(args.amcli + 'system listproducers')
 
-def vote(b, e):
+def vote(b, e, isNew):
     for i in range(b, e):
         voter = accounts[i]['name']
         k = args.num_producers_vote
         if k > numProducers:
             k = numProducers - 1
         prods = random.sample(range(firstProducer, firstProducer + numProducers), k)
-        prods = ' '.join(map(lambda x: accounts[x]['name'], prods))
-        retry(args.amcli + 'system voteproducer prods ' + voter + ' ' + prods)
+        prods = list(map(lambda x: accounts[x]['name'], prods))
+        prods.sort()
+        if isNew:
+            retry(args.amcli + 'push action amax vote ' + jsonArg([voter, prods]) + ' -p ' + voter + '@active')
+        else:
+            retry(args.amcli + 'system voteproducer prods ' + voter + ' ' + ' '.join(prods))
 
 def producerClaimRewards():
+    print('Wait %ss before producer claimRewards' % (args.producer_claim_prewait_time))
+    sleep(args.producer_claim_prewait_time)
     rows = getTableRows(args, "amax", "amax", "producers")
     times = []
     for row in rows:
@@ -236,7 +214,7 @@ def producerClaimRewards():
         if rewards and getAssetAmount(rewards) > 0:
             ret = getJsonOutput(args.amcli + 'system claimrewards -j ' + row['owner'])
             times.append(ret['processed']['elapsed'])
-    print('Elapsed time for claimrewards:', times)
+    print('Elapsed time for producer claimrewards:', times)
 
 def voterClaimRewards():
     rows = getTableRows(args, "amax.reward", "amax.reward", "producers")
@@ -246,30 +224,21 @@ def voterClaimRewards():
     rows = getTableRows(args, "amax.reward", "amax.reward", "voters")
     times = []
     for row in rows:
-        if decimal.Decimal(row["votes"]) > 0 and row["producers"] :
-            has_rewards = False
+        unclaimed_rewards = getAssetAmount(row["unclaimed_rewards"])
+        votes = getAssetAmount(row["votes"])
+        has_rewards = unclaimed_rewards > 0
+        if not has_rewards and votes > 0 and row["producers"] :
             for prod in row["producers"] :
                 pn = prod["key"]
                 last_rewards_per_vote = decimal.Decimal(prod["value"]["last_rewards_per_vote"])
                 if prods[pn] and last_rewards_per_vote < prods[pn] :
                     has_rewards = True
                     break
-            if has_rewards :
-                voter = row['owner']
-                ret = getJsonOutput(args.amcli + 'push action -j amax.reward claimrewards \'["' + voter + '"]\' -p ' + voter)
-                times.append(ret['processed']['elapsed'])
-    print('Elapsed time for claimrewards:', times)
-
-def proxyVotes(b, e):
-    vote(firstProducer, firstProducer + 1)
-    proxy = accounts[firstProducer]['name']
-    proxyInfo = getTableRow(args, "amax", "amax", "voters", proxy)
-    if not proxyInfo or not proxyInfo["is_proxy"]:
-        retry(args.amcli + 'system regproxy ' + proxy)
-    sleep(1.0)
-    for i in range(b, e):
-        voter = accounts[i]['name']
-        retry(args.amcli + 'system voteproducer proxy ' + voter + ' ' + proxy)
+        if has_rewards :
+            voter = row['owner']
+            ret = getJsonOutput(args.amcli + 'push action -j amax.reward claimrewards \'["' + voter + '"]\' -p ' + voter)
+            times.append(ret['processed']['elapsed'])
+    print('Elapsed time for voter claimRewards:', times)
 
 def updateAuth(account, permission, parent, controller):
     run(args.amcli + 'push action amax updateauth' + jsonArg({
@@ -369,12 +338,9 @@ def stepKillAll():
 def stepStartWallet():
     startWallet()
     importKeys()
-def stepStartBoot():
-    startNode(0, {'name': 'amax', 'pvt': args.private_key, 'pub': args.public_key})
-    sleep(1.5)
 def stepInstallSystemContracts():
-    run(args.amcli + 'set contract amax.token ' + args.contracts_dir + '/amax.token/')
-    run(args.amcli + 'set contract amax.msig ' + args.contracts_dir + '/amax.msig/')
+    run(args.amcli + 'set contract amax.token ' + args.old_contracts_dir + '/amax.token/')
+    run(args.amcli + 'set contract amax.msig ' + args.old_contracts_dir + '/amax.msig/')
 def stepCreateTokens():
     run(args.amcli + 'push action amax.token create \'["amax", "1000000000.00000000 %s"]\' -p amax.token' % (args.symbol))
     totalAllocation = allocateFunds(0, len(accounts))
@@ -412,7 +378,7 @@ def stepSetSystemContract():
     sleep(1)
 
     # install amax.system latest version
-    retry(args.amcli + 'set contract amax ' + args.contracts_dir + '/amax.system/')
+    retry(args.amcli + 'set contract amax ' + args.old_contracts_dir + '/amax.system/')
     sleep(3)
 
     run(args.amcli + 'push action amax setpriv' + jsonArg(['amax.msig', 1]) + '-p amax@active')
@@ -427,20 +393,46 @@ def stepRegProducers():
     regProducers(firstProducer, firstProducer + numProducers)
     sleep(1)
     listProducers()
-def stepStartProducers():
-    startProducers(firstProducer, firstProducer + numProducers)
-    sleep(args.producer_sync_delay)
 def stepVote():
-    vote(args.voter_started_idx, args.voter_started_idx + args.num_voters)
+    vote(args.voter_started_idx, args.voter_started_idx + args.num_voters, False)
     sleep(1)
     listProducers()
     sleep(5)
-def stepProxyVotes():
-    proxyVotes(args.voter_started_idx, args.voter_started_idx + args.num_voters)
-def stepUpgradeSystemContracts():
-    retry(args.amcli + 'set contract amax ' + args.upgraded_contracts_dir + '/amax.system/')
-    retry(args.amcli + 'set contract amax.reward ' + args.upgraded_contracts_dir + '/amax.reward/')
+def stepUpgradeAposContracts():
+    retry(args.amcli + 'set contract amax ' + args.apos_contracts_dir + '/amax.system/')
+    retry(args.amcli + 'set contract amax.reward ' + args.apos_contracts_dir + '/amax.reward/')
     retry(args.amcli + 'set account permission amax.reward active --add-code')
+    # update all producers
+    regProducers(firstProducer, firstProducer + numProducers)
+
+def stepAddVote():
+    addedVotes = args.added_votes * 10000
+    acctLen = len(accounts)
+    dist = numpy.random.pareto(1.161, acctLen).tolist() # 1.161 = 80/20 rule
+    dist.sort()
+    dist.reverse()
+    factor = addedVotes / sum(dist)
+    allocated = 0
+    for i in range(0, acctLen):
+        if i + 1 < acctLen and allocated <= addedVotes:
+            votes = round(factor * dist[i])
+        else:
+            votes = max(0, addedVotes - allocated)
+        allocated += votes
+        acctountName = accounts[i]['name']
+        staked = voteToStaked(votes)
+        print('%s: added votes=%s, staked=%s' % (acctountName, voteAsset(votes), intToCurrency(staked)))
+        retry(args.amcli + 'transfer amax %s "%s"' % (acctountName, intToCurrency(staked)))
+        retry(args.amcli + 'push action amax addvote ' + jsonArg([acctountName, voteAsset(votes)]) + ' -p ' + acctountName + '@active')
+
+    print("total added votes: " + voteAsset(allocated))
+
+def stepVoteNew():
+    vote(args.voter_started_idx, args.voter_started_idx + args.num_voters, True)
+    sleep(1)
+    listProducers()
+    sleep(5)
+
 def initApos():
     # APOS
     retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
@@ -448,7 +440,7 @@ def initApos():
 
     retry(args.amcli + 'push action amax initelects' + jsonArg([args.num_backup_producer]) + '-p amax@active')
     sleep(1)
-    retry(args.amcli + 'push action amax setinflation' + jsonArg(['1970-01-01T00:00:00', '0.40000000 AMAX']) + '-p amax@active')
+    retry(args.amcli + 'push action amax setinflation' + jsonArg(['2000-01-01T00:00:00', '0.40000000 AMAX']) + '-p amax@active')
     sleep(1)
 def stepResign():
     resign('amax', 'amax.prods')
@@ -475,16 +467,17 @@ commands = [
     ('T', 'stake',              stepCreateStakedAccounts,   True,    "Create staked accounts"),
     ('p', 'reg-prod',           stepRegProducers,           True,    "Register producers"),
     ('v', 'vote',               stepVote,                   True,    "Vote for producers"),
+    ('U', 'upgrade-apos',       stepUpgradeAposContracts,   True,    "Upgrade apos contracts"),
+    ('',  'addvote',            stepAddVote,                True,    "Vote for producers"),
+    ('',  'vote-new',           stepVoteNew,                True,    "Vote for producers by new strategy"),
+    ('',  'init-apos',          initApos,                   True,    "Init apos"),
     ('',  'prod-claim',         producerClaimRewards,       True,    "Producer claim rewards"),
     ('',  'voter-claim',        voterClaimRewards,          True,    "Voter claim rewards"),
-    ('x', 'proxy',              stepProxyVotes,             True,    "Proxy votes"),
 
-    ('U', 'upgrade-contracts',  stepUpgradeSystemContracts, True,    "Upgrade contracts"),
-    ('', 'init-apos',           initApos,                   True,    "Init apos"),
-    ('q', 'resign',             stepResign,                 True,    "Resign amax"),
+    ('q', 'resign',             stepResign,                 False,    "Resign amax"),
     ('m', 'msg-replace',        msigReplaceSystem,          False,   "Replace system contract using msig"),
     ('X', 'xfer',               stepTransfer,               False,   "Random transfer tokens (infinite loop)"),
-    ('l', 'log',                stepLog,                    True,    "Show tail of node's log"),
+    ('l', 'log',                stepLog,                    False,    "Show tail of node's log"),
     ('N', 'new-account',        genNewAccounts,             False,    "Generate new accounts"),
 ]
 
@@ -493,10 +486,9 @@ parser.add_argument('--private-key', metavar='', help="AMAX Private Key", defaul
 parser.add_argument('--amcli', metavar='', help="Amcli command", default='amcli --wallet-url http://127.0.0.1:6666 --url http://127.0.0.1:8888 ')
 parser.add_argument('--amnod', metavar='', help="Path to amnod binary", default='amnod')
 parser.add_argument('--amkey', metavar='', help="Path to amkey binary", default='amkey')
-parser.add_argument('--contracts-dir', metavar='', help="Path to latest contracts directory", default='${HOME}/amax/contracts/amax.contracts')
-parser.add_argument('--upgraded-contracts-dir', metavar='', help="Path to upgraded contracts directory", default='${HOME}/amax/contracts/upgraded.amax.contracts')
-# parser.add_argument('--nodes-dir', metavar='', help="Path to nodes directory", default='./nodes/')
-parser.add_argument('--genesis', metavar='', help="Path to genesis.json", default="./genesis.json")
+parser.add_argument('--accounts-path', metavar='', help="Path to accounts file", default='./accounts.json')
+parser.add_argument('--old-contracts-dir', metavar='', help="Path to the old contracts directory", default='${HOME}/amax/amax.contracts/0.5/contracts')
+parser.add_argument('--apos-contracts-dir', metavar='', help="Path to the apos contracts directory", default='${HOME}/amax/amax.contracts/0.6/contracts')
 parser.add_argument('--wallet-dir', metavar='', help="Path to wallet directory", default='./wallet/')
 parser.add_argument('--log-path', metavar='', help="Path to log file", default='./output.log')
 parser.add_argument('--symbol', metavar='', help="The amax.system symbol", default='AMAX')
@@ -505,16 +497,17 @@ parser.add_argument('--max-user-keys', metavar='', help="Maximum user keys to im
 parser.add_argument('--ram-funds', metavar='', help="How much funds for each user to spend on ram", type=float, default=1.0)
 parser.add_argument('--min-stake', metavar='', help="Minimum stake before allocating unstaked funds", type=float, default=0.9)
 parser.add_argument('--max-unstaked', metavar='', help="Maximum unstaked funds", type=float, default=10)
+parser.add_argument('--added-votes', metavar='', help="Added votes for users", type=float, default=10000000.0)
 parser.add_argument('--producer-limit', metavar='', help="Maximum number of producers. (0 = no limit)", type=int, default=0)
 parser.add_argument('--min-producer-funds', metavar='', help="Minimum producer funds", type=float, default=1000.00000000)
 parser.add_argument('--num-producers', metavar='', help="Number of producers to generate", type=int, default=21)
-parser.add_argument('--num-users', metavar='', help="Number of users", type=int, default=10)
+parser.add_argument('--num-users', metavar='', help="Number of users", type=int, default=30)
 parser.add_argument('--num-producers-vote', metavar='', help="Number of producers for which each user votes", type=int, default=20)
 parser.add_argument('--voter-started-idx', metavar='', help="Started index of voters", type=int, default=0)
 parser.add_argument('--num-voters', metavar='', help="Number of voters", type=int, default=10)
 parser.add_argument('--num-backup-producer', metavar='', help="Number of backup producers", type=int, default=100)
 parser.add_argument('--num-senders', metavar='', help="Number of users to transfer funds randomly", type=int, default=10)
-parser.add_argument('--producer-sync-delay', metavar='', help="Time (s) to sleep to allow producers to sync", type=int, default=80)
+parser.add_argument('--producer-claim-prewait-time', metavar='', help="Pre-waiting time(s) for producer claiming reward", type=int, default=200)
 parser.add_argument('-a', '--all', action='store_true', help="Do everything marked with (*)")
 # parser.add_argument('-H', '--http-port', type=int, default=8000, metavar='', help='HTTP port for amcli')
 
@@ -536,7 +529,7 @@ logFile = open(args.log_path, 'a')
 
 logFile.write('\n\n' + '*' * 80 + '\n\n\n')
 
-with open('accounts.json') as f:
+with open(args.accounts_path) as f:
     a = json.load(f)
     if args.user_limit:
         del a['users'][args.user_limit:]
