@@ -3245,7 +3245,7 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
 
    if( gpo.proposed_schedule_block_num.valid() ) {
       if (gpo.proposed_schedule_change.total_size() > 0) {
-         wlog("there is already a proposed schedule change set in a previous block, wait for it to become pending");
+         dlog("there is already a proposed schedule change set in a previous block, wait for it to become pending");
          return -1;
       }
       if( *gpo.proposed_schedule_block_num != cur_block_num )
@@ -3258,7 +3258,7 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
 
    const auto& pending_sch = pending_producer_schedule();
    if (pending_sch.contains<producer_schedule_change>()) {
-      wlog( "there is already a pending schedule change set, wait for it to become active.");
+      dlog( "there is already a pending schedule change set, wait for it to become active.");
       return -1;
    }
 
@@ -3315,18 +3315,18 @@ int64_t controller::set_proposed_producers( const proposed_producer_changes& cha
    auto total_size = changes.total_size();
    if (total_size > chain::config::max_producer_changes)
    {
-      wlog( "Producer schedule exceeds the maximum producer change size for this chain");
+      dlog( "Producer schedule exceeds the maximum producer change size for this chain");
       return -1;
    }
 
    if( gpo.proposed_schedule_block_num.valid() ) {
-      wlog( "there is already a proposed schedule set in a previous block, wait for it to become pending.");
+      dlog( "there is already a proposed schedule set in a previous block, wait for it to become pending.");
       return -1;
    }
 
    const auto& pending_sch = pending_producer_schedule();
    if (!pending_sch.contains<uint32_t>()) {
-      wlog( "there is already a pending schedule set, wait for it to become active.");
+      dlog( "there is already a pending schedule set, wait for it to become active.");
       return -1;
    }
 
