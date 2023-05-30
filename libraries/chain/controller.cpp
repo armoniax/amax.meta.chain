@@ -3237,7 +3237,6 @@ void controller::write_snapshot( const snapshot_writer_ptr& snapshot ) const {
 int64_t controller::set_proposed_producers( vector<producer_authority> producers ) {
    const auto& gpo = get_global_properties();
    auto cur_block_num = head_block_num() + 1;
-
    if( producers.size() == 0 && is_builtin_activated( builtin_protocol_feature_t::disallow_empty_producer_schedule ) ) {
       return -1;
    }
@@ -3287,13 +3286,13 @@ int64_t controller::set_proposed_producers( vector<producer_authority> producers
    if( std::equal( producers.begin(), producers.end(), begin, end ) )
       return -1; // the producer schedule would not change
 
-   sch.producers = std::move(producers);
-
    int64_t version = sch.version;
 
    if( producers.size() == 0 ) {
       return version;
    }
+
+   sch.producers = std::move(producers);
 
    ilog( "proposed producer schedule with version ${v}", ("v", version) );
 
