@@ -231,7 +231,8 @@ def voterClaimRewards():
             for prod in row["producers"] :
                 pn = prod["key"]
                 last_rewards_per_vote = decimal.Decimal(prod["value"]["last_rewards_per_vote"])
-                if prods[pn] and last_rewards_per_vote < prods[pn] :
+                rewards = (prods[pn] - last_rewards_per_vote) * votes // 10**18
+                if rewards > 0 :
                     has_rewards = True
                     break
         if has_rewards :
@@ -438,9 +439,12 @@ def initApos():
     retry(args.amcli + ' system activate "adb712fab94945cc23d8da3efacfc695a0d57734fa7f53b280880b59734e2036" -p amax@active')
     sleep(1)
 
-    retry(args.amcli + 'push action amax initelects' + jsonArg([args.num_backup_producer]) + '-p amax@active')
+    retry(args.amcli + 'push action amax initelects ' + jsonArg([args.num_backup_producer]) + '-p amax@active')
     sleep(1)
-    retry(args.amcli + 'push action amax setinflation' + jsonArg(['2000-01-01T00:00:00', '0.40000000 AMAX']) + '-p amax@active')
+    now = datetime.utcnow()
+    startTime = now.isoformat(timespec='seconds')
+    endTime = (now + timedelta(seconds=10)).isoformat(timespec='seconds')
+    retry(args.amcli + 'push action amax cfgreward ' + jsonArg([startTime, endTime, intToCurrency(800000), intToCurrency(400000)]) + '-p amax@active')
     sleep(1)
 def stepResign():
     resign('amax', 'amax.prods')
