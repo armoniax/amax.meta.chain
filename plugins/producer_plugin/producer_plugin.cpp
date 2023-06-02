@@ -244,6 +244,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
       fc::optional<scoped_connection>                          _accepted_block_header_connection;
       fc::optional<scoped_connection>                          _irreversible_block_connection;
 
+      producer_plugin::before_incoming_transaction_signal      _before_incoming_transaction;
       /*
        * HACK ALERT
        * Boost timers can be in a state where a handler has not yet executed but is not abortable.
@@ -483,6 +484,7 @@ class producer_plugin_impl : public std::enable_shared_from_this<producer_plugin
                   };
                   try {
                      auto result = future.get();
+                     self->_before_incoming_transaction(result->packed_trx());
                      if( !self->process_incoming_transaction_async( result, persist_until_expired, next ) ) {
                         if( self->_pending_block_mode == pending_block_mode::producing ) {
                            //only main block ?
@@ -696,6 +698,10 @@ producer_plugin::producer_plugin()
    }
 
 producer_plugin::~producer_plugin() {}
+
+producer_plugin::before_incoming_transaction_signal& producer_plugin::get_before_incoming_transaction() {
+   return my->_before_incoming_transaction;
+}
 
 void producer_plugin::set_program_options(
    boost::program_options::options_description& command_line_options,

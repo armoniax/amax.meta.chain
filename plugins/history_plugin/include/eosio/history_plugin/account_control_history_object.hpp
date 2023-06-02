@@ -17,6 +17,7 @@ class account_control_history_object : public chainbase::object<chain::account_c
    account_name                       controlled_account;
    permission_name                    controlled_permission;
    account_name                       controlling_account;
+   permission_name                    controlling_permission;
 };
 
 struct by_id;
@@ -29,6 +30,7 @@ using account_control_history_multi_index = chainbase::shared_multi_index_contai
       ordered_unique<tag<by_controlling>,
          composite_key< account_control_history_object,
             member<account_control_history_object, account_name,                            &account_control_history_object::controlling_account>,
+            member<account_control_history_object, permission_name,                         &account_control_history_object::controlling_permission>,
             member<account_control_history_object, account_control_history_object::id_type, &account_control_history_object::id>
          >
       >,
@@ -36,7 +38,8 @@ using account_control_history_multi_index = chainbase::shared_multi_index_contai
          composite_key< account_control_history_object,
             member<account_control_history_object, account_name, &account_control_history_object::controlled_account>,
             member<account_control_history_object, permission_name, &account_control_history_object::controlled_permission>,
-            member<account_control_history_object, account_name, &account_control_history_object::controlling_account>
+            member<account_control_history_object, account_name, &account_control_history_object::controlling_account>,
+            member<account_control_history_object, permission_name, &account_control_history_object::controlling_permission>
          >
       >
    >

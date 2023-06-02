@@ -117,6 +117,7 @@ namespace eosio {
             obj.controlled_account = account_name;
             obj.controlled_permission = permission;
             obj.controlling_account = controlling_account.permission.actor;
+            obj.controlling_permission = controlling_account.permission.permission;
          });
       }
    }

@@ -5,6 +5,16 @@ echo "Physical Memory: ${MEM_GIG}G"
 echo "Disk space total: ${DISK_TOTAL}G"
 echo "Disk space available: ${DISK_AVAIL}G"
 
+cat <<EOT >> /etc/apt/sources.list
+deb http://mirrors.aliyun.com/ubuntu bionic main multiverse restricted universe
+deb http://mirrors.aliyun.com/ubuntu bionic-updates main multiverse restricted universe
+deb http://mirrors.aliyun.com/ubuntu bionic-security main multiverse restricted universe
+deb http://mirrors.aliyun.com/ubuntu bionic-proposed main multiverse restricted universe
+deb http://mirrors.aliyun.com/ubuntu bionic-backports main multiverse restricted universe
+EOT
+
+apt-get update
+
 ( [[ $NAME == "Ubuntu" ]] && ( [[ "$(echo ${VERSION_ID})" == "16.04" ]] || [[ "$(echo ${VERSION_ID})" == "18.04" ]] || [[ "$(echo ${VERSION_ID})" == "20.04" ]] )  ) || ( echo " - You must be running 16.04.x or 18.04.x to install AMAX." && exit 1 )
 
 [[ $MEM_GIG -lt 7 ]] && echo "Your system must have 7 or more Gigabytes of physical memory installed." && exit 1
