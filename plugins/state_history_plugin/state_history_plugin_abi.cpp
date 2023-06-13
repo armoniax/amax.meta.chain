@@ -369,16 +369,23 @@ extern const char* const state_history_plugin_abi = R"({
             ]
         },
         {
-            "name": "producer_change", "fields": [
-                { "type": "name", "name": "producer_name" },
-                { "type": "producer_change_record", "name": "change_record" }
+            "name": "pair_name_producer_change_record", "fields": [
+                { "type": "name", "name": "key" },
+                { "type": "producer_change_record", "name": "value" }
+            ]
+        },
+        {
+            "name": "producer_change_map", "fields": [
+                { "type": "bool", "name": "clear_existed" },
+                { "type": "uint32", "name": "producer_count" },
+                { "type": "pair_name_producer_change_record[]", "name": "changes" }
             ]
         },
         {
             "name": "producer_schedule_change", "fields": [
                 { "type": "uint32", "name": "version" },
-                { "type": "producer_change[]", "name": "main_change" },
-                { "type": "producer_change[]", "name": "backup_change" }
+                { "type": "producer_change_map", "name": "main_change" },
+                { "type": "producer_change_map", "name": "backup_change" }
             ]
         },
         {
@@ -555,19 +562,17 @@ extern const char* const state_history_plugin_abi = R"({
         },
         {
             "name": "producer_authority_add", "fields": [
-                { "type": "string", "name": "operation" },
-                { "type": "block_signing_authority", "name": "authority" }
+                { "type": "block_signing_authority?", "name": "authority" }
             ]
         },
         {
             "name": "producer_authority_modify", "fields": [
-                { "type": "string", "name": "operation" },
-                { "type": "block_signing_authority", "name": "authority" }
+                { "type": "block_signing_authority?", "name": "authority" }
             ]
         },
         {
             "name": "producer_authority_del", "fields": [
-                { "type": "string", "name": "operation" }
+                { "type": "block_signing_authority?", "name": "authority" }
             ]
         }
     ],

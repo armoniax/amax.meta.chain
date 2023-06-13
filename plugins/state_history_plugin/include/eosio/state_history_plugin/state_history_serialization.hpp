@@ -291,6 +291,15 @@ datastream<ST>& operator<<(datastream<ST>&                                      
 }
 
 template <typename ST>
+datastream<ST>& operator<<(datastream<ST>&                                                            ds,
+                           const history_serial_wrapper<eosio::chain::shared_producer_schedule_change>& obj) {
+   fc::raw::pack(ds, as_type<uint32_t>(obj.obj.version));
+   fc::raw::pack(ds, as_type<eosio::chain::shared_producer_change_map>(obj.obj.main_changes));
+   fc::raw::pack(ds, as_type<eosio::chain::shared_producer_change_map>(obj.obj.backup_changes));
+   return ds;
+}
+
+template <typename ST>
 datastream<ST>& operator<<(datastream<ST>& ds, const history_serial_wrapper<eosio::chain::chain_config>& obj) {
    fc::raw::pack(ds, fc::unsigned_int(0));
    fc::raw::pack(ds, as_type<uint64_t>(obj.obj.max_block_net_usage));
@@ -312,73 +321,7 @@ datastream<ST>& operator<<(datastream<ST>& ds, const history_serial_wrapper<eosi
    fc::raw::pack(ds, as_type<uint16_t>(obj.obj.max_authority_depth));
    return ds;
 }
-//define wraper type
-struct producer_authority_add{
-   std::string operation = "add";
-   eosio::chain::shared_block_signing_authority authority;
-};
 
-struct producer_authority_modify{
-   std::string operation = "modify";
-   eosio::chain::shared_block_signing_authority authority;
-};
-
-struct producer_authority_del{ std::string operation = "del"; };
-
-using shared_producer_change_record = static_variant<
-      producer_authority_add,
-      producer_authority_modify,
-      producer_authority_del >;
-
-struct producer_change{
-   eosio::chain::name            producer_name;
-   shared_producer_change_record change_record;
-   producer_change(eosio::chain::name producer_name, shared_producer_change_record change_record)
-   : producer_name(producer_name), change_record(change_record) {}
-};
-
-struct producer_schedule_change{
-   uint32_t version;
-   std::vector<producer_change> main_change;
-   std::vector<producer_change> backup_change;
-};
-template <typename ST>
-void pack_change( datastream<ST>& ds, const eosio::chain::shared_producer_schedule_change& change){
-   producer_schedule_change temp;
-   temp.version = change.version;
-   auto transform_type = [](std::vector<producer_change>& change, const eosio::chain::shared_flat_map<eosio::chain::name, eosio::chain::shared_producer_change_record>& changes){
-      for( const auto& record : changes ){
-         switch (record.second.which()){
-            case 0:
-               {
-                  producer_authority_add add{ .authority = *(record.second.get<eosio::chain::shared_producer_authority_add>().authority) };
-                  change.emplace_back(record.first , add);
-                  break;
-               }
-            case 1:
-               {
-                  producer_authority_modify modify{ .authority = *(record.second.get<eosio::chain::shared_producer_authority_modify>().authority) };
-                  change.emplace_back(record.first , modify);
-                  break;
-               }
-            case 2:
-               {
-                  producer_authority_del del;
-                  change.emplace_back(record.first , del);
-                  break;
-               }
-            default:
-               break;
-         }
-      }
-   };
-   //main change
-   transform_type(temp.main_change, change.main_changes.changes);
-   //backup change
-   transform_type(temp.backup_change, change.backup_changes.changes);
-   //pack format change to stream
-   fc::raw::pack(ds, temp);
-}
 template <typename ST>
 datastream<ST>& operator<<(datastream<ST>&                                                     ds,
                            const history_serial_wrapper<eosio::chain::global_property_object>& obj) {
@@ -386,7 +329,8 @@ datastream<ST>& operator<<(datastream<ST>&                                      
    fc::raw::pack(ds, as_type<optional<eosio::chain::block_num_type>>(obj.obj.proposed_schedule_block_num));
    fc::raw::pack(ds, make_history_serial_wrapper(
                          obj.db, as_type<eosio::chain::shared_producer_authority_schedule>(obj.obj.proposed_schedule)));
-   pack_change(ds, obj.obj.proposed_schedule_change);
+   fc::raw::pack(ds, make_history_serial_wrapper(
+                         obj.db, as_type<eosio::chain::shared_producer_schedule_change>(obj.obj.proposed_schedule_change)));
    fc::raw::pack(ds, make_history_serial_wrapper(obj.db, as_type<eosio::chain::chain_config>(obj.obj.configuration)));
    fc::raw::pack(ds, as_type<eosio::chain::chain_id_type>(obj.obj.chain_id));
 
@@ -774,9 +718,3 @@ datastream<ST>& operator<<(datastream<ST>& ds, const eosio::get_blocks_result_v1
 }
 
 } // namespace fc
-
-FC_REFLECT( fc::producer_authority_add, (operation)(authority) )
-FC_REFLECT( fc::producer_authority_modify, (operation)(authority) )
-FC_REFLECT( fc::producer_authority_del, (operation) )
-FC_REFLECT( fc::producer_change, (producer_name)(change_record))
-FC_REFLECT( fc::producer_schedule_change, (version)(main_change)(backup_change))
