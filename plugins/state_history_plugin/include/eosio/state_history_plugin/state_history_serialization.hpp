@@ -291,6 +291,15 @@ datastream<ST>& operator<<(datastream<ST>&                                      
 }
 
 template <typename ST>
+datastream<ST>& operator<<(datastream<ST>&                                                            ds,
+                           const history_serial_wrapper<eosio::chain::shared_producer_schedule_change>& obj) {
+   fc::raw::pack(ds, as_type<uint32_t>(obj.obj.version));
+   fc::raw::pack(ds, as_type<eosio::chain::shared_producer_change_map>(obj.obj.main_changes));
+   fc::raw::pack(ds, as_type<eosio::chain::shared_producer_change_map>(obj.obj.backup_changes));
+   return ds;
+}
+
+template <typename ST>
 datastream<ST>& operator<<(datastream<ST>& ds, const history_serial_wrapper<eosio::chain::chain_config>& obj) {
    fc::raw::pack(ds, fc::unsigned_int(0));
    fc::raw::pack(ds, as_type<uint64_t>(obj.obj.max_block_net_usage));
@@ -316,10 +325,12 @@ datastream<ST>& operator<<(datastream<ST>& ds, const history_serial_wrapper<eosi
 template <typename ST>
 datastream<ST>& operator<<(datastream<ST>&                                                     ds,
                            const history_serial_wrapper<eosio::chain::global_property_object>& obj) {
-   fc::raw::pack(ds, fc::unsigned_int(1));
+   fc::raw::pack(ds, fc::unsigned_int(2));
    fc::raw::pack(ds, as_type<optional<eosio::chain::block_num_type>>(obj.obj.proposed_schedule_block_num));
    fc::raw::pack(ds, make_history_serial_wrapper(
                          obj.db, as_type<eosio::chain::shared_producer_authority_schedule>(obj.obj.proposed_schedule)));
+   fc::raw::pack(ds, make_history_serial_wrapper(
+                         obj.db, as_type<eosio::chain::shared_producer_schedule_change>(obj.obj.proposed_schedule_change)));
    fc::raw::pack(ds, make_history_serial_wrapper(obj.db, as_type<eosio::chain::chain_config>(obj.obj.configuration)));
    fc::raw::pack(ds, as_type<eosio::chain::chain_id_type>(obj.obj.chain_id));
 

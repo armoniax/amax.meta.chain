@@ -369,6 +369,26 @@ extern const char* const state_history_plugin_abi = R"({
             ]
         },
         {
+            "name": "pair_name_producer_change_record", "fields": [
+                { "type": "name", "name": "key" },
+                { "type": "producer_change_record", "name": "value" }
+            ]
+        },
+        {
+            "name": "producer_change_map", "fields": [
+                { "type": "bool", "name": "clear_existed" },
+                { "type": "uint32", "name": "producer_count" },
+                { "type": "pair_name_producer_change_record[]", "name": "changes" }
+            ]
+        },
+        {
+            "name": "producer_schedule_change", "fields": [
+                { "type": "uint32", "name": "version" },
+                { "type": "producer_change_map", "name": "main_change" },
+                { "type": "producer_change_map", "name": "backup_change" }
+            ]
+        },
+        {
             "name": "chain_config_v0", "fields": [
                 { "type": "uint64", "name": "max_block_net_usage" },
                 { "type": "uint32", "name": "target_block_net_usage_pct" },
@@ -400,6 +420,15 @@ extern const char* const state_history_plugin_abi = R"({
             "name": "global_property_v1", "fields": [
                 { "type": "uint32?", "name": "proposed_schedule_block_num" },
                 { "type": "producer_authority_schedule", "name": "proposed_schedule" },
+                { "type": "chain_config", "name": "configuration" },
+                { "type": "checksum256", "name": "chain_id" }
+            ]
+        },
+        {
+            "name": "global_property_v2", "fields": [
+                { "type": "uint32?", "name": "proposed_schedule_block_num" },
+                { "type": "producer_authority_schedule", "name": "proposed_schedule" },
+                { "type": "producer_schedule_change", "name": "proposed_schedule_change" },
                 { "type": "chain_config", "name": "configuration" },
                 { "type": "checksum256", "name": "chain_id" }
             ]
@@ -530,6 +559,21 @@ extern const char* const state_history_plugin_abi = R"({
                 { "type": "uint32", "name": "account_cpu_usage_average_window" },
                 { "type": "uint32", "name": "account_net_usage_average_window" }
             ]
+        },
+        {
+            "name": "producer_authority_add", "fields": [
+                { "type": "block_signing_authority?", "name": "authority" }
+            ]
+        },
+        {
+            "name": "producer_authority_modify", "fields": [
+                { "type": "block_signing_authority?", "name": "authority" }
+            ]
+        },
+        {
+            "name": "producer_authority_del", "fields": [
+                { "type": "block_signing_authority?", "name": "authority" }
+            ]
         }
     ],
     "types": [
@@ -544,7 +588,7 @@ extern const char* const state_history_plugin_abi = R"({
         { "name": "partial_transaction", "types": ["partial_transaction_v0"] },
         { "name": "transaction_trace", "types": ["transaction_trace_v0"] },
         { "name": "transaction_variant", "types": ["transaction_id", "packed_transaction"] },
-
+        { "name": "producer_change_record", "types": ["producer_authority_add","producer_authority_modify","producer_authority_del"]},
         { "name": "table_delta", "types": ["table_delta_v0"] },
         { "name": "account", "types": ["account_v0"] },
         { "name": "account_metadata", "types": ["account_metadata_v0"] },
@@ -557,7 +601,7 @@ extern const char* const state_history_plugin_abi = R"({
         { "name": "contract_index_double", "types": ["contract_index_double_v0"] },
         { "name": "contract_index_long_double", "types": ["contract_index_long_double_v0"] },
         { "name": "chain_config", "types": ["chain_config_v0"] },
-        { "name": "global_property", "types": ["global_property_v0", "global_property_v1"] },
+        { "name": "global_property", "types": ["global_property_v0", "global_property_v1", "global_property_v2"] },
         { "name": "generated_transaction", "types": ["generated_transaction_v0"] },
         { "name": "activated_protocol_feature", "types": ["activated_protocol_feature_v0"] },
         { "name": "protocol_state", "types": ["protocol_state_v0"] },
