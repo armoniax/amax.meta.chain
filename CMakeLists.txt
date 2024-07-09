@@ -117,6 +117,9 @@ set( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
 # the pthread dependency through fc.
 find_package(Boost 1.67 REQUIRED COMPONENTS program_options unit_test_framework)
 
+# fix compile error of <boost/container_hash/hash.hpp>, avoid to use std::unary_function
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_HAS_AUTO_PTR_ETC=0" )
+
 if( APPLE AND UNIX )
 # Apple Specific Options Here
     message( STATUS "Configuring AMAX on macOS" )
