@@ -186,10 +186,10 @@ endif()
 
 install_directory_permissions(DIRECTORY ${CMAKE_INSTALL_FULL_SYSCONFDIR}/amax)
 
-install(FILES testnet.template DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/amax/launcher)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/testnet.template DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/amax/launcher)
 install_directory_permissions(DIRECTORY ${CMAKE_INSTALL_FULL_SYSCONFDIR}/amax)
 install_directory_permissions(DIRECTORY ${CMAKE_INSTALL_FULL_SYSCONFDIR}/amax/launcher)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testnet.template ${CMAKE_CURRENT_BINARY_DIR}/etc/amax/launcher/testnet.template COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/testnet.template ${CMAKE_CURRENT_BINARY_DIR}/etc/amax/launcher/testnet.template COPYONLY)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/amax.version.in ${CMAKE_CURRENT_BINARY_DIR}/amax.version.hpp)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/amax.version.hpp DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR})
