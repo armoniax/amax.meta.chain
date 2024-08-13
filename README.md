@@ -47,7 +47,7 @@ set(VERSION_PATCH 2)
 
 ## Build the code
 ```
-./scripts/amax_build.sh -P
+./scripts/amax_build.sh -y
 ```
 
 # How to install
