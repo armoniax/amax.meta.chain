@@ -22,15 +22,15 @@
 
 namespace eosio { namespace chain {
 
-   const uint32_t block_log::min_supported_version = 1;
+   const uint32_t block_log::min_supported_version = 3;
 
    /**
     * History:
-    * Version 1: complete block log from genesis
-    * Version 2: adds optional partial block log, cannot be used for replay without snapshot
+    * Version 1: [deprecated] complete block log from genesis
+    * Version 2: [deprecated] adds optional partial block log, cannot be used for replay without snapshot
     *            this is in the form of an first_block_num that is written immediately after the version
     * Version 3: improvement on version 2 to not require the genesis state be provided when not starting
-    *            from block 1
+    *            from block 1, [ new added ] and support backup block
     */
    const uint32_t block_log::max_supported_version = 3;
 
@@ -47,6 +47,10 @@ namespace eosio { namespace chain {
             bool                     genesis_written_to_block_log = false;
             uint32_t                 version = 0;
             uint32_t                 first_block_num = 0;
+
+            static std::vector<char> pack_block(const full_signed_block_ptr& block);
+            template<typename Stream>
+            static full_signed_block_ptr unpack_block(Stream& s);
 
             inline void check_open_files() {
                if( !open_files ) {
@@ -77,6 +81,47 @@ namespace eosio { namespace chain {
             template <typename ChainContext, typename Lambda>
             static fc::optional<ChainContext> extract_chain_context( const fc::path& data_dir, Lambda&& lambda );
       };
+
+      std::vector<char> block_log_impl::pack_block(const full_signed_block_ptr& block) {
+         EOS_ASSERT( block->main_block, block_validate_exception,"main block can not be null");
+
+         const auto& previous_backup = block->main_block->previous_backup();
+         EOS_ASSERT( bool(previous_backup) == (block->backup_block != nullptr),
+               block_validate_exception,"backup block existed status mismatch with previous backup of main block");
+         fc::datastream<size_t> ps;
+         fc::raw::pack(ps, *block->main_block );
+         if (block->backup_block) {
+            fc::raw::pack(ps, *block->backup_block );
+         }
+         std::vector<char> vec(ps.tellp());
+
+         if( vec.size() ) {
+            fc::datastream<char*> ds( vec.data(), size_t(vec.size()) );
+            fc::raw::pack(ds, *block->main_block );
+            if (block->backup_block) {
+               fc::raw::pack(ds, *block->backup_block );
+            }
+         }
+         return vec;
+      }
+
+      template<typename Stream>
+      full_signed_block_ptr detail::block_log_impl::unpack_block(Stream& s) {
+
+         signed_block_ptr main_block = std::make_shared<signed_block>();
+         fc::raw::unpack(s, *main_block );
+         signed_block_ptr backup_block = nullptr;
+         const auto& previous_backup = main_block->previous_backup();
+         if ( bool(previous_backup) ) {
+            backup_block = std::make_shared<signed_block>();
+            fc::raw::unpack(s, *backup_block );
+            EOS_ASSERT( backup_block->id() == previous_backup->id, block_validate_exception,
+               "id of backup block mismatch with previous backup of main block");
+            EOS_ASSERT( backup_block->producer == previous_backup->producer, block_validate_exception,
+               "producer of backup block mismatch with previous backup of main block");
+         }
+         return std::make_shared<full_signed_block>(main_block, backup_block);
+      }
 
       void detail::block_log_impl::reopen() {
          close();
@@ -304,7 +349,7 @@ namespace eosio { namespace chain {
                    "Append to index file occuring at wrong position.",
                    ("position", (uint64_t) index_file.tellp())
                    ("expected", (b->main_block_num() - first_block_num) * sizeof(uint64_t)));
-         auto data = b->pack();
+         auto data = pack_block(b);
          block_file.write(data.data(), data.size());
          block_file.write((char*)&pos, sizeof(pos));
          index_file.write((char*)&pos, sizeof(pos));
@@ -394,8 +439,7 @@ namespace eosio { namespace chain {
       my->block_file.seek(pos);
       full_signed_block_ptr result = std::make_shared<full_signed_block>();
       auto ds = my->block_file.create_datastream();
-      result->unpack(ds);
-      return result;
+      return my->unpack_block(ds);
    }
 
    void block_log::read_block_header(block_header& bh, uint64_t pos)const {
@@ -612,17 +656,17 @@ namespace eosio { namespace chain {
 
       std::exception_ptr     except_ptr;
       vector<char>           incomplete_block_data;
-      optional<full_signed_block> bad_block;
+      full_signed_block_ptr  bad_block;
       uint32_t               block_num = 0;
 
       block_id_type previous;
 
       uint64_t pos = old_block_stream.tellg();
       while( pos < end_pos ) {
-         full_signed_block tmp;
+         full_signed_block_ptr tmp;
 
          try {
-            tmp.unpack(old_block_stream);
+            tmp = detail::block_log_impl::unpack_block(old_block_stream);
          } catch( ... ) {
             except_ptr = std::current_exception();
             incomplete_block_data.resize( end_pos - pos );
@@ -630,16 +674,16 @@ namespace eosio { namespace chain {
             break;
          }
 
-         auto id = tmp.main_block_id();
+         auto id = tmp->main_block_id();
          if( block_header::num_from_id(previous) + 1 != block_header::num_from_id(id) ) {
             elog( "Block ${num} (${id}) skips blocks. Previous block in block log is block ${prev_num} (${previous})",
                   ("num", block_header::num_from_id(id))("id", id)
                   ("prev_num", block_header::num_from_id(previous))("previous", previous) );
          }
-         if( previous != tmp.main_block->previous ) {
+         if( previous != tmp->main_block->previous ) {
             elog( "Block ${num} (${id}) does not link back to previous block. "
                   "Expected previous: ${expected}. Actual previous: ${actual}.",
-                  ("num", block_header::num_from_id(id))("id", id)("expected", previous)("actual", tmp.main_block->previous) );
+                  ("num", block_header::num_from_id(id))("id", id)("expected", previous)("actual", tmp->main_block->previous) );
          }
          previous = id;
 
@@ -648,14 +692,14 @@ namespace eosio { namespace chain {
             old_block_stream.read( reinterpret_cast<char*>(&tmp_pos), sizeof(tmp_pos) );
          }
          if( pos != tmp_pos ) {
-            bad_block.emplace(std::move(tmp));
+            bad_block = std::move(tmp);
             break;
          }
 
-         auto data = tmp.pack();
+         auto data = detail::block_log_impl::pack_block(tmp);
          new_block_stream.write( data.data(), data.size() );
          new_block_stream.write( reinterpret_cast<char*>(&pos), sizeof(pos) );
-         block_num = tmp.main_block_num();
+         block_num = tmp->main_block_num();
          if(block_num % 1000 == 0)
             ilog( "Recovered block ${num}", ("num", block_num) );
          pos = new_block_stream.tellp();
@@ -663,9 +707,9 @@ namespace eosio { namespace chain {
             break;
       }
 
-      if( bad_block.valid() ) {
+      if( bad_block != nullptr ) {
          ilog( "Recovered only up to block number ${num}. Last block in block log was not properly committed:\n${last_block}",
-               ("num", block_num)("last_block", (*bad_block).main_block) );
+               ("num", block_num)("last_block", bad_block->main_block) );
       } else if( except_ptr ) {
          std::string error_msg;
 
