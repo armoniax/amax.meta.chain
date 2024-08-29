@@ -14,6 +14,8 @@ elif [[ ${OS_MAJ} -eq 12 ]]; then
    MAC_VERSION="monterey"
 elif [[ ${OS_MAJ} -eq 13 ]]; then
    MAC_VERSION="ventura"
+elif [[ ${OS_MAJ} -eq 14 ]]; then
+   MAC_VERSION="sonoma"
 else
    echo "Error, unsupported OS X version:${OS_VER}"
    exit -1
