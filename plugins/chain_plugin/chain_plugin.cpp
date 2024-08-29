@@ -1522,6 +1522,7 @@ std::string itoh(I n, size_t hlen = sizeof(I)<<1) {
 
 read_only::get_info_results read_only::get_info(const read_only::get_info_params&) const {
    const auto& rm = db.get_resource_limits_manager();
+   auto hbs = db.head_block_state();
    return {
       itoh(static_cast<uint32_t>(app().version())),
       db.get_chain_id(),
@@ -1540,7 +1541,8 @@ read_only::get_info_results read_only::get_info(const read_only::get_info_params
       app().version_string(),
       db.fork_db_pending_head_block_num(),
       db.fork_db_pending_head_block_id(),
-      app().full_version_string()
+      app().full_version_string(),
+      hbs->block->backup_ext().previous_backup
    };
 }
 
@@ -2061,7 +2063,9 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
                               ("schedule_lib_num", pending_schedule.schedule_lib_num)
                               ("version", pending_change.version)
                               ("change_count", pending_change.main_changes.changes.size() + pending_change.backup_changes.changes.size())
+                              ("main_producer_count", pending_change.main_changes.producer_count )
                               ("main_changes", type_extract(pending_change.main_changes.changes) )
+                              ("backup_producer_count", pending_change.backup_changes.producer_count )
                               ("backup_changes", type_extract(pending_change.backup_changes.changes) );
    //producer_authority_schedule
    } else if ( pending_schedule.schedule.contains<producer_authority_schedule>() ) {
@@ -2080,7 +2084,9 @@ read_only::get_producer_schedule_result read_only::get_producer_schedule( const 
                                  ("schedule_lib_num", gpo.proposed_schedule_block_num)
                                  ("version", proposed_change.version)
                                  ("change_count", proposed_change.main_changes.changes.size() + proposed_change.backup_changes.changes.size())
+                                 ("main_producer_count", proposed_change.main_changes.producer_count )
                                  ("main_changes", type_extract( proposed_change.main_changes.changes ) )
+                                 ("backup_producer_count", proposed_change.backup_changes.producer_count )
                                  ("backup_changes", type_extract( proposed_change.backup_changes.changes ) );
       } else if ( gpo.proposed_schedule.version > 0 && gpo.proposed_schedule.producers.size() > 0 ){
          // producer_authority_schedule::from_shared(gpo.proposed_schedule)
