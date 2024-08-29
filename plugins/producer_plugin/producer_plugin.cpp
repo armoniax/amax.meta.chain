@@ -2430,7 +2430,7 @@ void producer_plugin_impl::produce_block() {
    }
 
    //idump( (fc::time_point::now() - chain.pending_block_time()) );
-   chain.finalize_block( [&]( const digest_type& d ) {
+   auto new_bs = chain.finalize_block( [&]( const digest_type& d ) {
       auto debug_logger = maybe_make_debug_time_logger();
       vector<signature_type> sigs;
       sigs.reserve(relevant_providers.size());
@@ -2444,12 +2444,17 @@ void producer_plugin_impl::produce_block() {
 
    chain.commit_block();
 
-   block_state_ptr new_bs = chain.head_block_state();
-   //main block log
-   ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",
+   block_state_ptr head_bs = chain.head_block_state();
+   bool is_head = !new_bs->is_backup() && ( new_bs == head_bs || new_bs->id == head_bs->id );
+   ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, "
+      "confirmed: ${confs}, is_backup: ${is_backup}, is_head=${is_head}]",
       ("p",new_bs->header.producer)("id",new_bs->id.str().substr(8,16))
       ("n",new_bs->block_num)("t",new_bs->header.timestamp)
-      ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));
+      ("count",new_bs->block->transactions.size())
+      ("lib",chain.last_irreversible_block_num())
+      ("confs", new_bs->header.confirmed)
+      ("is_backup", new_bs->is_backup())
+      ("is_head", is_head));
 }
 
 void producer_plugin::log_failed_transaction(const transaction_id_type& trx_id, const char* reason) const {
