@@ -46,22 +46,8 @@ namespace eosio { namespace chain {
 
          full_signed_block_ptr   read_block(uint64_t file_pos)const;
          void             read_block_header(block_header& bh, uint64_t file_pos)const;
-         full_signed_block_ptr read_block_by_num(uint32_t block_num , bool is_backup = false)const;
+         full_signed_block_ptr read_block_by_num(uint32_t block_num)const;
          block_id_type    read_block_id_by_num(uint32_t block_num)const;
-         signed_block_ptr read_block_by_id(const block_id_type& id)const {
-            auto block_num = block_header::num_from_id(id);
-            full_signed_block_ptr block = read_block_by_num( block_num );
-            if( block ){
-               return block->main_block;
-            }
-
-            block = read_block_by_num( block_num+1 );
-            if( block ){
-               return block->backup_block;
-            }
-
-            return nullptr;
-         }
 
          /**
           * Return offset of block in file, or block_log::npos if it does not exist.

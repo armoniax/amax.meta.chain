@@ -3163,9 +3163,18 @@ signed_block_ptr controller::fetch_block_by_number( uint32_t block_num , bool is
    if( blk_state ) {
       return blk_state->block;
    }
-   full_signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
-   if( !candinate ) return signed_block_ptr();
-   return !is_backup ? candinate->main_block : candinate->backup_block;
+
+   if (!is_backup) {
+      auto fb = my->blog.read_block_by_num(block_num);
+      if (fb) {
+         return fb->main_block;
+      }
+   } else { // backup block
+      auto fb = my->blog.read_block_by_num(block_num + 1);
+      if (fb) {
+         return fb->backup_block;
+      }
+   }
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_state_ptr controller::fetch_block_state_by_id( block_id_type id )const {

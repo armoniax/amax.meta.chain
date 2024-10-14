@@ -1523,6 +1523,10 @@ std::string itoh(I n, size_t hlen = sizeof(I)<<1) {
 read_only::get_info_results read_only::get_info(const read_only::get_info_params&) const {
    const auto& rm = db.get_resource_limits_manager();
    auto hbs = db.head_block_state();
+   optional<previous_backup_info> previous_backup;
+   if (hbs && hbs->block) {
+      previous_backup = hbs->block->backup_ext().previous_backup;
+   }
    return {
       itoh(static_cast<uint32_t>(app().version())),
       db.get_chain_id(),
@@ -1542,7 +1546,7 @@ read_only::get_info_results read_only::get_info(const read_only::get_info_params
       db.fork_db_pending_head_block_num(),
       db.fork_db_pending_head_block_id(),
       app().full_version_string(),
-      hbs->block->backup_ext().previous_backup
+      previous_backup
    };
 }
 
@@ -2208,8 +2212,9 @@ fc::variant read_only::get_block(const read_only::get_block_params& params) cons
       block_num = fc::to_uint64(params.block_num_or_id);
    } catch( ... ) {}
 
+   bool is_backup = params.is_backup.valid() ? *params.is_backup : false;
    if( block_num.valid() ) {
-      block = db.fetch_block_by_number( *block_num, *(params.is_backup) );
+      block = db.fetch_block_by_number( *block_num, is_backup );
    } else {
       try {
          block = db.fetch_block_by_id( fc::variant(params.block_num_or_id).as<block_id_type>() );
