@@ -2447,7 +2447,7 @@ void producer_plugin_impl::produce_block() {
    block_state_ptr head_bs = chain.head_block_state();
    bool is_head = !new_bs->is_backup() && ( new_bs == head_bs || new_bs->id == head_bs->id );
    ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, "
-      "confirmed: ${confs}, is_backup: ${is_backup}, is_head=${is_head}]",
+      "confirmed: ${confs}, is_backup: ${is_backup}, is_head: ${is_head}]",
       ("p",new_bs->header.producer)("id",new_bs->id.str().substr(8,16))
       ("n",new_bs->block_num)("t",new_bs->header.timestamp)
       ("count",new_bs->block->transactions.size())

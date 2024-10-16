@@ -3142,17 +3142,15 @@ const global_property_object& controller::get_global_properties()const {
 signed_block_ptr controller::fetch_block_by_id( block_id_type id )const {
    auto state = my->fork_db.get_block(id);
    if( state && state->block ) return state->block;
-   auto bptr = fetch_block_by_number( block_header::num_from_id(id) );
+
+   auto block_num = block_header::num_from_id(id);
+   auto bptr = fetch_block_by_number( block_num );
    if( bptr && bptr->id() == id ){
       return bptr;
    }else{
       bptr = fetch_block_by_number( block_header::num_from_id(id) , true );
-      fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] fetch backup block by id in controller, find: ${found}",("found",bptr != nullptr? true: false));
-      if( bptr ){
-         //fc_dlog(_backup_block_trace_log,"[BACKUP_TRACE] found id: ${fid}: wanted: ${wid}",("fid",bptr->id())("wid",id));
-         if( bptr->id() == id ){
-            return bptr;
-         }
+      if( bptr && bptr->id() == id ){
+         return bptr;
       }
    }
    return signed_block_ptr();
@@ -3163,9 +3161,19 @@ signed_block_ptr controller::fetch_block_by_number( uint32_t block_num , bool is
    if( blk_state ) {
       return blk_state->block;
    }
-   full_signed_block_ptr candinate = my->blog.read_block_by_num(block_num , is_backup);
-   if( !candinate ) return signed_block_ptr();
-   return !is_backup ? candinate->main_block : candinate->backup_block;
+
+   if (!is_backup) {
+      auto fb = my->blog.read_block_by_num(block_num);
+      if (fb) {
+         return fb->main_block;
+      }
+   } else { // backup block
+      auto fb = my->blog.read_block_by_num(block_num + 1);
+      if (fb) {
+         return fb->backup_block;
+      }
+   }
+   return signed_block_ptr();
 } FC_CAPTURE_AND_RETHROW( (block_num) ) }
 
 block_state_ptr controller::fetch_block_state_by_id( block_id_type id )const {

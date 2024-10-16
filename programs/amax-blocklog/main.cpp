@@ -145,9 +145,8 @@ void blocklog::read_log() {
       next = temp->main_block;
       if (as_json_array && contains_obj)
          *out << ",";
-      if( !next->previous_backup_id().empty() ){
-         backup_of_next = block_logger.read_block_by_num( block_num-1 , true)->backup_block;
-         print_block( backup_of_next );
+      if( !next->previous_backup_id().empty() && temp->backup_block ){
+         print_block( temp->backup_block );
          *out << ",";
       }
       print_block(next);
