@@ -117,7 +117,7 @@ const code_descriptor* const code_cache_async::get_descriptor_for_code(const dig
       while(count_processed && _queued_compiles.size()) {
          auto nextup = _queued_compiles.begin();
 
-         //it's not clear this check is required: if apply() was called for code then it existed in the code_index; and then
+         //it's not clear this check is required: if apply() was called for code then it found in the code_index; and then
          // if we got notification of it no longer existing we would have removed it from queued_compiles
          const code_object* const codeobject = _db.find<code_object,by_code_hash>(boost::make_tuple(nextup->code_id, 0, nextup->vm_version));
          if(codeobject) {

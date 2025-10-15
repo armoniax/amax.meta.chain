@@ -120,7 +120,7 @@ namespace eosio::trace_api {
        * @param state : indicate if the file is going to be written to (appended) or read
        * @param index_file : the cfile that will be set to the appropriate slice filename
        *                     and opened to that file
-       * @return the true if file was found (i.e. already existed)
+       * @return the true if file was found (i.e. already found)
        */
       bool find_or_create_index_slice(uint32_t slice_number, open_state state, fc::cfile& index_file) const;
 
@@ -132,7 +132,7 @@ namespace eosio::trace_api {
        * @param index_file : the cfile that will be set to the appropriate slice filename (always)
        *                     and opened to that file (if it was found)
        * @param open_file : indicate if the file should be opened (if found) or not
-       * @return the true if file was found (i.e. already existed), if not found index_file
+       * @return the true if file was found (i.e. already found), if not found index_file
        *         is set to the appropriate file, but not open
        */
       bool find_index_slice(uint32_t slice_number, open_state state, fc::cfile& index_file, bool open_file = true) const;
@@ -144,7 +144,7 @@ namespace eosio::trace_api {
        * @param state : indicate if the file is going to be written to (appended) or read
        * @param trace_file : the cfile that will be set to the appropriate slice filename
        *                     and opened to that file
-       * @return the true if file was found (i.e. already existed)
+       * @return the true if file was found (i.e. already found)
        */
       bool find_or_create_trace_slice(uint32_t slice_number, open_state state, fc::cfile& trace_file) const;
 
@@ -156,7 +156,7 @@ namespace eosio::trace_api {
        * @param trace_file : the cfile that will be set to the appropriate slice filename (always)
        *                     and opened to that file (if it was found)
        * @param open_file : indicate if the file should be opened (if found) or not
-       * @return the true if file was found (i.e. already existed), if not found index_file
+       * @return the true if file was found (i.e. already found), if not found index_file
        *         is set to the appropriate file, but not open
        */
       bool find_trace_slice(uint32_t slice_number, open_state state, fc::cfile& trace_file, bool open_file = true) const;
@@ -166,7 +166,7 @@ namespace eosio::trace_api {
        *
        * @param slice_number : slice number of the requested slice file
        * @param open_file : indicate if the file should be opened (if found) or not
-       * @return if file was found (i.e. already existed) returns an optional containing a compressed_file which is
+       * @return if file was found (i.e. already found) returns an optional containing a compressed_file which is
        *         open (or not) depending on the `open_file` paraneter,
        *         Otherwise, the returned optional is empty
        */

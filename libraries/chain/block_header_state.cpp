@@ -212,7 +212,7 @@ namespace eosio { namespace chain {
                for (const auto& p : active_schedule.producers) {
                   new_producers[p.producer_name] = p.authority;
                }
-            } // else clear existed producers
+            } // else clear found producers
 
             producer_change_merger::merge(main_changes, new_producers);
             auto& new_active_producers = result.active_schedule.producers;

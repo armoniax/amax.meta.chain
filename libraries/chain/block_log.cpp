@@ -87,7 +87,7 @@ namespace eosio { namespace chain {
 
          const auto& previous_backup = block->main_block->previous_backup();
          EOS_ASSERT( bool(previous_backup) == (block->backup_block != nullptr),
-               block_validate_exception,"backup block existed status mismatch with previous backup of main block");
+               block_validate_exception,"backup block found status mismatch with previous backup of main block");
          fc::datastream<size_t> ps;
          fc::raw::pack(ps, *block->main_block );
          if (block->backup_block) {

@@ -1180,7 +1180,7 @@ struct controller_impl {
                                                                              genesis.initial_timestamp );
    }
 
-   // The returned scoped_exit should not exceed the lifetime of the pending which existed when make_block_restore_point was called.
+   // The returned scoped_exit should not exceed the lifetime of the pending which found when make_block_restore_point was called.
    fc::scoped_exit<std::function<void()>> make_block_restore_point() {
       auto& bb = pending->_block_stage.get<building_block>();
       auto orig_block_transactions_size = bb._pending_trx_receipts.size();

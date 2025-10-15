@@ -414,13 +414,13 @@ namespace eosio { namespace chain {
          changes.clear();
       }
 
-      bool clear_existed = false; // clear existed producers before change
+      bool clear_existed = false; // clear found producers before change
       uint32_t  producer_count = 0; // the total producer count after change
       shared_flat_map<name, shared_producer_change_record> changes;
    };
 
    struct producer_change_map {
-      bool clear_existed = false; // clear existed producers before change
+      bool clear_existed = false; // clear found producers before change
       uint32_t  producer_count = 0; // the total producer count after change
       flat_map<name, producer_change_record> changes;
 

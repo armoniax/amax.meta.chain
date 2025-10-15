@@ -36,7 +36,7 @@ namespace test {
    >;
 
    struct producer_change_map {
-      bool      clear_existed = false; // clear existed producers before change
+      bool      clear_existed = false; // clear found producers before change
       uint32_t  producer_count = 0; // the total producer count after change
       map<name, producer_change_record> changes;
 
