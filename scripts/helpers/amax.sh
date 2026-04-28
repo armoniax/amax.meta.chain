@@ -254,7 +254,7 @@ function ensure-boost() {
             local SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
         fi
         execute bash -c "cd $SRC_DIR && \
-        curl -fL -O https://archives.boost.io/release/$BOOST_VERSION_MAJOR.$BOOST_VERSION_MINOR.$BOOST_VERSION_PATCH/source/boost_$BOOST_VERSION.tar.bz2 \
+        curl --http1.1 -fL --retry 5 --retry-delay 5 --retry-connrefused -C - -O https://archives.boost.io/release/$BOOST_VERSION_MAJOR.$BOOST_VERSION_MINOR.$BOOST_VERSION_PATCH/source/boost_$BOOST_VERSION.tar.bz2 \
         && tar -xjf boost_$BOOST_VERSION.tar.bz2 \
         && cd $BOOST_ROOT \
         && SDKROOT="$SDKROOT" ./bootstrap.sh ${BOOTSTRAP_FLAGS} --prefix=$BOOST_ROOT \

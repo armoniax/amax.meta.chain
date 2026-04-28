@@ -87,7 +87,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
          auto op = (producer_change_operation)change.second.which();
 
          switch(op) {
-            case producer_change_operation::add:
+            case producer_change_operation::add: {
                backup_producer_count++;
                EOS_ASSERT( !found, producer_schedule_exception, "the added backup producer:${p} already exists", ("p", producer_name ) );
 
@@ -101,6 +101,7 @@ namespace eosio { namespace chain {  namespace producer_change_merger {
                   EOS_ASSERT( !exist_in_main_producers(producer_name), producer_schedule_exception, "the added backup producer:${p} also exist in main producers", ("p", producer_name ) );
                }
                break;
+            }
             
             case producer_change_operation::modify:
                EOS_ASSERT( !backup_changes.clear_existed, producer_schedule_exception, "can not modify backup producer:${p} when clear_existed is true", ("p", producer_name ) );
