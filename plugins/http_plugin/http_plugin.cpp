@@ -3,6 +3,7 @@
 #include <eosio/http_plugin/local_endpoint.hpp>
 #endif
 #include <eosio/chain/exceptions.hpp>
+#include <eosio/chain/transaction.hpp>
 #include <eosio/chain/thread_utils.hpp>
 
 #include <fc/network/ip.hpp>
@@ -46,6 +47,55 @@ namespace eosio {
    using boost::asio::ip::address_v6;
    using std::shared_ptr;
    using websocketpp::connection_hdl;
+
+   namespace {
+      void log_failed_push_transaction_context( const char* api_name, const char* call_name, const string& body ) {
+         const bool is_push_tx = std::strcmp(api_name, "chain") == 0 &&
+                                 (std::strcmp(call_name, "push_transaction") == 0 ||
+                                  std::strcmp(call_name, "send_transaction") == 0);
+         const bool is_push_txs = std::strcmp(api_name, "chain") == 0 &&
+                                  std::strcmp(call_name, "push_transactions") == 0;
+
+         if( !is_push_tx && !is_push_txs ) {
+            return;
+         }
+
+         try {
+            const auto parsed = fc::json::from_string(body);
+
+            auto log_one = []( const fc::variant& trx_var ) {
+               chain::packed_transaction trx;
+               fc::from_variant(trx_var, trx);
+               fc_ilog( logger, "Failed push transaction id=${id}", ("id", trx.id()) );
+            };
+
+            if( is_push_tx ) {
+               log_one(parsed);
+            } else {
+               const auto& trx_arr = parsed.get_array();
+               for( const auto& trx_var : trx_arr ) {
+                  log_one(trx_var);
+               }
+            }
+         } catch( ... ) {
+            try {
+               const auto parsed = fc::json::from_string(body);
+               if( parsed.is_object() ) {
+                  const auto& obj = parsed.get_object();
+                  if( obj.contains("packed_trx") && obj["packed_trx"].is_string() ) {
+                     auto packed = obj["packed_trx"].as_string();
+                     if( packed.size() > 64 ) {
+                        packed = packed.substr(0, 64);
+                     }
+                     fc_ilog( logger, "Failed push transaction, packed_trx prefix=${p}", ("p", packed) );
+                  }
+               }
+            } catch( ... ) {
+               // ignore best-effort logging failures
+            }
+         }
+      }
+   }
 
    enum https_ecdh_curve_t {
       SECP384R1,
@@ -960,6 +1010,7 @@ class http_plugin_impl : public std::enable_shared_from_this<http_plugin_impl> {
             if (e.code() != chain::greylist_net_usage_exceeded::code_value &&
                 e.code() != chain::greylist_cpu_usage_exceeded::code_value &&
                 e.code() != fc::timeout_exception::code_value ) {
+               log_failed_push_transaction_context(api_name, call_name, body);
                fc_elog( logger, "FC Exception encountered while processing ${api}.${call}",
                         ("api", api_name)( "call", call_name ) );
             }
@@ -967,6 +1018,7 @@ class http_plugin_impl : public std::enable_shared_from_this<http_plugin_impl> {
          } catch (std::exception& e) {
             error_results results{500, "Internal Service Error", error_results::error_info(fc::exception( FC_LOG_MESSAGE( error, e.what())), verbose_http_errors)};
             cb( 500, fc::variant( results ));
+            log_failed_push_transaction_context(api_name, call_name, body);
             fc_elog( logger, "STD Exception encountered while processing ${api}.${call}",
                      ("api", api_name)( "call", call_name ) );
             fc_dlog( logger, "Exception Details: ${e}", ("e", e.what()) );
@@ -974,6 +1026,7 @@ class http_plugin_impl : public std::enable_shared_from_this<http_plugin_impl> {
             error_results results{500, "Internal Service Error",
                error_results::error_info(fc::exception( FC_LOG_MESSAGE( error, "Unknown Exception" )), verbose_http_errors)};
             cb( 500, fc::variant( results ));
+            log_failed_push_transaction_context(api_name, call_name, body);
             fc_elog( logger, "Unknown Exception encountered while processing ${api}.${call}",
                      ("api", api_name)( "call", call_name ) );
          }
